@@ -6,11 +6,13 @@ namespace GameReminders.App;
 public partial class GameEditorWindow : Window
 {
     private readonly GameDefinition _original;
+    private readonly Func<GameDefinition, string?> _save;
 
-    public GameEditorWindow(GameDefinition game)
+    public GameEditorWindow(GameDefinition game, Func<GameDefinition, string?> save)
     {
         InitializeComponent();
         _original = game;
+        _save = save;
         NameText.Text = game.Name;
         AliasesText.Text = string.Join(Environment.NewLine, game.Aliases);
         ProcessesText.Text = string.Join(Environment.NewLine, game.Processes);
@@ -29,6 +31,12 @@ public partial class GameEditorWindow : Window
                 Processes = SplitLines(ProcessesText.Text)
             };
             JsonProtocol.WriteCatalog(new GameCatalog { Games = [candidate] });
+            var saveError = _save(candidate);
+            if (!SaveSucceeded(saveError))
+            {
+                MessageBox.Show($"The game could not be saved.\n\n{saveError}", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             Result = candidate;
             DialogResult = true;
         }
@@ -37,6 +45,8 @@ public partial class GameEditorWindow : Window
             MessageBox.Show(exception.Message, "Invalid game", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
+
+    internal static bool SaveSucceeded(string? error) => error is null;
 
     private static IReadOnlyList<string> SplitLines(string text) => text
         .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
