@@ -34,4 +34,8 @@ Add regression tests for protocol validation, filesystem state transitions, proc
 
 - Write the title as an imperative squash-commit subject.
 - Write the description as a durable squash-commit body, including motivation and completed validation.
+- Every PR description must include current, concrete instructions for manually validating the user-visible changes. Update those instructions whenever the implementation changes what reviewers should test.
+- Before implementing a PR change whose rationale is not already recorded in the PR (for example, a decision made in ChatGPT), add a top-level PR comment describing the planned change and why it is needed.
+- When a commit addresses a review discussion or suggestion, reply in that discussion with a link to the fixing commit. If multiple commits collectively address it, link a GitHub comparison whose visible label is the commit range (for example, `abc1234...def5678`) so the complete fix is reviewable as one diff.
+- Resolve a review discussion only after its fix is verified. Re-request review after substantive follow-up changes.
 - Keep a PR in draft while implementation or CI is incomplete; mark it ready when it is awaiting human review.
