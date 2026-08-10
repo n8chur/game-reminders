@@ -100,6 +100,10 @@ public static class JsonProtocol
                 }
 
                 var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
+                if (string.IsNullOrWhiteSpace(normalizedProcess))
+                {
+                    throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
+                }
 
                 if (processOwners.TryGetValue(normalizedProcess, out var ownerId) &&
                     !string.Equals(ownerId, game.Id, StringComparison.OrdinalIgnoreCase))
