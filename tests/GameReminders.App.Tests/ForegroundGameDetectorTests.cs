@@ -53,7 +53,11 @@ public sealed class ForegroundGameDetectorTests
 
         detector.ScanOnce();
         detector.ScanOnce();
-        var thirdScan = Task.Run(detector.ScanOnce);
+        var thirdScan = Task.Factory.StartNew(
+            detector.ScanOnce,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(5)));
 
         detector.Dispose();
