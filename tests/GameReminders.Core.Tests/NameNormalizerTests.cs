@@ -49,6 +49,17 @@ public sealed class NameNormalizerTests
     }
 
     [Fact]
+    public void FilenameAndPathMappingsForSameExecutableOverlap()
+    {
+        Assert.True(NameNormalizer.ExecutableMappingsOverlap(
+            "Everwind.exe",
+            @"Everwind\Everwind.exe"));
+        Assert.False(NameNormalizer.ExecutableMappingsOverlap(
+            "EverwindLauncher.exe",
+            @"Everwind\Everwind.exe"));
+    }
+
+    [Fact]
     public void FilenameMappingMatchesObservedAbsolutePath()
     {
         Assert.True(NameNormalizer.ExecutableMatches(
