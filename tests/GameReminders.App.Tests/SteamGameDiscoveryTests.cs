@@ -31,6 +31,26 @@ public sealed class SteamGameDiscoveryTests
         Assert.Empty(manifests);
     }
 
+    [Fact]
+    public void ExecutableEnumerationSkipsInaccessibleSubdirectoriesAndReparsePoints()
+    {
+        EnumerationOptions? requestedOptions = null;
+
+        var executables = SteamGameDiscovery.FindLikelyExecutables(
+            @"D:\\SteamLibrary\\steamapps\\common\\Test Game",
+            (_, _, options) =>
+            {
+                requestedOptions = options;
+                return [@"D:\\SteamLibrary\\steamapps\\common\\Test Game\\TestGame.exe"];
+            });
+
+        Assert.Single(executables);
+        Assert.NotNull(requestedOptions);
+        Assert.True(requestedOptions.RecurseSubdirectories);
+        Assert.True(requestedOptions.IgnoreInaccessible);
+        Assert.Equal(FileAttributes.ReparsePoint, requestedOptions.AttributesToSkip);
+    }
+
     [Theory]
     [InlineData("", "Test Game", "TestGame")]
     [InlineData("123", "Test Game", "")]
