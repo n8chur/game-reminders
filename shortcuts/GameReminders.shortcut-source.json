@@ -1,0 +1,184 @@
+{
+  "format": "game-reminders-shortcut-source",
+  "formatVersion": 1,
+  "name": "Game Reminder",
+  "platform": "iPhone and iPad Shortcuts",
+  "distribution": {
+    "artifact": "GameReminders.shortcut",
+    "status": "requires-apple-export",
+    "sharingMode": "anyone"
+  },
+  "configuration": {
+    "variable": "gameRemindersFolder",
+    "type": "folder",
+    "importQuestion": "Choose your Game Reminders folder in iCloud Drive."
+  },
+  "normalization": {
+    "case": "lowercase",
+    "replacePattern": "[^\\p{L}\\p{N}]",
+    "replacement": "",
+    "replaceAll": true
+  },
+  "workflow": [
+    {
+      "action": "getFile",
+      "folder": "gameRemindersFolder",
+      "relativePath": "games.json",
+      "error": "Game Reminders could not read games.json from the selected folder."
+    },
+    {
+      "action": "parseDictionary",
+      "input": "games.json",
+      "output": "catalog",
+      "error": "games.json is not valid JSON. Fix or reload it on Windows, then try again."
+    },
+    {
+      "action": "require",
+      "conditions": [
+        "catalog.schemaVersion equals number 1",
+        "catalog.games is a list"
+      ],
+      "error": "games.json uses an unsupported format. Update Game Reminders on Windows."
+    },
+    {
+      "action": "askForText",
+      "prompt": "Which game?",
+      "output": "requestedGameName"
+    },
+    {
+      "action": "normalize",
+      "input": "requestedGameName",
+      "output": "requestedGameKey"
+    },
+    {
+      "action": "requireNonEmpty",
+      "input": "requestedGameKey",
+      "error": "Enter a game name."
+    },
+    {
+      "action": "initializeList",
+      "output": "matches"
+    },
+    {
+      "action": "initializeList",
+      "output": "matchedGameIds"
+    },
+    {
+      "action": "repeatEach",
+      "input": "catalog.games",
+      "item": "game",
+      "steps": [
+        {
+          "action": "list",
+          "items": [
+            "game.name",
+            "game.aliases"
+          ],
+          "flatten": true,
+          "output": "candidateNames"
+        },
+        {
+          "action": "repeatEach",
+          "input": "candidateNames",
+          "item": "candidateName",
+          "steps": [
+            {
+              "action": "normalize",
+              "input": "candidateName",
+              "output": "candidateKey"
+            },
+            {
+              "action": "if",
+              "condition": "candidateKey equals requestedGameKey and matchedGameIds does not contain game.id",
+              "then": [
+                {
+                  "action": "addToVariable",
+                  "variable": "matches",
+                  "value": "game"
+                },
+                {
+                  "action": "addToVariable",
+                  "variable": "matchedGameIds",
+                  "value": "game.id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "action": "branchOnCount",
+      "input": "matches",
+      "branches": {
+        "zero": {
+          "show": "No game matched. Add or edit the game on Windows, then try again.",
+          "stop": true
+        },
+        "moreThanOne": {
+          "show": "More than one game matched. Make the aliases unique on Windows, then try again.",
+          "stop": true
+        },
+        "one": {
+          "getFirstItemAs": "matchedGame"
+        }
+      }
+    },
+    {
+      "action": "askForText",
+      "prompt": "What should I remind you?",
+      "output": "message"
+    },
+    {
+      "action": "requireNonWhitespace",
+      "input": "message",
+      "error": "Enter a reminder."
+    },
+    {
+      "action": "generateUuid",
+      "output": "reminderId"
+    },
+    {
+      "action": "currentDate",
+      "format": "ISO 8601",
+      "output": "createdAt"
+    },
+    {
+      "action": "dictionary",
+      "output": "reminder",
+      "entries": {
+        "schemaVersion": 1,
+        "id": "reminderId",
+        "gameId": "matchedGame.id",
+        "gameNameAtCreation": "matchedGame.name",
+        "message": "message",
+        "createdAt": "createdAt"
+      }
+    },
+    {
+      "action": "serializeJson",
+      "input": "reminder",
+      "output": "reminderJson"
+    },
+    {
+      "action": "saveFile",
+      "input": "reminderJson",
+      "folder": "gameRemindersFolder/inbox",
+      "name": ".<reminderId>.tmp",
+      "overwrite": false,
+      "output": "stagedFile"
+    },
+    {
+      "action": "renameFile",
+      "input": "stagedFile",
+      "name": "<reminderId>.json",
+      "overwrite": false,
+      "output": "savedReminder"
+    },
+    {
+      "action": "showResult",
+      "message": "Reminder saved for <matchedGame.name>.",
+      "onlyAfter": "savedReminder"
+    }
+  ]
+}
