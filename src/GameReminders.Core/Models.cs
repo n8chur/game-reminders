@@ -22,6 +22,8 @@ public sealed record GameSource
 {
     public required string Type { get; init; }
     public string? AppId { get; init; }
+    public bool RequiresExecutableReview { get; init; }
+    public IReadOnlyList<string> ExecutableCandidates { get; init; } = [];
 }
 
 public sealed record Reminder
@@ -36,4 +38,3 @@ public sealed record Reminder
     [JsonIgnore]
     public string? SourcePath { get; init; }
 }
-

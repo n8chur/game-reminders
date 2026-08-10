@@ -15,11 +15,35 @@ public static class JsonProtocol
 
     public static GameCatalog ReadCatalog(string json)
     {
+        if (IsEmptyCatalogPlaceholder(json))
+        {
+            return new GameCatalog { UpdatedAt = DateTimeOffset.UnixEpoch };
+        }
+
         var catalog = JsonSerializer.Deserialize<GameCatalog>(json, Options)
             ?? throw new InvalidDataException("games.json contained no catalog.");
 
         ValidateCatalog(catalog);
         return catalog;
+    }
+
+    internal static bool IsEmptyCatalogPlaceholder(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                   !document.RootElement.EnumerateObject().Any();
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     public static Reminder ReadReminder(string json, string? sourcePath = null)
@@ -51,7 +75,7 @@ public static class JsonProtocol
         }
 
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var processOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var processOwners = new List<(string Process, string OwnerId)>();
         if (catalog.Games is null)
         {
             throw new InvalidDataException("games.json requires a games collection.");
@@ -99,20 +123,36 @@ public static class JsonProtocol
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
                 }
 
-                var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
+                var normalizedProcess = NameNormalizer.NormalizeExecutableIdentity(process);
                 if (string.IsNullOrWhiteSpace(normalizedProcess))
                 {
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
                 }
 
-                if (processOwners.TryGetValue(normalizedProcess, out var ownerId) &&
-                    !string.Equals(ownerId, game.Id, StringComparison.OrdinalIgnoreCase))
+                var conflict = processOwners.FirstOrDefault(item =>
+                    !string.Equals(item.OwnerId, game.Id, StringComparison.OrdinalIgnoreCase) &&
+                    NameNormalizer.ExecutableMappingsOverlap(item.Process, process));
+                if (conflict != default)
                 {
                     throw new InvalidDataException(
-                        $"Process '{process}' is assigned to both '{ownerId}' and '{game.Id}'.");
+                        $"Process '{process}' is assigned to both '{conflict.OwnerId}' and '{game.Id}'.");
                 }
 
-                processOwners[normalizedProcess] = game.Id;
+                processOwners.Add((process, game.Id));
+            }
+
+            if (game.Source is not null && game.Source.ExecutableCandidates is null)
+            {
+                throw new InvalidDataException($"Game '{game.Id}' requires an executableCandidates collection.");
+            }
+
+            foreach (var candidate in game.Source?.ExecutableCandidates ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(candidate) ||
+                    string.IsNullOrWhiteSpace(NameNormalizer.NormalizeExecutableIdentity(candidate)))
+                {
+                    throw new InvalidDataException($"Game '{game.Id}' contains an empty executable candidate.");
+                }
             }
         }
     }

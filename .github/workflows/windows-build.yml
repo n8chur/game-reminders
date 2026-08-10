@@ -29,7 +29,7 @@ jobs:
       - name: Test
         run: dotnet test GameReminders.slnx --configuration Release --no-restore
 
-      - name: Publish portable prototype
+      - name: Publish portable Windows build
         run: >-
           dotnet publish src/GameReminders.App/GameReminders.App.csproj
           --configuration Release

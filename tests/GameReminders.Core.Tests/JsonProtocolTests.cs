@@ -4,6 +4,20 @@ namespace GameReminders.Core.Tests;
 
 public sealed class JsonProtocolTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("   \r\n")]
+    [InlineData("{}")]
+    [InlineData("{ } ")]
+    public void EmptyCatalogPlaceholderIsTreatedAsNewCatalog(string json)
+    {
+        var catalog = JsonProtocol.ReadCatalog(json);
+
+        Assert.Empty(catalog.Games);
+        Assert.Equal(1, catalog.SchemaVersion);
+        Assert.Equal(DateTimeOffset.UnixEpoch, catalog.UpdatedAt);
+    }
+
     [Fact]
     public void CatalogRoundTripPreservesGameIdentityAndProcesses()
     {
@@ -85,6 +99,43 @@ public sealed class JsonProtocolTests
         var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteCatalog(catalog));
 
         Assert.Contains("assigned to both", exception.Message);
+    }
+
+    [Fact]
+    public void AbsoluteAndRelativeMappingsForSameExecutableAreRejected()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition { Id = "steam", Name = "Steam", Processes = [@"Everwind\Everwind.exe"] },
+                new GameDefinition
+                {
+                    Id = "manual",
+                    Name = "Manual",
+                    Processes = [@"D:\SteamLibrary\steamapps\common\Everwind\Everwind.exe"]
+                }
+            ]
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteCatalog(catalog));
+
+        Assert.Contains("assigned to both", exception.Message);
+    }
+
+    [Fact]
+    public void SameFilenameInDifferentGamePathsIsAllowed()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition { Id = "first", Name = "First", Processes = [@"First\Binaries\Game.exe"] },
+                new GameDefinition { Id = "second", Name = "Second", Processes = [@"Second\Binaries\Game.exe"] }
+            ]
+        };
+
+        JsonProtocol.WriteCatalog(catalog);
     }
 
     [Fact]

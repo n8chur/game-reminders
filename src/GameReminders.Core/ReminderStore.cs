@@ -3,6 +3,7 @@ namespace GameReminders.Core;
 public sealed class ReminderStore
 {
     private const int InvalidFileRetryLimit = 3;
+    private const int SyncProviderRetryLimit = 4;
     private readonly string _root;
     private readonly Dictionary<string, InvalidFileAttempts> _invalidFileAttempts =
         new(StringComparer.OrdinalIgnoreCase);
@@ -28,11 +29,49 @@ public sealed class ReminderStore
 
         if (!File.Exists(CatalogPath))
         {
-            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(new GameCatalog()));
+            RetrySyncProviderOperation(() =>
+            {
+                AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(new GameCatalog()));
+                return true;
+            });
         }
     }
 
-    public GameCatalog LoadCatalog() => JsonProtocol.ReadCatalog(File.ReadAllText(CatalogPath));
+    public GameCatalog LoadCatalog()
+    {
+        var json = RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath));
+        var catalog = JsonProtocol.ReadCatalog(json);
+        if (!JsonProtocol.IsEmptyCatalogPlaceholder(json))
+        {
+            return catalog;
+        }
+
+        SaveCatalog(catalog);
+        return JsonProtocol.ReadCatalog(
+            RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath)));
+    }
+
+    public void SaveCatalog(GameCatalog catalog)
+    {
+        RetrySyncProviderOperation(() =>
+        {
+            var current = JsonProtocol.ReadCatalog(File.ReadAllText(CatalogPath));
+            if (current.UpdatedAt != catalog.UpdatedAt)
+            {
+                throw new InvalidDataException(
+                    "games.json changed after it was loaded. Reload the catalog and try again; no data was overwritten.");
+            }
+
+            var updatedAt = DateTimeOffset.UtcNow;
+            if (updatedAt <= current.UpdatedAt)
+            {
+                updatedAt = current.UpdatedAt.AddTicks(1);
+            }
+
+            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(catalog with { UpdatedAt = updatedAt }));
+            return true;
+        });
+    }
 
     public IReadOnlyList<Reminder> LoadPending(string gameId)
     {
@@ -211,6 +250,30 @@ public sealed class ReminderStore
             }
         }
     }
+
+    internal static T RetrySyncProviderOperation<T>(
+        Func<T> operation,
+        Action<int>? wait = null,
+        int retryLimit = SyncProviderRetryLimit)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(retryLimit, 1);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return operation();
+            }
+            catch (Exception exception) when (
+                attempt < retryLimit &&
+                exception is IOException or UnauthorizedAccessException)
+            {
+                (wait ?? WaitBeforeRetry)(attempt);
+            }
+        }
+    }
+
+    private static void WaitBeforeRetry(int attempt) =>
+        Thread.Sleep(TimeSpan.FromMilliseconds(100 * (1 << (attempt - 1))));
 
     private sealed record InvalidFileAttempts(InvalidFileSignature Signature, int Count, bool Reported);
 
