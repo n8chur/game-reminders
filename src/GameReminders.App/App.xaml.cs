@@ -373,30 +373,39 @@ public partial class App : System.Windows.Application
                 discovered,
                 _settings.SuppressedSteamGames.Select(game => game.AppId));
             var added = import.AddedGames.Count;
-            if (added > 0)
+            var updatedCount = import.UpdatedGames.Count;
+            if (added > 0 || updatedCount > 0)
             {
                 _store.SaveCatalog(import.Catalog);
-                var updated = _settings with
+                if (added > 0)
                 {
-                    UnreviewedGameIds = _settings.UnreviewedGameIds
-                        .Concat(import.AddedGames.Select(game => game.Id))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToArray()
-                };
-                _settings = updated;
-                if (_settingsService?.TrySave(updated) != true)
-                {
-                    _mainWindow?.SetStatus("Steam games were added, but their review badges could not be saved");
+                    var updated = _settings with
+                    {
+                        UnreviewedGameIds = _settings.UnreviewedGameIds
+                            .Concat(import.AddedGames.Select(game => game.Id))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToArray()
+                    };
+                    _settings = updated;
+                    if (_settingsService?.TrySave(updated) != true)
+                    {
+                        _mainWindow?.SetStatus("Steam games were added, but their review badges could not be saved");
+                    }
                 }
                 StartMonitoring();
-                ShowReviewNotification(added, trustedSteamGames: true);
+                if (added > 0)
+                {
+                    ShowReviewNotification(added, trustedSteamGames: true);
+                }
             }
             RemoveConfiguredPending(import.Catalog);
             if (showCompletion)
             {
-                _mainWindow?.SetStatus(added == 0
-                    ? "Steam scan found no new games"
-                    : $"Steam scan added {added} new game(s)");
+                _mainWindow?.SetStatus(added > 0
+                    ? $"Steam scan added {added} new game(s)"
+                    : updatedCount > 0
+                        ? $"Steam scan updated {updatedCount} existing game(s)"
+                        : "Steam scan found no new games");
             }
         }
         catch (Exception exception)
@@ -594,10 +603,15 @@ public partial class App : System.Windows.Application
         _ = ScanSteamAsync(showCompletion: true);
     }
 
-    private void MarkGamesReviewed()
+    private void MarkGamesReviewed(IReadOnlyCollection<string> gameIds)
     {
-        if (_settings.UnreviewedGameIds.Count == 0) return;
-        var updated = _settings with { UnreviewedGameIds = [] };
+        if (_settings.UnreviewedGameIds.Count == 0 || gameIds.Count == 0) return;
+        var reviewedIds = gameIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var remaining = _settings.UnreviewedGameIds
+            .Where(id => !reviewedIds.Contains(id))
+            .ToArray();
+        if (remaining.Length == _settings.UnreviewedGameIds.Count) return;
+        var updated = _settings with { UnreviewedGameIds = remaining };
         if (_settingsService?.TrySave(updated) != true) return;
         _settings = updated;
         if (_store is not null)
@@ -605,7 +619,7 @@ public partial class App : System.Windows.Application
             try
             {
                 var catalog = _store.LoadCatalog();
-                _mainWindow?.SetGames(catalog.Games, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                _mainWindow?.SetGames(catalog.Games, remaining.ToHashSet(StringComparer.OrdinalIgnoreCase));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
             {
