@@ -79,6 +79,14 @@ public sealed class ProcessLaunchMonitor : IDisposable
             {
                 // The process exited while it was being inspected.
             }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Windows can deny metadata access for protected processes.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Skip processes whose metadata cannot be read at this privilege level.
+            }
             finally
             {
                 process.Dispose();
