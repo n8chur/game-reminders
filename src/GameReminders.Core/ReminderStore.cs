@@ -77,7 +77,23 @@ public sealed class ReminderStore
 
         Directory.CreateDirectory(CompletedPath);
         var destination = Path.Combine(CompletedPath, Path.GetFileName(reminder.SourcePath));
-        File.Move(reminder.SourcePath, destination, overwrite: false);
+        try
+        {
+            File.Move(reminder.SourcePath, destination, overwrite: false);
+        }
+        catch (IOException) when (File.Exists(destination))
+        {
+            var archived = JsonProtocol.ReadReminder(File.ReadAllText(destination), destination);
+            if (archived.Id != reminder.Id)
+            {
+                throw new InvalidDataException(
+                    $"Completed reminder '{Path.GetFileName(destination)}' has an unexpected id.");
+            }
+
+            // The archive already contains this reminder, usually because another
+            // dismissal or a sync operation completed the move first.
+            File.Delete(reminder.SourcePath);
+        }
     }
 
     public static void AtomicWrite(string path, string contents)
