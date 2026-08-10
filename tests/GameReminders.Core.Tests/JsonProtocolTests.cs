@@ -4,6 +4,20 @@ namespace GameReminders.Core.Tests;
 
 public sealed class JsonProtocolTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("   \r\n")]
+    [InlineData("{}")]
+    [InlineData("{ } ")]
+    public void EmptyCatalogPlaceholderIsTreatedAsNewCatalog(string json)
+    {
+        var catalog = JsonProtocol.ReadCatalog(json);
+
+        Assert.Empty(catalog.Games);
+        Assert.Equal(1, catalog.SchemaVersion);
+        Assert.Equal(DateTimeOffset.UnixEpoch, catalog.UpdatedAt);
+    }
+
     [Fact]
     public void CatalogRoundTripPreservesGameIdentityAndProcesses()
     {
