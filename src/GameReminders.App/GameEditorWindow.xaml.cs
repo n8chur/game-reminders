@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -80,22 +81,25 @@ public partial class GameEditorWindow : Window
 
     private void UpdateValidationState()
     {
-        if (SaveButton is null || ActionRequiredPanel is null || ProcessesText is null)
+        if (SaveButton is null || ProcessesLabel is null || ProcessesHelp is null || ProcessesText is null)
         {
             return;
         }
 
         var canSave = CanSave(_original?.Source, SplitLines(ProcessesText.Text));
         SaveButton.IsEnabled = canSave;
-        ActionRequiredPanel.Visibility = canSave ? Visibility.Collapsed : Visibility.Visible;
+        ProcessesLabel.Foreground = canSave ? SystemColors.ControlTextBrush : Brushes.Firebrick;
+        ProcessesHelp.Foreground = canSave ? Brushes.DimGray : Brushes.Firebrick;
+        ProcessesHelp.Text = canSave
+            ? "Add every executable that should count as launching this game."
+            : "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.";
     }
 
     private void CandidateSelected(object sender, SelectionChangedEventArgs e)
     {
-        var selected = CandidatesList.SelectedItems.OfType<string>().ToArray();
-        if (selected.Length > 0)
+        if (CandidatesList.SelectedItem is string selected)
         {
-            SetProcesses(MergeExecutablePaths(ProcessesText.Text, selected));
+            SetProcesses(ReplaceExecutablePaths([selected]));
         }
     }
 
@@ -137,6 +141,13 @@ public partial class GameEditorWindow : Window
     internal static IReadOnlyList<string> MergeExecutablePaths(string existingText, IEnumerable<string> candidates) =>
         SplitLines(existingText)
             .Concat(candidates.Where(candidate => !string.IsNullOrWhiteSpace(candidate)).Select(candidate => candidate.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    internal static IReadOnlyList<string> ReplaceExecutablePaths(IEnumerable<string> candidates) =>
+        candidates
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+            .Select(candidate => candidate.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
