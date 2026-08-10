@@ -10,7 +10,6 @@
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="#E8EEF7" CornerRadius="6" Padding="10" Margin="0,0,0,14">
@@ -25,8 +24,9 @@
             <TextBlock Grid.Row="3" Text="Speech aliases (optional; one per line)" FontWeight="SemiBold" />
             <TextBox x:Name="AliasesText" Grid.Row="4" Margin="0,5,0,14" Padding="7" Height="64" AcceptsReturn="True" />
 
-            <TextBlock Grid.Row="5" Text="Executable paths or names (one per line)" FontWeight="SemiBold" />
-            <TextBlock Grid.Row="6" Margin="0,3,0,5" TextWrapping="Wrap" Foreground="#555"
+            <TextBlock x:Name="ProcessesLabel" Grid.Row="5" Text="Executable paths or names (one per line)" FontWeight="SemiBold" />
+            <TextBlock x:Name="ProcessesHelp" Grid.Row="6" Margin="0,3,0,5" Height="34"
+                       TextWrapping="Wrap" Foreground="#555"
                        Text="Add every executable that should count as launching this game." />
             <Grid Grid.Row="7" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -36,34 +36,47 @@
                         VerticalAlignment="Top" Click="BrowseExecutable_Click" />
             </Grid>
 
-            <Border x:Name="ActionRequiredPanel" Grid.Row="8" Background="#FFF3CD" BorderBrush="#D97706"
-                    BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="ACTION REQUIRED" FontWeight="Bold" Foreground="#9A4D00" />
-                    <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"
-                               Text="Choose at least one executable path below, or enter one in the Executable paths field. Save is disabled until this is resolved." />
-                </StackPanel>
-            </Border>
-
-            <TextBlock x:Name="CandidatesLabel" Grid.Row="9"
-                       Text="Detected paths (click to add; Ctrl/Shift selects several)" FontWeight="SemiBold" />
-            <ListBox x:Name="CandidatesList" Grid.Row="10" Margin="0,5,0,5" Padding="4" Height="116"
-                     SelectionMode="Extended" SelectionChanged="CandidateSelected"
+            <TextBlock x:Name="CandidatesLabel" Grid.Row="8"
+                       Text="Detected paths (select to replace; + adds another)" FontWeight="SemiBold" />
+            <ListBox x:Name="CandidatesList" Grid.Row="9" Margin="0,5,0,5" Padding="4" Height="116"
+                     SelectionMode="Single" SelectionChanged="CandidateSelected"
+                     HorizontalContentAlignment="Stretch"
                      ScrollViewer.VerticalScrollBarVisibility="Auto">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right" Content="Add" Tag="{Binding}" Margin="8,0,0,0"
-                                    Click="AddCandidate_Click" />
+                            <Button DockPanel.Dock="Right" Content="+" Tag="{Binding}" Margin="8,0,0,0"
+                                    Width="28" Height="28" Padding="0" FontSize="16" FontWeight="Bold"
+                                    Background="#E8EEF7" BorderBrush="#8AA0BD" BorderThickness="1"
+                                    ToolTip="Add this path" Click="AddCandidate_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="{x:Type Button}">
+                                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="14">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#D8E5F5" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#C3D6ED" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                             <TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap" />
                         </DockPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <TextBlock x:Name="CandidatesHelp" Grid.Row="11" Margin="0,0,0,14" Foreground="#555"
+            <TextBlock x:Name="CandidatesHelp" Grid.Row="10" Margin="0,0,0,14" Foreground="#555"
                        TextWrapping="Wrap" Text="Detected paths remain available after saving so the mapping can be corrected later." />
 
-            <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel" IsCancel="True" />
                 <Button x:Name="SaveButton" Content="Save" Click="Save_Click" IsDefault="True" />
             </StackPanel>
