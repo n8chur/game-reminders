@@ -91,13 +91,14 @@ $move = $source.workflow | Where-Object action -eq 'moveFile' | Select-Object -F
 $rename = $source.workflow | Where-Object action -eq 'renameFile' | Select-Object -First 1
 $success = $source.workflow | Where-Object action -eq 'showResult' | Select-Object -First 1
 Assert-ShortcutCondition ($save.folder -eq 'Shortcuts') 'Reminder must first be staged in the private Shortcuts folder.'
-Assert-ShortcutCondition ($save.name -eq '.<reminderId>.tmp') 'Reminder must use a non-JSON staging extension.'
+Assert-ShortcutCondition ($save.name -eq '<reminderId>.tmp') 'Reminder must use a visible UUID name with a non-JSON staging extension.'
 Assert-ShortcutCondition ($save.overwrite -eq $false) 'Staging must not overwrite an existing file.'
 Assert-ShortcutCondition ($inbox.folder -eq 'gameRemindersFolder') 'Inbox resolution must be anchored to the configured Game Reminders folder.'
 Assert-ShortcutCondition ($move.input -eq 'stagedFile' -and $move.folder -eq 'inboxFolder') 'The completed staging file must be moved to the resolved inbox folder.'
 Assert-ShortcutCondition ($move.overwrite -eq $false) 'Moving the staging file must not overwrite an existing file.'
 Assert-ShortcutCondition ($rename.input -eq 'inboxStagedFile') 'Finalization must rename the temporary file only after it reaches inbox.'
 Assert-ShortcutCondition ($rename.name -eq '<reminderId>.json') 'Final reminder filename must use its UUID.'
+Assert-ShortcutCondition (-not $rename.name.StartsWith('.')) 'Final reminder filename must not be hidden.'
 Assert-ShortcutCondition ($rename.overwrite -eq $false) 'Finalization must not overwrite an existing file.'
 Assert-ShortcutCondition ($success.onlyAfter -eq 'savedReminder') 'Success must follow finalization.'
 
