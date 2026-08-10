@@ -5,6 +5,9 @@ namespace GameReminders.App;
 
 public sealed class ProcessLaunchMonitor : IDisposable
 {
+    // Polling is the Milestone 1 prototype's primary launch detector, so it must
+    // remain responsive. A 60-second fallback replaces this cadence once the
+    // later event-driven process monitor is implemented.
     private static readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(5);
     private readonly Dictionary<string, GameDefinition> _gamesByProcess;
     private readonly System.Threading.Timer _timer;
