@@ -96,6 +96,20 @@ public sealed class SteamGameDiscoveryTests
         Assert.Equal(@"Destiny 2\destiny2.exe", selection.Process);
     }
 
+    [Theory]
+    [InlineData("Everwind", @"Everwind\Everwind.exe", @"Everwind\Binaries\Win64\Everwind-Win64-Shipping.exe")]
+    [InlineData("Mistfall Hunter", @"Mistfall Hunter\MistfallHunter.exe", @"Mistfall Hunter\Binaries\Win64\MistfallHunter-Win64-Shipping.exe")]
+    [InlineData("Palworld", @"Palworld\Palworld.exe", @"Palworld\Pal\Binaries\Win64\Palworld-Win64-Shipping.exe")]
+    public void RootExactNameMatchWinsOverNestedShippingExecutable(
+        string gameName,
+        string expected,
+        string nestedCandidate)
+    {
+        var selection = SteamGameDiscovery.SelectExecutable(gameName, [expected, nestedCandidate]);
+
+        Assert.Equal(expected, selection.Process);
+    }
+
     [Fact]
     public void GenericExecutableCandidatesRequireReview()
     {

@@ -252,9 +252,15 @@ public sealed class SteamGameDiscovery
         }
 
         if (filename.Contains("shipping", StringComparison.OrdinalIgnoreCase)) score += 15;
+        if (IsInstallRootExecutable(path)) score += 30;
         if (DeprioritizedExecutableFragments.Any(fragment => path.Contains(fragment, StringComparison.OrdinalIgnoreCase))) score -= 60;
         return score;
     }
+
+    private static bool IsInstallRootExecutable(string path) => path
+        .Replace('/', '\\')
+        .Split('\\', StringSplitOptions.RemoveEmptyEntries)
+        .Length == 2;
 
     internal static IReadOnlyList<KeyValuePair<string, string>> ParsePairs(string text) =>
         QuotedPair.Matches(text)

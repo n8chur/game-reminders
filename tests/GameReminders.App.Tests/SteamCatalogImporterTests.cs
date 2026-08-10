@@ -91,6 +91,37 @@ public sealed class SteamCatalogImporterTests
         Assert.Equal(2, game.Source?.ExecutableCandidates.Count);
     }
 
+    [Fact]
+    public void RescanRepairsExistingSteamGameThatStillNeedsExecutableReview()
+    {
+        var existing = new GameDefinition
+        {
+            Id = "steam-123",
+            Name = "Everwind",
+            Aliases = ["Ever Wind"],
+            Source = new GameSource
+            {
+                Type = "steam",
+                AppId = "123",
+                RequiresExecutableReview = true,
+                ExecutableCandidates = [@"Everwind\Launcher.exe"]
+            }
+        };
+        var detection = SteamDetection("123", "Everwind", @"Everwind\Everwind.exe") with
+        {
+            CandidateProcesses = [@"Everwind\Everwind.exe", @"Everwind\Launcher.exe"]
+        };
+
+        var result = SteamCatalogImporter.Import(new GameCatalog { Games = [existing] }, [detection]);
+
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.Equal(@"Everwind\Everwind.exe", Assert.Single(updated.Processes));
+        Assert.Equal("Ever Wind", Assert.Single(updated.Aliases));
+        Assert.False(updated.Source?.RequiresExecutableReview);
+        Assert.Equal(2, updated.Source?.ExecutableCandidates.Count);
+        Assert.Empty(result.AddedGames);
+    }
+
     private static PendingGameDetection SteamDetection(string appId, string name, string process) => new()
     {
         Key = $"steam:{appId}",
