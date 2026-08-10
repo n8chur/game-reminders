@@ -20,6 +20,12 @@
         "name": "Collision",
         "aliases": ["Shared-Alias"],
         "processes": ["Collision.exe"]
+      },
+      {
+        "id": "custom-pokemon",
+        "name": "Pokémon",
+        "aliases": [],
+        "processes": ["Pokemon.exe"]
       }
     ]
   },
@@ -56,6 +62,17 @@
       "name": "normalized alias collision",
       "input": "shared alias",
       "expectedStatus": "ambiguousGame"
+    },
+    {
+      "name": "missing diacritic",
+      "input": "Pokemon",
+      "expectedStatus": "unknownGame"
+    },
+    {
+      "name": "preserved diacritic",
+      "input": "Pokémon",
+      "expectedStatus": "created",
+      "expectedGameId": "custom-pokemon"
     }
   ]
 }

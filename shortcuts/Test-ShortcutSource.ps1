@@ -15,7 +15,7 @@ function Normalize-GameName {
     param([Parameter(Mandatory)] [string] $Value)
 
     $builder = [System.Text.StringBuilder]::new()
-    foreach ($character in $Value.Normalize([System.Text.NormalizationForm]::FormD).ToCharArray()) {
+    foreach ($character in $Value.ToCharArray()) {
         if ([char]::IsLetterOrDigit($character)) {
             [void] $builder.Append([char]::ToLowerInvariant($character))
         }

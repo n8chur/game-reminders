@@ -11,7 +11,7 @@ The repository is currently implementing **Milestone 3 (iPhone Shortcut)**. It c
 3. Select the `Game Reminders` folder in iCloud Drive when prompted.
 4. Mark that folder **Always keep on this device** in File Explorer.
 5. Use **Add game** or **Scan Steam** to populate the catalog, then review any **NEW** or **ACTION REQUIRED** entries and edit optional alternate speech aliases or executable paths as needed. The canonical game name already works for speech matching.
-6. Until the Milestone 3 Shortcut is exported, add a conforming reminder file under `inbox`, then launch the configured executable.
+6. Until the Apple-signed Milestone 3 Shortcut distribution file is available, add a conforming reminder file under `inbox`, then launch the configured executable.
 
 Closing the main window leaves Game Reminders running in the notification area. **Reload games.json** reloads the existing iCloud catalog, while **Scan Steam** discovers installed Steam games and may update that catalog. Steam games are added automatically and summarized with a non-blocking notification. Discovery stores the complete Steam-library-relative executable path when one candidate can be identified confidently; an exact root executable is preferred over a similarly named nested binary. The editor identifies Steam entries and explains that their executable paths are relative to `steamapps\common`.
 

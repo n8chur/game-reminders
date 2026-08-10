@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace GameReminders.Core;
 
 public enum ReminderCreationStatus
@@ -32,7 +34,7 @@ public static class ReminderCreation
         ArgumentNullException.ThrowIfNull(requestedGameName);
         ArgumentNullException.ThrowIfNull(message);
 
-        var requestedKey = NameNormalizer.Normalize(requestedGameName);
+        var requestedKey = NormalizeShortcutName(requestedGameName);
         if (string.IsNullOrEmpty(requestedKey))
         {
             return Failed(ReminderCreationStatus.EmptyGameName);
@@ -84,8 +86,22 @@ public static class ReminderCreation
     }
 
     private static bool Matches(GameDefinition game, string requestedKey) =>
-        NameNormalizer.Normalize(game.Name) == requestedKey ||
-        game.Aliases.Any(alias => NameNormalizer.Normalize(alias) == requestedKey);
+        NormalizeShortcutName(game.Name) == requestedKey ||
+        game.Aliases.Any(alias => NormalizeShortcutName(alias) == requestedKey);
+
+    private static string NormalizeShortcutName(string value)
+    {
+        var result = new StringBuilder(value.Length);
+        foreach (var rune in value.EnumerateRunes())
+        {
+            if (Rune.IsLetterOrDigit(rune))
+            {
+                result.Append(Rune.ToLowerInvariant(rune));
+            }
+        }
+
+        return result.ToString();
+    }
 
     private static ReminderCreationResult Failed(ReminderCreationStatus status) =>
         new() { Status = status };

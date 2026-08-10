@@ -61,6 +61,23 @@ public sealed class ReminderCreationTests
         Assert.Null(result.Reminder);
     }
 
+    [Fact]
+    public void DiacriticsArePreservedToMatchShortcutNormalization()
+    {
+        var catalog = Catalog() with
+        {
+            Games = [new GameDefinition { Id = "custom-pokemon", Name = "Pokémon" }]
+        };
+
+        var withoutDiacritic = ReminderCreation.Create(catalog, "Pokemon", "Check my team", ReminderId, CreatedAt);
+        var withDiacritic = ReminderCreation.Create(catalog, "Pokémon", "Check my team", ReminderId, CreatedAt);
+
+        Assert.Equal(ReminderCreationStatus.UnknownGame, withoutDiacritic.Status);
+        Assert.Null(withoutDiacritic.Reminder);
+        Assert.Equal(ReminderCreationStatus.Created, withDiacritic.Status);
+        Assert.Equal("custom-pokemon", withDiacritic.Reminder?.GameId);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
