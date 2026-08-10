@@ -66,11 +66,12 @@ public static class JsonProtocol
 
             foreach (var process in game.Processes)
             {
-                var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
-                if (string.IsNullOrWhiteSpace(normalizedProcess))
+                if (string.IsNullOrWhiteSpace(process))
                 {
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
                 }
+
+                var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
 
                 if (processOwners.TryGetValue(normalizedProcess, out var ownerId) &&
                     !string.Equals(ownerId, game.Id, StringComparison.OrdinalIgnoreCase))
