@@ -13,8 +13,10 @@ public sealed class ProcessLaunchMonitor : IDisposable
     private readonly Dictionary<string, GameDefinition> _gamesByProcess;
     private readonly Func<Process[]> _getProcesses;
     private readonly System.Threading.Timer _timer;
+    private readonly object _lifecycleGate = new();
     private readonly HashSet<string> _activeGameIds = new(StringComparer.OrdinalIgnoreCase);
     private int _scanInProgress;
+    private bool _disposed;
 
     public ProcessLaunchMonitor(IReadOnlyList<GameDefinition> games)
         : this(games, Process.GetProcesses)
@@ -66,7 +68,15 @@ public sealed class ProcessLaunchMonitor : IDisposable
 
             foreach (var game in launched)
             {
-                GameLaunched?.Invoke(this, game);
+                lock (_lifecycleGate)
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    GameLaunched?.Invoke(this, game);
+                }
             }
         }
         finally
@@ -129,10 +139,15 @@ public sealed class ProcessLaunchMonitor : IDisposable
 
     public void Dispose()
     {
-        using var callbacksCompleted = new ManualResetEvent(false);
-        if (_timer.Dispose(callbacksCompleted))
+        lock (_lifecycleGate)
         {
-            callbacksCompleted.WaitOne();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _timer.Dispose();
         }
     }
 }
