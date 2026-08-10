@@ -5,6 +5,7 @@ namespace GameReminders.App;
 
 public sealed class ProcessLaunchMonitor : IDisposable
 {
+    private static readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(5);
     private readonly Dictionary<string, GameDefinition> _gamesByProcess;
     private readonly System.Threading.Timer _timer;
     private readonly HashSet<string> _activeGameIds = new(StringComparer.OrdinalIgnoreCase);
@@ -15,7 +16,14 @@ public sealed class ProcessLaunchMonitor : IDisposable
         _gamesByProcess = games
             .SelectMany(game => game.Processes.Select(process => (Process: NameNormalizer.NormalizeProcessName(process), Game: game)))
             .GroupBy(item => item.Process, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Game, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(item => item.Game)
+                    .GroupBy(game => game.Id, StringComparer.OrdinalIgnoreCase)
+                    .Single()
+                    .First(),
+                StringComparer.OrdinalIgnoreCase);
         _timer = new System.Threading.Timer(Scan, null, Timeout.Infinite, Timeout.Infinite);
     }
 
@@ -25,7 +33,7 @@ public sealed class ProcessLaunchMonitor : IDisposable
     {
         // Scan immediately so a configured game that was already running when
         // the client started still triggers its pending reminders.
-        _timer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        _timer.Change(TimeSpan.Zero, ScanInterval);
     }
 
     private void Scan(object? state)
