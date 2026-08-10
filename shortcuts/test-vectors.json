@@ -1,0 +1,61 @@
+{
+  "catalog": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-08-10T20:30:00Z",
+    "games": [
+      {
+        "id": "custom-farever",
+        "name": "Farever",
+        "aliases": ["Forever", "For Ever"],
+        "processes": ["Farever\\Farever.exe"]
+      },
+      {
+        "id": "custom-other",
+        "name": "Other Game",
+        "aliases": ["Shared Alias"],
+        "processes": ["OtherGame.exe"]
+      },
+      {
+        "id": "custom-collision",
+        "name": "Collision",
+        "aliases": ["Shared-Alias"],
+        "processes": ["Collision.exe"]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "canonical name",
+      "input": "Farever",
+      "expectedStatus": "created",
+      "expectedGameId": "custom-farever"
+    },
+    {
+      "name": "case and punctuation",
+      "input": "FAREVER!",
+      "expectedStatus": "created",
+      "expectedGameId": "custom-farever"
+    },
+    {
+      "name": "speech alias",
+      "input": "for ever",
+      "expectedStatus": "created",
+      "expectedGameId": "custom-farever"
+    },
+    {
+      "name": "unknown game",
+      "input": "Missing",
+      "expectedStatus": "unknownGame"
+    },
+    {
+      "name": "empty normalized name",
+      "input": " ! ",
+      "expectedStatus": "emptyGameName"
+    },
+    {
+      "name": "normalized alias collision",
+      "input": "shared alias",
+      "expectedStatus": "ambiguousGame"
+    }
+  ]
+}
