@@ -61,6 +61,30 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void CompletePreservesConflictingInboxAndArchivedFilesWithTheSameId()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var conflictingReminder = reminder with { Message = "Conflicting archived message" };
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.InboxPath, filename);
+        var destination = Path.Combine(store.CompletedPath, filename);
+        var sourceJson = JsonProtocol.WriteReminder(reminder);
+        var destinationJson = JsonProtocol.WriteReminder(conflictingReminder);
+        File.WriteAllText(source, sourceJson);
+        File.WriteAllText(destination, destinationJson);
+
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+
+        var exception = Assert.Throws<InvalidDataException>(() => store.Complete(pending));
+
+        Assert.Contains("conflicts", exception.Message);
+        Assert.Equal(sourceJson, File.ReadAllText(source));
+        Assert.Equal(destinationJson, File.ReadAllText(destination));
+    }
+
+    [Fact]
     public void LoadPendingFiltersByGameIdAndSortsByCreationTime()
     {
         var store = new ReminderStore(_root);
