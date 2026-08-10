@@ -28,6 +28,7 @@ public partial class App : System.Windows.Application
 
             settingsService.Save(new AppSettings { ICloudRoot = root });
             _store = new ReminderStore(root);
+            _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
 
             _mainWindow = new MainWindow(root, HandleRescanRequested, Shutdown);
@@ -121,10 +122,16 @@ public partial class App : System.Windows.Application
         window.Show();
     }
 
+    private void OnInvalidReminderDetected(object? sender, InvalidReminderEventArgs e)
+    {
+        var status = $"Reminder file '{e.FileName}' {e.Reason}.";
+        _mainWindow?.SetStatus(status);
+        MessageBox.Show(status, "Invalid reminder file", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         _monitor?.Dispose();
         base.OnExit(e);
     }
 }
-
