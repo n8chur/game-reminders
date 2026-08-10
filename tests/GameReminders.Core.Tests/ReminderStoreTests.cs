@@ -180,6 +180,40 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Equal("Speech Name", Assert.Single(saved.Aliases));
     }
 
+    [Fact]
+    public void SyncProviderOperationRetriesTemporaryAccessFailures()
+    {
+        var attempts = 0;
+        var waits = new List<int>();
+
+        var result = ReminderStore.RetrySyncProviderOperation(
+            () => ++attempts < 3
+                ? throw new UnauthorizedAccessException("Temporarily locked.")
+                : "available",
+            waits.Add);
+
+        Assert.Equal("available", result);
+        Assert.Equal(3, attempts);
+        Assert.Equal([1, 2], waits);
+    }
+
+    [Fact]
+    public void SyncProviderOperationStopsAfterRetryLimit()
+    {
+        var attempts = 0;
+
+        Assert.Throws<IOException>(() => ReminderStore.RetrySyncProviderOperation<string>(
+            () =>
+            {
+                attempts++;
+                throw new IOException("Still locked.");
+            },
+            _ => { },
+            retryLimit: 3));
+
+        Assert.Equal(3, attempts);
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>
