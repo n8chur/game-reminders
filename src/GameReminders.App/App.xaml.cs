@@ -146,8 +146,29 @@ public partial class App : System.Windows.Application
     private void StartForegroundDetection()
     {
         _foregroundDetector = new ForegroundGameDetector();
-        _foregroundDetector.GameDetected += (_, detection) => Dispatcher.Invoke(() => AddDetection(detection, prompt: true));
+        _foregroundDetector.GameDetected += OnForegroundGameDetected;
         _foregroundDetector.Start();
+    }
+
+    private async void OnForegroundGameDetected(object? sender, PendingGameDetection detection)
+    {
+        if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            return;
+        }
+
+        try
+        {
+            await Dispatcher.InvokeAsync(() => AddDetection(detection, prompt: true));
+        }
+        catch (TaskCanceledException)
+        {
+            // Shutdown canceled the queued UI work.
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            // The dispatcher began shutting down after the initial guard.
+        }
     }
 
     private void AddManualGame() => EditAndSave(new GameDefinition
@@ -378,7 +399,11 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _foregroundDetector?.Dispose();
+        if (_foregroundDetector is not null)
+        {
+            _foregroundDetector.GameDetected -= OnForegroundGameDetected;
+            _foregroundDetector.Dispose();
+        }
         _monitor?.Dispose();
         if (_trayIcon is not null)
         {
