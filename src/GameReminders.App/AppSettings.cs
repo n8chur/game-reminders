@@ -36,9 +36,16 @@ public sealed class SettingsService
         {
             return new AppSettings();
         }
+        catch (IOException)
+        {
+            return new AppSettings();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return new AppSettings();
+        }
     }
 
     public void Save(AppSettings settings) =>
         ReminderStore.AtomicWrite(_settingsPath, JsonSerializer.Serialize(settings, JsonProtocol.Options));
 }
-
