@@ -518,3 +518,11 @@ public partial class App : System.Windows.Application
             _foregroundDetector.Dispose();
         }
         _monitor?.Dispose();
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
+        base.OnExit(e);
+    }
+}
