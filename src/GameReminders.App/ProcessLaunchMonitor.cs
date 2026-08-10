@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -10,11 +11,17 @@ public sealed class ProcessLaunchMonitor : IDisposable
     // later event-driven process monitor is implemented.
     private static readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(5);
     private readonly Dictionary<string, GameDefinition> _gamesByProcess;
+    private readonly Func<Process[]> _getProcesses;
     private readonly System.Threading.Timer _timer;
     private readonly HashSet<string> _activeGameIds = new(StringComparer.OrdinalIgnoreCase);
     private int _scanInProgress;
 
     public ProcessLaunchMonitor(IReadOnlyList<GameDefinition> games)
+        : this(games, Process.GetProcesses)
+    {
+    }
+
+    internal ProcessLaunchMonitor(IReadOnlyList<GameDefinition> games, Func<Process[]> getProcesses)
     {
         _gamesByProcess = games
             .SelectMany(game => game.Processes.Select(process => (Process: NameNormalizer.NormalizeProcessName(process), Game: game)))
@@ -27,6 +34,7 @@ public sealed class ProcessLaunchMonitor : IDisposable
                     .Single()
                     .First(),
                 StringComparer.OrdinalIgnoreCase);
+        _getProcesses = getProcesses;
         _timer = new System.Threading.Timer(Scan, null, Timeout.Infinite, Timeout.Infinite);
     }
 
@@ -38,6 +46,8 @@ public sealed class ProcessLaunchMonitor : IDisposable
         // the client started still triggers its pending reminders.
         _timer.Change(TimeSpan.Zero, ScanInterval);
     }
+
+    internal void ScanOnce() => Scan(null);
 
     private void Scan(object? state)
     {
@@ -68,7 +78,25 @@ public sealed class ProcessLaunchMonitor : IDisposable
     private IEnumerable<GameDefinition> FindRunningGames()
     {
         var found = new Dictionary<string, GameDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var process in Process.GetProcesses())
+        Process[] processes;
+        try
+        {
+            processes = _getProcesses();
+        }
+        catch (InvalidOperationException)
+        {
+            return found.Values;
+        }
+        catch (Win32Exception)
+        {
+            return found.Values;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return found.Values;
+        }
+
+        foreach (var process in processes)
         {
             try
             {
@@ -82,7 +110,7 @@ public sealed class ProcessLaunchMonitor : IDisposable
             {
                 // The process exited while it was being inspected.
             }
-            catch (System.ComponentModel.Win32Exception)
+            catch (Win32Exception)
             {
                 // Windows can deny metadata access for protected processes.
             }
