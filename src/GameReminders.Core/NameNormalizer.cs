@@ -22,10 +22,11 @@ public static class NameNormalizer
 
     public static string NormalizeProcessName(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         var filename = Path.GetFileName(value.Trim());
         return filename.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
             ? filename[..^4].ToLowerInvariant()
             : filename.ToLowerInvariant();
     }
 }
-
