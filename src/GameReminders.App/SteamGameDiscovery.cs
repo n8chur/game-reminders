@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace GameReminders.App;
@@ -81,9 +82,19 @@ public sealed class SteamGameDiscovery
         string steamApps,
         Func<string, IReadOnlyList<string>>? findLikelyExecutables = null)
     {
-        if (!values.TryGetValue("appid", out var appId) || string.IsNullOrWhiteSpace(appId) ||
-            !values.TryGetValue("name", out var name) || string.IsNullOrWhiteSpace(name) ||
-            !values.TryGetValue("installdir", out var installDir) || string.IsNullOrWhiteSpace(installDir))
+        if (!values.TryGetValue("appid", out var rawAppId) ||
+            !values.TryGetValue("name", out var rawName) ||
+            !values.TryGetValue("installdir", out var rawInstallDir))
+        {
+            return null;
+        }
+
+        var appId = rawAppId.Trim();
+        var name = rawName.Trim();
+        var installDir = rawInstallDir.Trim();
+        if (!ulong.TryParse(appId, NumberStyles.None, CultureInfo.InvariantCulture, out _) ||
+            string.IsNullOrWhiteSpace(name) ||
+            string.IsNullOrWhiteSpace(installDir))
         {
             return null;
         }

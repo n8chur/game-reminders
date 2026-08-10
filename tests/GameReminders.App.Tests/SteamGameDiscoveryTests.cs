@@ -49,6 +49,40 @@ public sealed class SteamGameDiscoveryTests
         Assert.Null(detection);
     }
 
+    [Fact]
+    public void ManifestValuesAreTrimmedBeforeStableIdentityIsCreated()
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appid"] = " 123 ",
+            ["name"] = " Test Game ",
+            ["installdir"] = " TestGame "
+        };
+
+        var detection = SteamGameDiscovery.CreateDetection(values, @"D:\\SteamLibrary\\steamapps", _ => []);
+
+        Assert.NotNull(detection);
+        Assert.Equal("steam:123", detection.Key);
+        Assert.Equal("123", detection.AppId);
+        Assert.Equal("Test Game", detection.Name);
+    }
+
+    [Theory]
+    [InlineData("not-a-number")]
+    [InlineData("123.0")]
+    [InlineData("-123")]
+    public void NonNumericSteamAppIdsAreRejected(string appId)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appid"] = appId,
+            ["name"] = "Test Game",
+            ["installdir"] = "TestGame"
+        };
+
+        Assert.Null(SteamGameDiscovery.CreateDetection(values, @"D:\\SteamLibrary\\steamapps", _ => []));
+    }
+
     private static IEnumerable<string> ThrowDuringEnumeration()
     {
         yield return @"D:\\SteamLibrary\\steamapps\\appmanifest_123.acf";

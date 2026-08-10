@@ -12,10 +12,10 @@ public sealed record AppSettings
 
 public sealed record PendingGameDetection
 {
-    public required string Key { get; init; }
-    public required string Name { get; init; }
+    public string Key { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
     public IReadOnlyList<string> Processes { get; init; } = [];
-    public required string SourceType { get; init; }
+    public string SourceType { get; init; } = string.Empty;
     public string? AppId { get; init; }
     public DateTimeOffset DetectedAt { get; init; } = DateTimeOffset.UtcNow;
 }

@@ -73,6 +73,26 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal("TestGame.exe", Assert.Single(detection.Processes));
     }
 
+    [Fact]
+    public void IncompletePendingDetectionDoesNotDiscardOtherSettings()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        File.WriteAllText(settingsPath, """
+            {
+              "iCloudRoot": "C:\\iCloudDrive\\Game Reminders",
+              "pendingDetections": [
+                { "key": "steam:123", "name": "Incomplete" }
+              ]
+            }
+            """);
+
+        var result = new SettingsService(settingsPath).Load();
+
+        Assert.Equal(@"C:\iCloudDrive\Game Reminders", result.ICloudRoot);
+        Assert.Empty(result.PendingDetections);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
