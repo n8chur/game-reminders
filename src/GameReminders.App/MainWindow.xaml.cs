@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -17,8 +18,7 @@ public partial class MainWindow : Window
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
     private readonly Action<SuppressedSteamGame> _restoreSteamGame;
-    private readonly Action _markGamesReviewed;
-    private bool _gamesSeenSinceActivation;
+    private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
 
     public MainWindow(
         string root,
@@ -31,7 +31,7 @@ public partial class MainWindow : Window
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
         Action<SuppressedSteamGame> restoreSteamGame,
-        Action markGamesReviewed)
+        Action<IReadOnlyCollection<string>> markGamesReviewed)
     {
         InitializeComponent();
         _root = root;
@@ -51,19 +51,11 @@ public partial class MainWindow : Window
             args.Cancel = ShouldHideOnClose(_allowClose);
             if (args.Cancel)
             {
-                MarkGamesReviewedIfSeen();
+                MarkVisibleGamesReviewed();
                 Hide();
             }
         };
-        Activated += (_, _) => _gamesSeenSinceActivation = ManagementTabs.SelectedItem == GamesTab;
-        Deactivated += (_, _) => MarkGamesReviewedIfSeen();
-        ManagementTabs.SelectionChanged += (_, _) =>
-        {
-            if (ManagementTabs.SelectedItem == GamesTab && IsVisible)
-            {
-                _gamesSeenSinceActivation = true;
-            }
-        };
+        Deactivated += (_, _) => MarkVisibleGamesReviewed();
     }
 
     internal static bool ShouldHideOnClose(bool allowClose) => !allowClose;
@@ -74,11 +66,14 @@ public partial class MainWindow : Window
 
     public void SetGames(IReadOnlyList<GameDefinition> games, IReadOnlySet<string> unreviewedGameIds)
     {
-        GamesList.ItemsSource = games.Select(game => new GameListItem(
+        var items = games.Select(game => new GameListItem(
             game,
+            unreviewedGameIds.Contains(game.Id),
             game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
                 unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
-        GamesTab.Header = unreviewedGameIds.Count > 0 ? $"Games ({unreviewedGameIds.Count} new)" : "Games";
+        GamesList.ItemsSource = items;
+        var newCount = items.Count(item => item.IsUnreviewed);
+        GamesTab.Header = newCount > 0 ? $"Games ({newCount} new)" : "Games";
     }
 
     public void SetPending(IReadOnlyList<PendingGameDetection> pending) => PendingList.ItemsSource = pending;
@@ -89,7 +84,6 @@ public partial class MainWindow : Window
     public void ShowGames()
     {
         ManagementTabs.SelectedItem = GamesTab;
-        if (IsVisible) _gamesSeenSinceActivation = true;
     }
 
     public void ShowDetectedGames() => ManagementTabs.SelectedItem = DetectedGamesTab;
@@ -122,20 +116,74 @@ public partial class MainWindow : Window
     }
     private void Hide_Click(object sender, RoutedEventArgs e)
     {
-        MarkGamesReviewedIfSeen();
+        MarkVisibleGamesReviewed();
         Hide();
     }
     private void Exit_Click(object sender, RoutedEventArgs e) => _exit();
 
-    private void MarkGamesReviewedIfSeen()
+    private void GamesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_gamesSeenSinceActivation) return;
-        _gamesSeenSinceActivation = false;
-        _markGamesReviewed();
+        if (GamesList.SelectedItem is GameListItem item &&
+            ShouldAcknowledge(item, isSelected: true, isVisible: false, acknowledgeVisibleRows: false))
+        {
+            _markGamesReviewed([item.Game.Id]);
+        }
     }
+
+    private void MarkVisibleGamesReviewed()
+    {
+        if (ManagementTabs.SelectedItem != GamesTab || !GamesList.IsVisible)
+        {
+            return;
+        }
+
+        var visibleIds = GamesList.Items.OfType<GameListItem>()
+            .Where(item => ShouldAcknowledge(
+                item,
+                isSelected: false,
+                isVisible: IsItemVisible(item),
+                acknowledgeVisibleRows: true))
+            .Select(item => item.Game.Id)
+            .ToArray();
+        if (visibleIds.Length > 0)
+        {
+            _markGamesReviewed(visibleIds);
+        }
+    }
+
+    private bool IsItemVisible(GameListItem item)
+    {
+        if (GamesList.ItemContainerGenerator.ContainerFromItem(item) is not FrameworkElement container ||
+            !container.IsVisible)
+        {
+            return false;
+        }
+
+        try
+        {
+            var origin = container.TranslatePoint(new Point(0, 0), GamesList);
+            var itemBounds = new Rect(origin, container.RenderSize);
+            var viewport = new Rect(new Point(0, 0), GamesList.RenderSize);
+            return IsFullyWithinViewport(itemBounds, viewport);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    internal static bool ShouldAcknowledge(
+        GameListItem item,
+        bool isSelected,
+        bool isVisible,
+        bool acknowledgeVisibleRows) =>
+        item.IsUnreviewed && (isSelected || (acknowledgeVisibleRows && isVisible));
+
+    internal static bool IsFullyWithinViewport(Rect itemBounds, Rect viewport) =>
+        !itemBounds.IsEmpty && viewport.Contains(itemBounds);
 }
 
-internal sealed record GameListItem(GameDefinition Game, string Badge)
+internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, string Badge)
 {
     public Visibility BadgeVisibility => string.IsNullOrEmpty(Badge) ? Visibility.Collapsed : Visibility.Visible;
 }
