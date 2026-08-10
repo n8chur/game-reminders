@@ -20,6 +20,11 @@ public sealed class SettingsService
         _settingsPath = Path.Combine(directory, "settings.json");
     }
 
+    internal SettingsService(string settingsPath)
+    {
+        _settingsPath = settingsPath;
+    }
+
     public AppSettings Load()
     {
         if (!File.Exists(_settingsPath))
@@ -46,6 +51,20 @@ public sealed class SettingsService
         }
     }
 
-    public void Save(AppSettings settings) =>
-        ReminderStore.AtomicWrite(_settingsPath, JsonSerializer.Serialize(settings, JsonProtocol.Options));
+    public void Save(AppSettings settings)
+    {
+        try
+        {
+            ReminderStore.AtomicWrite(_settingsPath, JsonSerializer.Serialize(settings, JsonProtocol.Options));
+        }
+        catch (IOException)
+        {
+            // Settings are a convenience cache. A transient local write failure
+            // must not prevent the iCloud-backed reminder app from starting.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Continue with the settings already loaded for this session.
+        }
+    }
 }
