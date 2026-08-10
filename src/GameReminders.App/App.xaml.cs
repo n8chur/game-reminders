@@ -312,10 +312,11 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
-            if (string.Equals(game.Source?.Type, "steam", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(game.Source.AppId))
+            var source = game.Source;
+            if (string.Equals(source?.Type, "steam", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(source.AppId))
             {
-                var suppressed = new SuppressedSteamGame { AppId = game.Source.AppId, Name = game.Name };
+                var suppressed = new SuppressedSteamGame { AppId = source.AppId, Name = game.Name };
                 settingsBeforeRemoval = _settings;
                 var updated = _settings with
                 {

@@ -115,7 +115,7 @@ public static class JsonProtocol
                 processOwners[normalizedProcess] = game.Id;
             }
 
-            if (game.Source?.ExecutableCandidates is null)
+            if (game.Source is not null && game.Source.ExecutableCandidates is null)
             {
                 throw new InvalidDataException($"Game '{game.Id}' requires an executableCandidates collection.");
             }
