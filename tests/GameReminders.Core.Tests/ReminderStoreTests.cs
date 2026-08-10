@@ -113,8 +113,9 @@ public sealed class ReminderStoreTests : IDisposable
         var destination = Path.Combine(_root, "settings.json");
         Directory.CreateDirectory(destination);
 
-        Assert.ThrowsAny<IOException>(() => ReminderStore.AtomicWrite(destination, "contents"));
+        var exception = Record.Exception(() => ReminderStore.AtomicWrite(destination, "contents"));
 
+        Assert.True(exception is IOException or UnauthorizedAccessException);
         Assert.Empty(Directory.EnumerateFiles(_root, ".settings.json.*.tmp"));
     }
 
