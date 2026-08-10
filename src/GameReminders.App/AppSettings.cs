@@ -56,13 +56,22 @@ public sealed class SettingsService
                 .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(group =>
                 {
-                    var item = group.First();
-                    var processes = (item.Processes ?? [])
+                    var items = group.ToArray();
+                    var item = items
+                        .OrderByDescending(candidate => !string.IsNullOrWhiteSpace(candidate.AppId))
+                        .ThenBy(candidate => candidate.DetectedAt)
+                        .First();
+                    var processes = items
+                        .SelectMany(candidate => candidate.Processes ?? [])
                         .Where(process => !string.IsNullOrWhiteSpace(process))
                         .Where(process => !string.IsNullOrWhiteSpace(NameNormalizer.NormalizeProcessName(process)))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();
-                    return item with { Processes = processes };
+                    return item with
+                    {
+                        Processes = processes,
+                        DetectedAt = items.Min(candidate => candidate.DetectedAt)
+                    };
                 })
                 .ToArray();
             return settings with

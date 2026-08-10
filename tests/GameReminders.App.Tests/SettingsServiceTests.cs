@@ -93,6 +93,40 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Empty(result.PendingDetections);
     }
 
+    [Fact]
+    public void DuplicatePendingDetectionsMergeUsefulMetadata()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        File.WriteAllText(settingsPath, """
+            {
+              "pendingDetections": [
+                {
+                  "key": "steam:123",
+                  "name": "Test Game",
+                  "processes": ["Launcher.exe"],
+                  "sourceType": "steam",
+                  "detectedAt": "2026-08-10T01:00:00Z"
+                },
+                {
+                  "key": "STEAM:123",
+                  "name": "Test Game",
+                  "processes": ["Game.exe"],
+                  "sourceType": "steam",
+                  "appId": "123",
+                  "detectedAt": "2026-08-10T02:00:00Z"
+                }
+              ]
+            }
+            """);
+
+        var detection = Assert.Single(new SettingsService(settingsPath).Load().PendingDetections);
+
+        Assert.Equal("123", detection.AppId);
+        Assert.Equal(["Launcher.exe", "Game.exe"], detection.Processes);
+        Assert.Equal(DateTimeOffset.Parse("2026-08-10T01:00:00Z"), detection.DetectedAt);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))

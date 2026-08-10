@@ -13,6 +13,7 @@ public partial class App : System.Windows.Application
     private SettingsService? _settingsService;
     private AppSettings _settings = new();
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+    private readonly ReviewNotificationQueue _reviewNotifications = new();
     private readonly Dictionary<string, ReminderWindow> _openReminderWindows =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -100,6 +101,8 @@ public partial class App : System.Windows.Application
             Visible = true
         };
         _trayIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowMainWindow);
+        _trayIcon.BalloonTipClicked += OnReviewNotificationClicked;
+        _trayIcon.BalloonTipClosed += OnReviewNotificationClosed;
     }
 
     private void ShowMainWindow()
@@ -324,37 +327,53 @@ public partial class App : System.Windows.Application
 
     private void ShowReviewNotification(int count, bool trustedSteamGames)
     {
-        if (_trayIcon is null)
+        if (_trayIcon is null || !_reviewNotifications.Enqueue(count, trustedSteamGames))
+        {
+            return;
+        }
+
+        DisplayActiveReviewNotification();
+    }
+
+    private void DisplayActiveReviewNotification()
+    {
+        if (_trayIcon is null || _reviewNotifications.Active is not { } notification)
         {
             return;
         }
 
         _trayIcon.BalloonTipTitle = "Game Reminders";
-        _trayIcon.BalloonTipText = trustedSteamGames
-            ? count == 1
+        _trayIcon.BalloonTipText = notification.TrustedSteamGames
+            ? notification.Count == 1
                 ? "A Steam game was added. Click to review it."
-                : $"{count} Steam games were added. Click to review them."
-            : count == 1
+                : $"{notification.Count} Steam games were added. Click to review them."
+            : notification.Count == 1
                 ? "A potential game needs review. Click to open Detected games."
-                : $"{count} potential games need review. Click to open Detected games.";
+                : $"{notification.Count} potential games need review. Click to open Detected games.";
         _trayIcon.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.Info;
-        _trayIcon.BalloonTipClicked -= OnReviewNotificationClicked;
-        _trayIcon.BalloonTipClicked += OnReviewNotificationClicked;
-        _reviewNotificationShowsGames = trustedSteamGames;
         _trayIcon.ShowBalloonTip(5000);
     }
 
-    private bool _reviewNotificationShowsGames;
-
     private void OnReviewNotificationClicked(object? sender, EventArgs e)
     {
-        if (_reviewNotificationShowsGames)
+        var notification = _reviewNotifications.CompleteActive();
+        if (notification?.TrustedSteamGames == true)
         {
             ShowGames();
         }
-        else
+        else if (notification is not null)
         {
             ShowDetectedGames();
+        }
+
+        Dispatcher.BeginInvoke(DisplayActiveReviewNotification);
+    }
+
+    private void OnReviewNotificationClosed(object? sender, EventArgs e)
+    {
+        if (_reviewNotifications.CompleteActive() is not null)
+        {
+            Dispatcher.BeginInvoke(DisplayActiveReviewNotification);
         }
     }
 
