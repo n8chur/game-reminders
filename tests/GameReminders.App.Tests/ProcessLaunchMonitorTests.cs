@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using GameReminders.Core;
 
 namespace GameReminders.App.Tests;
 
@@ -21,25 +23,33 @@ public sealed class ProcessLaunchMonitorTests
     };
 
     [Fact]
-    public async Task DisposeWaitsForInFlightTimerScan()
+    public async Task DisposePreventsInFlightScanFromRaisingLaunchAfterReturn()
     {
         using var scanStarted = new ManualResetEventSlim();
         using var releaseScan = new ManualResetEventSlim();
-        var monitor = new ProcessLaunchMonitor([], () =>
+        using var currentProcess = Process.GetCurrentProcess();
+        var game = new GameDefinition
+        {
+            Id = "test-game",
+            Name = "Test Game",
+            Processes = [currentProcess.ProcessName]
+        };
+        var monitor = new ProcessLaunchMonitor([game], () =>
         {
             scanStarted.Set();
             releaseScan.Wait();
-            return [];
+            return [Process.GetCurrentProcess()];
         });
+        var launches = 0;
+        monitor.GameLaunched += (_, _) => Interlocked.Increment(ref launches);
 
-        monitor.Start();
+        var scanTask = Task.Run(monitor.ScanOnce);
         Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(5)));
 
-        var disposeTask = Task.Run(monitor.Dispose);
-        await Task.Delay(100);
-        Assert.False(disposeTask.IsCompleted);
-
+        monitor.Dispose();
         releaseScan.Set();
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await scanTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(0, launches);
     }
 }
