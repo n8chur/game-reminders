@@ -37,4 +37,22 @@ public sealed class NameNormalizerTests
             @"FirstGame\Binaries\Game.exe",
             @"D:\SteamLibrary\steamapps\common\FirstGame\Binaries\GAME.EXE"));
     }
+    [Fact]
+    public void PortableAndAbsolutePathsMatchButDifferentGameFoldersDoNotOverlap()
+    {
+        Assert.True(NameNormalizer.ExecutableMappingsOverlap(
+            @"Everwind\Everwind.exe",
+            @"D:\SteamLibrary\steamapps\common\Everwind\Everwind.exe"));
+        Assert.False(NameNormalizer.ExecutableMappingsOverlap(
+            @"FirstGame\Binaries\Game.exe",
+            @"SecondGame\Binaries\Game.exe"));
+    }
+
+    [Fact]
+    public void FilenameMappingMatchesObservedAbsolutePath()
+    {
+        Assert.True(NameNormalizer.ExecutableMatches(
+            "Everwind.exe",
+            @"D:\SteamLibrary\steamapps\common\Everwind\Everwind.exe"));
+    }
 }
