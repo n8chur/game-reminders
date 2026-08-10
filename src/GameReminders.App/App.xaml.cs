@@ -356,7 +356,7 @@ public partial class App : System.Windows.Application
 
     private void OnReviewNotificationClicked(object? sender, EventArgs e)
     {
-        var notification = _reviewNotifications.CompleteActive();
+        var notification = _reviewNotifications.Active;
         if (notification?.TrustedSteamGames == true)
         {
             ShowGames();
@@ -365,8 +365,6 @@ public partial class App : System.Windows.Application
         {
             ShowDetectedGames();
         }
-
-        Dispatcher.BeginInvoke(DisplayActiveReviewNotification);
     }
 
     private void OnReviewNotificationClosed(object? sender, EventArgs e)
