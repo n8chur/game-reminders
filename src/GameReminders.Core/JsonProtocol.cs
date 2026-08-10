@@ -79,6 +79,19 @@ public static class JsonProtocol
                 throw new InvalidDataException($"Game '{game.Id}' requires a processes collection.");
             }
 
+            if (game.Aliases is null)
+            {
+                throw new InvalidDataException($"Game '{game.Id}' requires an aliases collection.");
+            }
+
+            foreach (var alias in game.Aliases)
+            {
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    throw new InvalidDataException($"Game '{game.Id}' contains an empty alias.");
+                }
+            }
+
             foreach (var process in game.Processes)
             {
                 if (string.IsNullOrWhiteSpace(process))
