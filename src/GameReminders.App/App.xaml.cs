@@ -359,9 +359,19 @@ public partial class App : System.Windows.Application
 
     private async Task ScanSteamAsync(bool showCompletion)
     {
+        IReadOnlyList<PendingGameDetection> discovered;
         try
         {
-            var discovered = await Task.Run(() => new SteamGameDiscovery().Discover());
+            discovered = await Task.Run(() => new SteamGameDiscovery().Discover());
+        }
+        catch (Exception exception)
+        {
+            _mainWindow?.SetStatus($"Steam discovery failed: {exception.Message}");
+            return;
+        }
+
+        try
+        {
             if (_store is null)
             {
                 return;
@@ -410,7 +420,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            _mainWindow?.SetStatus($"Steam scan failed: {exception.Message}");
+            _mainWindow?.SetStatus($"Steam scan could not update games.json: {exception.Message}");
         }
     }
 
