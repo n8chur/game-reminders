@@ -35,7 +35,6 @@ jobs:
           --configuration Release
           --runtime win-x64
           --self-contained true
-          --no-restore
           --output artifacts/game-reminders-win-x64
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
@@ -47,4 +46,3 @@ jobs:
           path: artifacts/game-reminders-win-x64/
           if-no-files-found: error
           retention-days: 14
-
