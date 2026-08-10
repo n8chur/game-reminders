@@ -40,7 +40,7 @@ public partial class App : System.Windows.Application
             _mainWindow = new MainWindow(
                 root,
                 StartMonitoring,
-                Shutdown,
+                ShutdownApplication,
                 AddManualGame,
                 EditGame,
                 RemoveGame,
@@ -91,7 +91,7 @@ public partial class App : System.Windows.Application
         menu.Items.Add("Open Game Reminders", null, (_, _) => Dispatcher.Invoke(ShowMainWindow));
         menu.Items.Add("Scan Steam", null, (_, _) => Dispatcher.Invoke(ScanSteam));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(() => Shutdown()));
+        menu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(ShutdownApplication));
 
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
@@ -107,6 +107,12 @@ public partial class App : System.Windows.Application
     {
         _mainWindow?.Show();
         _mainWindow?.Activate();
+    }
+
+    private void ShutdownApplication()
+    {
+        _mainWindow?.AllowClose();
+        Shutdown();
     }
 
     private void StartMonitoring()
