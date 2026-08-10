@@ -108,6 +108,19 @@ public sealed class JsonProtocolTests
         Assert.Contains("empty process name", exception.Message);
     }
 
+    [Fact]
+    public void ProcessNameThatNormalizesToEmptyIsRejected()
+    {
+        var catalog = new GameCatalog
+        {
+            Games = [new GameDefinition { Id = "game", Name = "Game", Processes = [".exe"] }]
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteCatalog(catalog));
+
+        Assert.Contains("empty process name", exception.Message);
+    }
+
     [Theory]
     [InlineData("{ \"schemaVersion\": 1, \"games\": null }")]
     [InlineData("{ \"schemaVersion\": 1, \"games\": [null] }")]
