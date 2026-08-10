@@ -167,7 +167,7 @@ public sealed class ReminderStoreTests : IDisposable
         var store = new ReminderStore(_root);
         store.EnsureInitialized();
         var original = new GameDefinition { Id = "steam-123", Name = "Old Name", Processes = ["Old.exe"] };
-        store.SaveCatalog(new GameCatalog { Games = [original] });
+        store.SaveCatalog(store.LoadCatalog() with { Games = [original] });
 
         store.SaveCatalog(store.LoadCatalog() with
         {
@@ -178,6 +178,26 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Equal("steam-123", saved.Id);
         Assert.Equal("New Name", saved.Name);
         Assert.Equal("Speech Name", Assert.Single(saved.Aliases));
+    }
+
+    [Fact]
+    public void StaleCatalogSaveFailsWithoutOverwritingNewerRevision()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var stale = store.LoadCatalog();
+        store.SaveCatalog(stale with
+        {
+            Games = [new GameDefinition { Id = "newer", Name = "Newer" }]
+        });
+
+        var exception = Assert.Throws<InvalidDataException>(() => store.SaveCatalog(stale with
+        {
+            Games = [new GameDefinition { Id = "stale", Name = "Stale" }]
+        }));
+
+        Assert.Contains("changed after it was loaded", exception.Message);
+        Assert.Equal("newer", Assert.Single(store.LoadCatalog().Games).Id);
     }
 
     [Fact]
