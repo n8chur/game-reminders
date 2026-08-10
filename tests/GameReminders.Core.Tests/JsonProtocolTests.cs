@@ -86,4 +86,25 @@ public sealed class JsonProtocolTests
 
         Assert.Contains("assigned to both", exception.Message);
     }
+
+    [Fact]
+    public void NullProcessNameIsRejectedAsInvalidCatalogData()
+    {
+        const string json = """
+            {
+              "schemaVersion": 1,
+              "games": [
+                {
+                  "id": "custom-farever",
+                  "name": "Farever",
+                  "processes": [null]
+                }
+              ]
+            }
+            """;
+
+        var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
+
+        Assert.Contains("empty process name", exception.Message);
+    }
 }
