@@ -107,4 +107,13 @@ public sealed class JsonProtocolTests
 
         Assert.Contains("empty process name", exception.Message);
     }
+
+    [Theory]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": null }")]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": [null] }")]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"processes\": null }] }")]
+    public void NullCatalogCollectionsAndEntriesAreRejected(string json)
+    {
+        Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
+    }
 }
