@@ -88,10 +88,10 @@ public partial class App : System.Windows.Application
     private void CreateTrayIcon()
     {
         var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Items.Add("Open Game Reminders", null, (_, _) => Dispatcher.Invoke(ShowMainWindow));
-        menu.Items.Add("Scan Steam", null, (_, _) => Dispatcher.Invoke(ScanSteam));
+        menu.Items.Add("Open Game Reminders", null, (_, _) => DispatchFromTray(ShowMainWindow));
+        menu.Items.Add("Scan Steam", null, (_, _) => DispatchFromTray(ScanSteam));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(ShutdownApplication));
+        menu.Items.Add("Exit", null, (_, _) => DispatchFromTray(ShutdownApplication));
 
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
@@ -100,9 +100,26 @@ public partial class App : System.Windows.Application
             ContextMenuStrip = menu,
             Visible = true
         };
-        _trayIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowMainWindow);
+        _trayIcon.DoubleClick += (_, _) => DispatchFromTray(ShowMainWindow);
         _trayIcon.BalloonTipClicked += OnReviewNotificationClicked;
         _trayIcon.BalloonTipClosed += OnReviewNotificationClosed;
+    }
+
+    private void DispatchFromTray(Action action)
+    {
+        if (!TrayDispatcher.ShouldDispatch(Dispatcher.HasShutdownStarted, Dispatcher.HasShutdownFinished))
+        {
+            return;
+        }
+
+        try
+        {
+            Dispatcher.BeginInvoke(action);
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            // Ignore a tray event delivered while WPF is shutting down.
+        }
     }
 
     private void ShowMainWindow()
@@ -202,30 +219,34 @@ public partial class App : System.Windows.Application
 
     private void EditAndSave(GameDefinition game, string? detectionKey = null)
     {
-        var editor = new GameEditorWindow(game) { Owner = _mainWindow };
-        if (editor.ShowDialog() != true || editor.Result is null || _store is null)
+        var editor = new GameEditorWindow(game, candidate =>
         {
-            return;
-        }
-
-        try
-        {
-            var catalog = _store.LoadCatalog();
-            var games = catalog.Games.Where(item => !string.Equals(item.Id, game.Id, StringComparison.OrdinalIgnoreCase))
-                .Append(editor.Result)
-                .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToArray();
-            _store.SaveCatalog(catalog with { Games = games });
-            if (detectionKey is not null)
+            if (_store is null)
             {
-                RemovePending(detectionKey);
+                return "The reminder store is not available.";
             }
-            StartMonitoring();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
-        {
-            MessageBox.Show($"The game could not be saved.\n\n{exception.Message}", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+
+            try
+            {
+                var catalog = _store.LoadCatalog();
+                var games = catalog.Games.Where(item => !string.Equals(item.Id, game.Id, StringComparison.OrdinalIgnoreCase))
+                    .Append(candidate)
+                    .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .ToArray();
+                _store.SaveCatalog(catalog with { Games = games });
+                if (detectionKey is not null)
+                {
+                    RemovePending(detectionKey);
+                }
+                StartMonitoring();
+                return null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+            {
+                return exception.Message;
+            }
+        }) { Owner = _mainWindow };
+        editor.ShowDialog();
     }
 
     private void RemoveGame(GameDefinition game)
@@ -497,11 +518,3 @@ public partial class App : System.Windows.Application
             _foregroundDetector.Dispose();
         }
         _monitor?.Dispose();
-        if (_trayIcon is not null)
-        {
-            _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-        }
-        base.OnExit(e);
-    }
-}
