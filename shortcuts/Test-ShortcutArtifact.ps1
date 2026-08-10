@@ -222,7 +222,12 @@ $textInitializers = @($actions | Where-Object {
         return $false
     }
 
-    $textValue = Convert-PlistDictionary $parameters.WFTextActionText
+    $textNode = $parameters.WFTextActionText
+    if ($textNode.Name -eq 'string') {
+        return $textNode.InnerText -eq 'NO_MATCH'
+    }
+
+    $textValue = Convert-PlistDictionary $textNode
     if (-not $textValue.ContainsKey('Value')) {
         return $false
     }
