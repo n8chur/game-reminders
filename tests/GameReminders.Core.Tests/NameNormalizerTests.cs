@@ -20,5 +20,10 @@ public sealed class NameNormalizerTests
     {
         Assert.Equal(expected, NameNormalizer.NormalizeProcessName(input));
     }
-}
 
+    [Fact]
+    public void NormalizeProcessNameRejectsNullExplicitly()
+    {
+        Assert.Throws<ArgumentNullException>(() => NameNormalizer.NormalizeProcessName(null!));
+    }
+}
