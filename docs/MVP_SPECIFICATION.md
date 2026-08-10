@@ -10,7 +10,7 @@ The MVP consists of an iPhone Shortcut, a Windows 11 tray application, and an iC
 
 The Shortcut reads `games.json`, accepts a dictated or typed game name, and matches it against canonical names and aliases after ignoring capitalization, punctuation, and spacing. It creates a reminder only when exactly one game resolves. An unknown game fails safely and creates no file.
 
-Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder with a non-JSON temporary extension in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
+Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
 
 ## Reminder display
 

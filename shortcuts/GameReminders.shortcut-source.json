@@ -210,7 +210,7 @@
       "action": "saveFile",
       "input": "reminderJson",
       "folder": "Shortcuts",
-      "name": ".<reminderId>.tmp",
+      "name": "<reminderId>.tmp",
       "overwrite": false,
       "output": "stagedFile"
     },

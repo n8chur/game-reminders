@@ -2272,7 +2272,7 @@
 								</dict>
 							</dict>
 							<key>string</key>
-							<string>.￼.tmp</string>
+							<string>￼.tmp</string>
 						</dict>
 						<key>WFSerializationType</key>
 						<string>WFTextTokenString</string>

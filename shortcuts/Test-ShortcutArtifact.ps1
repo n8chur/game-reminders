@@ -98,9 +98,9 @@ $stagingPath = Convert-PlistDictionary (Convert-PlistDictionary $saveParameters.
 if ($saveAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.documentpicker.save' -or
     $saveParameters.ContainsKey('WFFile') -or
     $saveParameters.WFAskWhereToSave.Name -ne 'false' -or
-    $stagingPath.string.InnerText -notmatch '^\.\uFFFC\.tmp$' -or
+    $stagingPath.string.InnerText -notmatch '^\uFFFC\.tmp$' -or
     (Get-ReferencedOutputName $saveParameters.WFInput) -ne 'reminderJson') {
-    throw 'The reminder must be written as a UUID-named temporary file in the private Shortcuts staging folder.'
+    throw 'The reminder must be written as a visible UUID-named temporary file in the private Shortcuts staging folder.'
 }
 
 if ($moveAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.file.move' -or
@@ -112,6 +112,12 @@ if ($moveAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.fi
 if ($renameAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.file.rename' -or
     (Get-ReferencedOutputName $renameParameters.WFFile) -ne 'inboxStagedFile') {
     throw 'The temporary file must be renamed only after it reaches inbox.'
+}
+
+$finalFilename = Convert-PlistDictionary (Convert-PlistDictionary $renameParameters.WFNewFilename).Value
+if ($finalFilename.string.InnerText -notmatch '^\uFFFC\.json$' -or
+    $finalFilename.string.InnerText.StartsWith('.')) {
+    throw 'The final reminder must have a visible UUID-named JSON filename.'
 }
 
 $inboxIndex = [Array]::IndexOf($actions, $inboxActionNode)
@@ -239,4 +245,4 @@ if ($textInitializers.Count -ne 2) {
     throw 'The compiled Shortcut must initialize both matched-game text variables explicitly.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 108 actions, exact normalization, explicit variable inputs, unique action IDs, one folder question, anchored inbox move, and 11 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 108 actions, exact normalization, explicit variable inputs, unique action IDs, one folder question, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."

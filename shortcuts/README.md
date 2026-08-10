@@ -46,10 +46,10 @@ The selected folder is the only configurable path. No server URL, account, token
    | `message` | Reminder text |
    | `createdAt` | ISO 8601 current date |
 
-10. Serialize the dictionary as JSON. Resolve `inbox` beneath the configured Game Reminders folder; save `.<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
+10. Serialize the dictionary as JSON. Resolve `inbox` beneath the configured Game Reminders folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
 11. Only after the final rename succeeds, show **Reminder saved for <game name>.**
 
-The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
+The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The staging filename intentionally has no leading dot so macOS does not preserve the finalized reminder as hidden. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
 
 ## Sign and import on macOS
 
