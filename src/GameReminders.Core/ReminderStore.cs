@@ -42,10 +42,22 @@ public sealed class ReminderStore
 
     public void SaveCatalog(GameCatalog catalog)
     {
-        var updated = catalog with { UpdatedAt = DateTimeOffset.UtcNow };
         RetrySyncProviderOperation(() =>
         {
-            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(updated));
+            var current = JsonProtocol.ReadCatalog(File.ReadAllText(CatalogPath));
+            if (current.UpdatedAt != catalog.UpdatedAt)
+            {
+                throw new InvalidDataException(
+                    "games.json changed after it was loaded. Reload the catalog and try again; no data was overwritten.");
+            }
+
+            var updatedAt = DateTimeOffset.UtcNow;
+            if (updatedAt <= current.UpdatedAt)
+            {
+                updatedAt = current.UpdatedAt.AddTicks(1);
+            }
+
+            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(catalog with { UpdatedAt = updatedAt }));
             return true;
         });
     }
