@@ -50,6 +50,29 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Empty(result.IgnoredDetectionKeys);
     }
 
+    [Fact]
+    public void InvalidPendingProcessEntriesAreRemoved()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        File.WriteAllText(settingsPath, """
+            {
+              "pendingDetections": [
+                {
+                  "key": "steam:123",
+                  "name": "Test Game",
+                  "processes": [null, "", "  ", ".exe", "TestGame.exe", "testgame.exe"],
+                  "sourceType": "steam"
+                }
+              ]
+            }
+            """);
+
+        var detection = Assert.Single(new SettingsService(settingsPath).Load().PendingDetections);
+
+        Assert.Equal("TestGame.exe", Assert.Single(detection.Processes));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
