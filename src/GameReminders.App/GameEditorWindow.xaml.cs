@@ -17,8 +17,8 @@ public partial class GameEditorWindow : Window
         AliasesText.Text = string.Join(Environment.NewLine, game.Aliases);
         ProcessesText.Text = string.Join(Environment.NewLine, game.Processes);
         var candidates = game.Source?.ExecutableCandidates ?? [];
-        CandidatesText.Text = string.Join(Environment.NewLine, candidates);
-        CandidatesLabel.Visibility = CandidatesText.Visibility = candidates.Count == 0
+        CandidatesList.ItemsSource = candidates;
+        CandidatesLabel.Visibility = CandidatesList.Visibility = candidates.Count == 0
             ? Visibility.Collapsed
             : Visibility.Visible;
     }
@@ -35,8 +35,7 @@ public partial class GameEditorWindow : Window
             {
                 source = source with
                 {
-                    RequiresExecutableReview = false,
-                    ExecutableCandidates = []
+                    RequiresExecutableReview = false
                 };
             }
             var candidate = _original with
@@ -63,6 +62,17 @@ public partial class GameEditorWindow : Window
     }
 
     internal static bool SaveSucceeded(string? error) => error is null;
+
+    private void CandidateSelected(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (CandidatesList.SelectedItem is string candidate)
+        {
+            ProcessesText.Text = SelectDetectedPath(candidate);
+            ProcessesText.CaretIndex = ProcessesText.Text.Length;
+        }
+    }
+
+    internal static string SelectDetectedPath(string candidate) => candidate.Trim();
 
     private static IReadOnlyList<string> SplitLines(string text) => text
         .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

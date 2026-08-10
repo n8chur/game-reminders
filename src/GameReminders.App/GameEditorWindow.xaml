@@ -15,9 +15,9 @@
         <TextBox x:Name="AliasesText" Grid.Row="3" Margin="0,5,0,14" Padding="7" Height="70" AcceptsReturn="True" />
         <TextBlock Grid.Row="4" Text="Executable paths or names (one per line)" FontWeight="SemiBold" />
         <TextBox x:Name="ProcessesText" Grid.Row="5" Margin="0,5,0,14" Padding="7" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
-        <TextBlock x:Name="CandidatesLabel" Grid.Row="6" Text="Detected candidates (copy the correct path above)" FontWeight="SemiBold" />
-        <TextBox x:Name="CandidatesText" Grid.Row="7" Margin="0,5,0,14" Padding="7" Height="76"
-                 IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" />
+        <TextBlock x:Name="CandidatesLabel" Grid.Row="6" Text="Detected paths (click one to use it)" FontWeight="SemiBold" />
+        <ListBox x:Name="CandidatesList" Grid.Row="7" Margin="0,5,0,14" Padding="4" Height="76"
+                 SelectionChanged="CandidateSelected" VerticalScrollBarVisibility="Auto" />
         <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" IsCancel="True" />
             <Button Content="Save" Click="Save_Click" IsDefault="True" />

@@ -13,4 +13,11 @@ public sealed class GameEditorWindowTests
     {
         Assert.True(GameEditorWindow.SaveSucceeded(null));
     }
+
+    [Fact]
+    public void SelectingDetectedPathUsesItAsTheExecutablePath()
+    {
+        Assert.Equal(@"Everwind\Everwind.exe",
+            GameEditorWindow.SelectDetectedPath(@"  Everwind\Everwind.exe  "));
+    }
 }
