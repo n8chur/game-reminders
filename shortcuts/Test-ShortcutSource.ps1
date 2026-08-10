@@ -24,6 +24,28 @@ function Normalize-GameName {
     return $builder.ToString()
 }
 
+function Get-WorkflowActionNames {
+    param([Parameter(Mandatory)] $Value)
+
+    foreach ($item in @($Value)) {
+        if ($null -eq $item) {
+            continue
+        }
+
+        if ($item -is [System.Management.Automation.PSCustomObject]) {
+            if ($item.PSObject.Properties.Name -contains 'action') {
+                $item.action
+            }
+
+            foreach ($property in $item.PSObject.Properties) {
+                Get-WorkflowActionNames $property.Value
+            }
+        } elseif ($item -is [System.Collections.IEnumerable] -and $item -isnot [string]) {
+            Get-WorkflowActionNames $item
+        }
+    }
+}
+
 $sourcePath = Join-Path $PSScriptRoot 'GameReminders.shortcut-source.json'
 $vectorsPath = Join-Path $PSScriptRoot 'test-vectors.json'
 $source = Get-Content -Raw $sourcePath | ConvertFrom-Json -Depth 100
@@ -37,7 +59,7 @@ Assert-ShortcutCondition ($source.distribution.signedArtifact -eq 'GameReminder.
 Assert-ShortcutCondition ($source.distribution.sharingMode -eq 'anyone') 'The exported Shortcut must use Anyone sharing.'
 Assert-ShortcutCondition ($source.configuration.type -eq 'folder') 'The Shortcut must configure one iCloud folder.'
 
-$actions = @($source.workflow | ForEach-Object { $_.action })
+$actions = @(Get-WorkflowActionNames $source.workflow)
 foreach ($requiredAction in @(
     'getFile',
     'parseDictionary',
