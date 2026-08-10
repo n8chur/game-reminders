@@ -6,6 +6,24 @@ public sealed class ReminderStoreTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"game-reminders-tests-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("{}")]
+    public void LoadCatalogRecreatesEmptyCatalogPlaceholder(string contents)
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        File.WriteAllText(store.CatalogPath, contents);
+
+        var catalog = store.LoadCatalog();
+
+        Assert.Empty(catalog.Games);
+        Assert.NotEqual(DateTimeOffset.UnixEpoch, catalog.UpdatedAt);
+        var rewritten = File.ReadAllText(store.CatalogPath);
+        Assert.Contains("\"schemaVersion\": 1", rewritten);
+        Assert.Contains("\"games\": []", rewritten);
+    }
+
     [Fact]
     public void CompleteMovesReminderFromInboxToCompleted()
     {
