@@ -41,8 +41,22 @@ public sealed class ReminderStore
             return [];
         }
 
+        string[] paths;
+        try
+        {
+            paths = Directory.EnumerateFiles(InboxPath, "*.json").OrderBy(path => path).ToArray();
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+
         var reminders = new List<Reminder>();
-        foreach (var path in Directory.EnumerateFiles(InboxPath, "*.json").OrderBy(path => path))
+        foreach (var path in paths)
         {
             try
             {
@@ -168,8 +182,26 @@ public sealed class ReminderStore
         Directory.CreateDirectory(directory);
 
         var temporaryPath = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
-        File.WriteAllText(temporaryPath, contents);
-        File.Move(temporaryPath, path, overwrite: true);
+        try
+        {
+            File.WriteAllText(temporaryPath, contents);
+            File.Move(temporaryPath, path, overwrite: true);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (IOException)
+            {
+                // Preserve the original write/move failure; cleanup is best-effort.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A provider lock may briefly prevent cleanup.
+            }
+        }
     }
 
     private sealed record InvalidFileAttempts(InvalidFileSignature Signature, int Count, bool Reported);
