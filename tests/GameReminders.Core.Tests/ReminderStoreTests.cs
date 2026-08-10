@@ -106,6 +106,18 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Contains("same name", issue.Reason);
     }
 
+    [Fact]
+    public void AtomicWriteCleansUpTemporaryFileWhenDestinationCannotBeReplaced()
+    {
+        Directory.CreateDirectory(_root);
+        var destination = Path.Combine(_root, "settings.json");
+        Directory.CreateDirectory(destination);
+
+        Assert.ThrowsAny<IOException>(() => ReminderStore.AtomicWrite(destination, "contents"));
+
+        Assert.Empty(Directory.EnumerateFiles(_root, ".settings.json.*.tmp"));
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>
