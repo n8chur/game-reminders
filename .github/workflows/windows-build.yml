@@ -23,6 +23,10 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Validate Shortcut source
+        shell: pwsh
+        run: ./shortcuts/Test-ShortcutSource.ps1
+
       - name: Restore
         run: dotnet restore GameReminders.slnx
 
