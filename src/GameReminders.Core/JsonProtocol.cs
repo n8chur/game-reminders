@@ -51,7 +51,7 @@ public static class JsonProtocol
         }
 
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var processOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var processOwners = new List<(string Process, string OwnerId)>();
         if (catalog.Games is null)
         {
             throw new InvalidDataException("games.json requires a games collection.");
@@ -105,14 +105,16 @@ public static class JsonProtocol
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
                 }
 
-                if (processOwners.TryGetValue(normalizedProcess, out var ownerId) &&
-                    !string.Equals(ownerId, game.Id, StringComparison.OrdinalIgnoreCase))
+                var conflict = processOwners.FirstOrDefault(item =>
+                    !string.Equals(item.OwnerId, game.Id, StringComparison.OrdinalIgnoreCase) &&
+                    NameNormalizer.ExecutableMappingsOverlap(item.Process, process));
+                if (conflict != default)
                 {
                     throw new InvalidDataException(
-                        $"Process '{process}' is assigned to both '{ownerId}' and '{game.Id}'.");
+                        $"Process '{process}' is assigned to both '{conflict.OwnerId}' and '{game.Id}'.");
                 }
 
-                processOwners[normalizedProcess] = game.Id;
+                processOwners.Add((process, game.Id));
             }
 
             if (game.Source is not null && game.Source.ExecutableCandidates is null)
