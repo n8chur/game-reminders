@@ -22,6 +22,22 @@ public sealed class MainWindowTests
     }
 
     [Fact]
+    public void RefreshedItemsRestoreSelectionByStableGameId()
+    {
+        var selected = new GameListItem(
+            new GameReminders.Core.GameDefinition { Id = "steam-123", Name = "Updated" },
+            IsUnreviewed: false,
+            Badge: string.Empty);
+        var other = new GameListItem(
+            new GameReminders.Core.GameDefinition { Id = "steam-456", Name = "Other" },
+            IsUnreviewed: false,
+            Badge: string.Empty);
+
+        Assert.Same(selected, MainWindow.FindItemByGameId([other, selected], "STEAM-123"));
+        Assert.Null(MainWindow.FindItemByGameId([other, selected], null));
+    }
+
+    [Fact]
     public void DeactivationAcknowledgesOnlyVisibleUnreviewedRows()
     {
         var item = new GameListItem(
