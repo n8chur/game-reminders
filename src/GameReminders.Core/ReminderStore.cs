@@ -163,10 +163,10 @@ public sealed class ReminderStore
         catch (IOException) when (File.Exists(destination))
         {
             var archived = JsonProtocol.ReadReminder(File.ReadAllText(destination), destination);
-            if (archived.Id != reminder.Id)
+            if (!HasSamePayload(archived, reminder))
             {
                 throw new InvalidDataException(
-                    $"Completed reminder '{Path.GetFileName(destination)}' has an unexpected id.");
+                    $"Completed reminder '{Path.GetFileName(destination)}' conflicts with the pending reminder.");
             }
 
             // The archive already contains this reminder, usually because another
@@ -174,6 +174,14 @@ public sealed class ReminderStore
             File.Delete(reminder.SourcePath);
         }
     }
+
+    private static bool HasSamePayload(Reminder left, Reminder right) =>
+        left.SchemaVersion == right.SchemaVersion &&
+        left.Id == right.Id &&
+        string.Equals(left.GameId, right.GameId, StringComparison.Ordinal) &&
+        string.Equals(left.GameNameAtCreation, right.GameNameAtCreation, StringComparison.Ordinal) &&
+        string.Equals(left.Message, right.Message, StringComparison.Ordinal) &&
+        left.CreatedAt == right.CreatedAt;
 
     public static void AtomicWrite(string path, string contents)
     {
