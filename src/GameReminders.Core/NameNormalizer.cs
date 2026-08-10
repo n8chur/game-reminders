@@ -59,4 +59,22 @@ public static class NameNormalizer
             (IsExecutablePath(configured) &&
                 running.EndsWith($"\\{configured.TrimStart('\\')}", StringComparison.OrdinalIgnoreCase));
     }
+
+    public static bool ExecutableMatches(string configured, string observed) =>
+        IsExecutablePath(configured)
+            ? ExecutablePathMatches(configured, observed)
+            : string.Equals(
+                NormalizeProcessName(configured),
+                NormalizeProcessName(observed),
+                StringComparison.OrdinalIgnoreCase);
+
+    public static bool ExecutableMappingsOverlap(string left, string right)
+    {
+        var normalizedLeft = NormalizeExecutableIdentity(left);
+        var normalizedRight = NormalizeExecutableIdentity(right);
+        return string.Equals(normalizedLeft, normalizedRight, StringComparison.OrdinalIgnoreCase) ||
+            (IsExecutablePath(normalizedLeft) && IsExecutablePath(normalizedRight) &&
+                (ExecutablePathMatches(normalizedLeft, normalizedRight) ||
+                    ExecutablePathMatches(normalizedRight, normalizedLeft)));
+    }
 }
