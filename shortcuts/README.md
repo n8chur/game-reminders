@@ -4,9 +4,9 @@ This directory contains the auditable source definition for the Milestone 3 iPho
 
 ## Artifact status
 
-`GameReminders.shortcut-source.json` is a platform-neutral, ordered definition of the workflow. It is deliberately not named `.shortcut`: Apple validates exported Shortcut files, and an unsigned hand-built property list must not be presented as importable.
+`GameReminders.shortcut-source.json` is a platform-neutral, ordered definition of the workflow. `GameReminder.cherri` is the auditable native source, and `GameReminder-unsigned.shortcut` is the generated unsigned property-list artifact validated by CI.
 
-The final `GameReminders.shortcut` will be committed after this definition has been assembled and tested in Shortcuts and exported with **Anyone** sharing. Apple documents [file export from iPhone and iPad](https://support.apple.com/guide/shortcuts/share-shortcuts-apdf01f8c054/ios) and [validation/signing of shared files](https://support.apple.com/guide/shortcuts-mac/run-shortcuts-from-the-command-line-apd455c82f02/mac).
+Apple will not import the unsigned artifact directly. The final `GameReminder.shortcut` will be committed after the verified artifact is signed with **Anyone** sharing on a Mac. Apple documents [file export from iPhone and iPad](https://support.apple.com/guide/shortcuts/share-shortcuts-apdf01f8c054/ios) and [validation/signing of shared files](https://support.apple.com/guide/shortcuts-mac/run-shortcuts-from-the-command-line-apd455c82f02/mac).
 
 ## Configuration
 
@@ -46,20 +46,20 @@ The selected folder is the only configurable path. No server URL, account, token
    | `message` | Reminder text |
    | `createdAt` | ISO 8601 current date |
 
-10. Serialize the dictionary as JSON. Save it first as `.<UUID>.tmp` in `inbox`, with overwrite disabled, then rename it to `<UUID>.json`, also without overwrite. A failed operation remains visible and is never reported as success.
+10. Serialize the dictionary as JSON. Resolve `inbox` beneath the configured Game Reminders folder; save `.<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
 11. Only after the final rename succeeds, show **Reminder saved for <game name>.**
 
-The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The final JSON file is never modified by the Shortcut.
+The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
 
-## Build and export on iPhone or iPad
+## Sign and import on macOS
 
-1. Assemble the actions in the order above, using `GameReminders.shortcut-source.json` for the exact variables, branches, and messages.
-2. Add an import question to the folder parameter: **Choose your Game Reminders folder in iCloud Drive.**
-3. Test every case in `test-vectors.json` using a temporary iCloud folder.
-4. In the Shortcut editor, choose **Export File → Options → File → Anyone**, then save the exported file as `GameReminders.shortcut`.
-5. Inspect the exported Shortcut on a second device or after re-importing it. Confirm that the folder import question appears and that no personal path or reminder text is embedded.
+1. Download `GameReminder-unsigned.shortcut` from the repository.
+2. Run `shortcuts sign --mode anyone --input GameReminder-unsigned.shortcut --output GameReminder.shortcut`.
+3. Open `GameReminder.shortcut` and choose the existing Game Reminders iCloud folder when asked.
+4. Test every case in `test-vectors.json` using a temporary catalog where destructive or collision behavior is involved.
+5. Inspect the signed Shortcut after importing it. Confirm that the folder import question appears and that no personal path or reminder text is embedded.
 
-Do not commit a privately shared export or a file containing Apple contact information. The distributable must use the **Anyone** option.
+Do not commit a privately shared export or a file containing Apple contact information. The distributable must be signed with the **Anyone** option.
 
 ## Manual validation
 

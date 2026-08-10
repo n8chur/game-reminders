@@ -27,6 +27,10 @@ jobs:
         shell: pwsh
         run: ./shortcuts/Test-ShortcutSource.ps1
 
+      - name: Validate generated Shortcut artifact
+        shell: pwsh
+        run: ./shortcuts/Test-ShortcutArtifact.ps1 -Path './shortcuts/GameReminder-unsigned.shortcut'
+
       - name: Restore
         run: dotnet restore GameReminders.slnx
 

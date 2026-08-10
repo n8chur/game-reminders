@@ -4,8 +4,9 @@
   "name": "Game Reminder",
   "platform": "iPhone and iPad Shortcuts",
   "distribution": {
-    "artifact": "GameReminders.shortcut",
-    "status": "requires-apple-export",
+    "unsignedArtifact": "GameReminder-unsigned.shortcut",
+    "signedArtifact": "GameReminder.shortcut",
+    "status": "requires-apple-signing",
     "sharingMode": "anyone"
   },
   "configuration": {
@@ -56,12 +57,19 @@
       "error": "Enter a game name."
     },
     {
-      "action": "initializeList",
-      "output": "matches"
+      "action": "initializeNumber",
+      "value": 0,
+      "output": "matchCount"
     },
     {
-      "action": "initializeList",
-      "output": "matchedGameIds"
+      "action": "initializeText",
+      "value": "NO_MATCH",
+      "output": "matchedGameId"
+    },
+    {
+      "action": "initializeText",
+      "value": "NO_MATCH",
+      "output": "matchedGameName"
     },
     {
       "action": "repeatEach",
@@ -69,39 +77,73 @@
       "item": "game",
       "steps": [
         {
-          "action": "list",
-          "items": [
-            "game.name",
-            "game.aliases"
-          ],
-          "flatten": true,
-          "output": "candidateNames"
+          "action": "initializeBoolean",
+          "value": false,
+          "output": "gameMatched"
+        },
+        {
+          "action": "normalize",
+          "input": "game.name",
+          "output": "gameNameKey"
+        },
+        {
+          "action": "if",
+          "condition": "gameNameKey equals requestedGameKey",
+          "then": [
+            {
+              "action": "setVariable",
+              "variable": "gameMatched",
+              "value": true
+            }
+          ]
         },
         {
           "action": "repeatEach",
-          "input": "candidateNames",
-          "item": "candidateName",
+          "input": "game.aliases",
+          "item": "alias",
           "steps": [
             {
-              "action": "normalize",
-              "input": "candidateName",
-              "output": "candidateKey"
-            },
-            {
               "action": "if",
-              "condition": "candidateKey equals requestedGameKey and matchedGameIds does not contain game.id",
+              "condition": "gameMatched equals false",
               "then": [
                 {
-                  "action": "addToVariable",
-                  "variable": "matches",
-                  "value": "game"
+                  "action": "normalize",
+                  "input": "alias",
+                  "output": "aliasKey"
                 },
                 {
-                  "action": "addToVariable",
-                  "variable": "matchedGameIds",
-                  "value": "game.id"
+                  "action": "if",
+                  "condition": "aliasKey equals requestedGameKey",
+                  "then": [
+                    {
+                      "action": "setVariable",
+                      "variable": "gameMatched",
+                      "value": true
+                    }
+                  ]
                 }
               ]
+            }
+          ]
+        },
+        {
+          "action": "if",
+          "condition": "gameMatched equals true",
+          "then": [
+            {
+              "action": "incrementVariable",
+              "variable": "matchCount",
+              "value": 1
+            },
+            {
+              "action": "setVariable",
+              "variable": "matchedGameId",
+              "value": "game.id"
+            },
+            {
+              "action": "setVariable",
+              "variable": "matchedGameName",
+              "value": "game.name"
             }
           ]
         }
@@ -109,7 +151,7 @@
     },
     {
       "action": "branchOnCount",
-      "input": "matches",
+      "input": "matchCount",
       "branches": {
         "zero": {
           "show": "No game matched. Add or edit the game on Windows, then try again.",
@@ -119,9 +161,7 @@
           "show": "More than one game matched. Make the aliases unique on Windows, then try again.",
           "stop": true
         },
-        "one": {
-          "getFirstItemAs": "matchedGame"
-        }
+        "one": "continue"
       }
     },
     {
@@ -149,8 +189,8 @@
       "entries": {
         "schemaVersion": 1,
         "id": "reminderId",
-        "gameId": "matchedGame.id",
-        "gameNameAtCreation": "matchedGame.name",
+        "gameId": "matchedGameId",
+        "gameNameAtCreation": "matchedGameName",
         "message": "message",
         "createdAt": "createdAt"
       }
@@ -161,23 +201,36 @@
       "output": "reminderJson"
     },
     {
+      "action": "getFile",
+      "folder": "gameRemindersFolder",
+      "relativePath": "inbox",
+      "output": "inboxFolder"
+    },
+    {
       "action": "saveFile",
       "input": "reminderJson",
-      "folder": "gameRemindersFolder/inbox",
+      "folder": "Shortcuts",
       "name": ".<reminderId>.tmp",
       "overwrite": false,
       "output": "stagedFile"
     },
     {
-      "action": "renameFile",
+      "action": "moveFile",
       "input": "stagedFile",
+      "folder": "inboxFolder",
+      "overwrite": false,
+      "output": "inboxStagedFile"
+    },
+    {
+      "action": "renameFile",
+      "input": "inboxStagedFile",
       "name": "<reminderId>.json",
       "overwrite": false,
       "output": "savedReminder"
     },
     {
       "action": "showResult",
-      "message": "Reminder saved for <matchedGame.name>.",
+      "message": "Reminder saved for <matchedGameName>.",
       "onlyAfter": "savedReminder"
     }
   ]

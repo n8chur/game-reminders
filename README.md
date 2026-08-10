@@ -17,7 +17,7 @@ Closing the main window leaves Game Reminders running in the notification area. 
 
 Ambiguous games are added with **ACTION REQUIRED** instead of guessing. Their editor marks the executable field in red and disables **Save** until that field is resolved. Detected paths remain available for later correction; select one to replace the current mapping, or use its circular **+** button to append another executable. Manual entries can use **Browse** to select one or more `.exe` files. A blank `games.json` or `{}` is treated as a new empty catalog and rewritten safely. A red tray badge and per-game badges persist until a new row is selected or is actually visible when the window is hidden or deactivated; acknowledging a badge does not clear the selected row. Off-screen entries remain new. Removing a Steam game suppresses future automatic imports until **Removed Steam games → Allow re-add** is used. Uncertain foreground detections remain pending until configured or explicitly ignored. An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
 
-The auditable iPhone workflow definition, test vectors, and Apple export instructions are in [`shortcuts`](shortcuts/). The source is intentionally not presented as an importable `.shortcut` until it has been assembled, tested, and exported using Apple's **Anyone** sharing mode.
+The auditable iPhone workflow definition, generated unsigned Shortcut, test vectors, and Apple signing instructions are in [`shortcuts`](shortcuts/). The unsigned artifact must be signed with Apple's **Anyone** mode on a Mac before it can be imported.
 
 ## Development
 
