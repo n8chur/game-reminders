@@ -31,7 +31,7 @@ public sealed class SteamGameDiscovery
                 continue;
             }
 
-            foreach (var manifest in Directory.EnumerateFiles(steamApps, "appmanifest_*.acf"))
+            foreach (var manifest in EnumerateManifestFiles(steamApps))
             {
                 try
                 {
@@ -69,6 +69,24 @@ public sealed class SteamGameDiscovery
         }
 
         return results.Values.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+    }
+
+    internal static IReadOnlyList<string> EnumerateManifestFiles(
+        string steamApps,
+        Func<string, string, IEnumerable<string>>? enumerateFiles = null)
+    {
+        try
+        {
+            return (enumerateFiles ?? Directory.EnumerateFiles)(steamApps, "appmanifest_*.acf").ToArray();
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     private static string? FindSteamRoot()
