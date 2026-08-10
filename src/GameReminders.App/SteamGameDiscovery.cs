@@ -106,7 +106,7 @@ public sealed class SteamGameDiscovery
 
         var commonRoot = Path.Combine(steamApps, "common");
         var gameRoot = Path.Combine(commonRoot, installDir);
-        var candidates = (findLikelyExecutables ?? FindLikelyExecutables)(gameRoot)
+        var candidates = (findLikelyExecutables ?? (path => FindLikelyExecutables(path)))(gameRoot)
             .Select(path => ToPortableExecutablePath(commonRoot, path))
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -165,16 +165,24 @@ public sealed class SteamGameDiscovery
         }
     }
 
-    private static IReadOnlyList<string> FindLikelyExecutables(string gameRoot)
+    internal static IReadOnlyList<string> FindLikelyExecutables(
+        string gameRoot,
+        Func<string, string, EnumerationOptions, IEnumerable<string>>? enumerateFiles = null)
     {
-        if (!Directory.Exists(gameRoot))
+        if (enumerateFiles is null && !Directory.Exists(gameRoot))
         {
             return [];
         }
 
         try
         {
-            return Directory.EnumerateFiles(gameRoot, "*.exe", SearchOption.AllDirectories)
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+            return (enumerateFiles ?? Directory.EnumerateFiles)(gameRoot, "*.exe", options)
                 .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}Engine{Path.DirectorySeparatorChar}Binaries{Path.DirectorySeparatorChar}ThirdParty{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
                 .Where(path => !ExcludedExecutableFragments.Any(fragment => Path.GetFileName(path).Contains(fragment, StringComparison.OrdinalIgnoreCase)))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
