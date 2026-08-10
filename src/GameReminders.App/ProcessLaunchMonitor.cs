@@ -127,5 +127,12 @@ public sealed class ProcessLaunchMonitor : IDisposable
         return found.Values;
     }
 
-    public void Dispose() => _timer.Dispose();
+    public void Dispose()
+    {
+        using var callbacksCompleted = new ManualResetEvent(false);
+        if (_timer.Dispose(callbacksCompleted))
+        {
+            callbacksCompleted.WaitOne();
+        }
+    }
 }
