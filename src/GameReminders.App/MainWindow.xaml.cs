@@ -66,15 +66,22 @@ public partial class MainWindow : Window
 
     public void SetGames(IReadOnlyList<GameDefinition> games, IReadOnlySet<string> unreviewedGameIds)
     {
+        var selectedGameId = (GamesList.SelectedItem as GameListItem)?.Game.Id;
         var items = games.Select(game => new GameListItem(
             game,
             unreviewedGameIds.Contains(game.Id),
             game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
                 unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
         GamesList.ItemsSource = items;
+        GamesList.SelectedItem = FindItemByGameId(items, selectedGameId);
         var newCount = items.Count(item => item.IsUnreviewed);
         GamesTab.Header = newCount > 0 ? $"Games ({newCount} new)" : "Games";
     }
+
+    internal static GameListItem? FindItemByGameId(IEnumerable<GameListItem> items, string? gameId) =>
+        string.IsNullOrWhiteSpace(gameId)
+            ? null
+            : items.FirstOrDefault(item => string.Equals(item.Game.Id, gameId, StringComparison.OrdinalIgnoreCase));
 
     public void SetPending(IReadOnlyList<PendingGameDetection> pending) => PendingList.ItemsSource = pending;
 
