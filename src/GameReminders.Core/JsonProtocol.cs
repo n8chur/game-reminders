@@ -52,8 +52,18 @@ public static class JsonProtocol
 
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var processOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (catalog.Games is null)
+        {
+            throw new InvalidDataException("games.json requires a games collection.");
+        }
+
         foreach (var game in catalog.Games)
         {
+            if (game is null)
+            {
+                throw new InvalidDataException("games.json cannot contain a null game.");
+            }
+
             if (string.IsNullOrWhiteSpace(game.Id) || string.IsNullOrWhiteSpace(game.Name))
             {
                 throw new InvalidDataException("Every game requires a non-empty id and name.");
@@ -62,6 +72,11 @@ public static class JsonProtocol
             if (!ids.Add(game.Id))
             {
                 throw new InvalidDataException($"Duplicate game id '{game.Id}'.");
+            }
+
+            if (game.Processes is null)
+            {
+                throw new InvalidDataException($"Game '{game.Id}' requires a processes collection.");
             }
 
             foreach (var process in game.Processes)
