@@ -511,7 +511,7 @@ public partial class App : System.Windows.Application
     {
         if (_reviewNotifications.CompleteActive() is not null)
         {
-            Dispatcher.BeginInvoke(DisplayActiveReviewNotification);
+            DispatchFromTray(DisplayActiveReviewNotification);
         }
     }
 
