@@ -1,0 +1,29 @@
+using GameReminders.Core;
+
+namespace GameReminders.Core.Tests;
+
+public sealed class NameNormalizerTests
+{
+    [Theory]
+    [InlineData("No Rest for the Wicked", "norestforthewicked")]
+    [InlineData("No-Rest-for-the-Wicked", "norestforthewicked")]
+    [InlineData("  FAREVER!  ", "farever")]
+    public void NormalizeIgnoresCaseSpacesAndPunctuation(string input, string expected)
+    {
+        Assert.Equal(expected, NameNormalizer.Normalize(input));
+    }
+
+    [Theory]
+    [InlineData("Farever.exe", "farever")]
+    [InlineData("C:\\Games\\Farever-Win64-Shipping.EXE", "farever-win64-shipping")]
+    public void NormalizeProcessNameRemovesExe(string input, string expected)
+    {
+        Assert.Equal(expected, NameNormalizer.NormalizeProcessName(input));
+    }
+
+    [Fact]
+    public void NormalizeProcessNameRejectsNullExplicitly()
+    {
+        Assert.Throws<ArgumentNullException>(() => NameNormalizer.NormalizeProcessName(null!));
+    }
+}

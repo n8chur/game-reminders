@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-10T20:30:00Z",
+  "games": [
+    {
+      "id": "custom-farever",
+      "name": "Farever",
+      "aliases": [
+        "Forever",
+        "For Ever"
+      ],
+      "processes": [
+        "Farever.exe",
+        "Farever-Win64-Shipping.exe"
+      ],
+      "source": {
+        "type": "manual"
+      }
+    }
+  ]
+}
+

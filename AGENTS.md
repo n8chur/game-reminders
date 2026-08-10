@@ -1,0 +1,37 @@
+# Game Reminders contributor guidance
+
+## Product invariants
+
+- iCloud files are the authoritative reminder store. Do not introduce a duplicate reminder database.
+- A reminder is completed only after an explicit **Dismiss** action successfully archives it.
+- **Show on next launch**, closing a window, application shutdown, and crashes must leave the reminder pending.
+- Resolve reminders by stable game ID, not by a mutable display name.
+- Treat filesystem operations as sync-provider operations: expect temporary locks, retries, duplicates, and concurrent changes.
+- Preserve data before convenience. Ambiguous archive collisions or malformed files must fail visibly rather than overwrite or delete data.
+- Never include reminder message text in diagnostic logs by default.
+- Do not require administrator privileges, inject into games, or interact with anti-cheat systems.
+
+## Architecture
+
+- `GameReminders.Core` owns the versioned JSON protocol and filesystem store.
+- `GameReminders.App` is a Windows WPF client and should keep platform-specific behavior out of Core.
+- `games.json` is written atomically. Reminder files are immutable while pending and move from `inbox` to `completed` only on dismissal.
+- Keep protocol changes backward-aware and update samples, tests, and `docs/MVP_SPECIFICATION.md` when behavior changes.
+
+## Validation
+
+Run on Windows with the .NET 10 SDK:
+
+```powershell
+dotnet restore GameReminders.slnx
+dotnet test GameReminders.slnx --configuration Release --no-restore
+dotnet build GameReminders.slnx --configuration Release --no-restore
+```
+
+Add regression tests for protocol validation, filesystem state transitions, process lifecycle behavior, and any bug fixed from review feedback.
+
+## Pull requests
+
+- Write the title as an imperative squash-commit subject.
+- Write the description as a durable squash-commit body, including motivation and completed validation.
+- Keep a PR in draft while implementation or CI is incomplete; mark it ready when it is awaiting human review.
