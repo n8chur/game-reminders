@@ -72,8 +72,15 @@ public static class NameNormalizer
     {
         var normalizedLeft = NormalizeExecutableIdentity(left);
         var normalizedRight = NormalizeExecutableIdentity(right);
+        var leftIsPath = IsExecutablePath(normalizedLeft);
+        var rightIsPath = IsExecutablePath(normalizedRight);
         return string.Equals(normalizedLeft, normalizedRight, StringComparison.OrdinalIgnoreCase) ||
-            (IsExecutablePath(normalizedLeft) && IsExecutablePath(normalizedRight) &&
+            (leftIsPath != rightIsPath &&
+                string.Equals(
+                    NormalizeProcessName(normalizedLeft),
+                    NormalizeProcessName(normalizedRight),
+                    StringComparison.OrdinalIgnoreCase)) ||
+            (leftIsPath && rightIsPath &&
                 (ExecutablePathMatches(normalizedLeft, normalizedRight) ||
                     ExecutablePathMatches(normalizedRight, normalizedLeft)));
     }
