@@ -11,10 +11,10 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Game Reminders" FontSize="24" FontWeight="SemiBold" />
+        <DockPanel Grid.Row="0" Margin="0,0,0,16" LastChildFill="False">
+            <TextBlock Text="Game Reminders" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
             <TextBlock Text="Running in the notification area" VerticalAlignment="Center"
-                       Foreground="#666" HorizontalAlignment="Right" />
+                       Foreground="#666" DockPanel.Dock="Right" />
         </DockPanel>
 
         <Border Grid.Row="1" Padding="12" Background="White" CornerRadius="8" Margin="0,0,0,14">
