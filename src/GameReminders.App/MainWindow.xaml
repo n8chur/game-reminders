@@ -29,7 +29,8 @@
             <TabItem x:Name="GamesTab" Header="Games">
                 <Grid Margin="10">
                     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click">
+                    <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
+                             SelectionChanged="GamesList_SelectionChanged">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <DockPanel LastChildFill="True">
