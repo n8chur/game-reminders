@@ -104,6 +104,20 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void MalformedSettingsArePreservedAndReported()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        const string malformed = "{ not-json }";
+        File.WriteAllText(settingsPath, malformed);
+
+        var exception = Assert.Throws<InvalidDataException>(() => new SettingsService(settingsPath).Load());
+
+        Assert.Contains("malformed", exception.Message);
+        Assert.Equal(malformed, File.ReadAllText(settingsPath));
+    }
+
+    [Fact]
     public void DuplicatePendingDetectionsMergeUsefulMetadata()
     {
         Directory.CreateDirectory(_root);
