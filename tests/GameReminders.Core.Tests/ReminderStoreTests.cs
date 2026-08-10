@@ -23,6 +23,26 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void CompleteRemovesDuplicateInboxFileWhenReminderIsAlreadyArchived()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.InboxPath, filename);
+        var destination = Path.Combine(store.CompletedPath, filename);
+        var json = JsonProtocol.WriteReminder(reminder);
+        File.WriteAllText(source, json);
+        File.WriteAllText(destination, json);
+
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+        store.Complete(pending);
+
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(destination));
+    }
+
+    [Fact]
     public void LoadPendingFiltersByGameIdAndSortsByCreationTime()
     {
         var store = new ReminderStore(_root);
