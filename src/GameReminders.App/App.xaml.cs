@@ -1,5 +1,5 @@
-using System.Windows;
 using System.Text.Json;
+using System.Windows;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -7,8 +7,12 @@ namespace GameReminders.App;
 public partial class App : System.Windows.Application
 {
     private ProcessLaunchMonitor? _monitor;
+    private ForegroundGameDetector? _foregroundDetector;
     private MainWindow? _mainWindow;
     private ReminderStore? _store;
+    private SettingsService? _settingsService;
+    private AppSettings _settings = new();
+    private System.Windows.Forms.NotifyIcon? _trayIcon;
     private readonly Dictionary<string, ReminderWindow> _openReminderWindows =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -18,25 +22,40 @@ public partial class App : System.Windows.Application
 
         try
         {
-            var settingsService = new SettingsService();
-            var settings = settingsService.Load();
-            var root = ResolveRoot(settings);
+            _settingsService = new SettingsService();
+            _settings = _settingsService.Load();
+            var root = ResolveRoot(_settings);
             if (root is null)
             {
                 Shutdown();
                 return;
             }
 
-            settingsService.Save(new AppSettings { ICloudRoot = root });
+            _settings = _settings with { ICloudRoot = root };
+            SaveSettings();
             _store = new ReminderStore(root);
             _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
 
-            _mainWindow = new MainWindow(root, HandleRescanRequested, Shutdown);
+            _mainWindow = new MainWindow(
+                root,
+                StartMonitoring,
+                Shutdown,
+                AddManualGame,
+                EditGame,
+                RemoveGame,
+                ScanSteam,
+                ConfigureDetection,
+                IgnoreDetection);
             MainWindow = _mainWindow;
+            CreateTrayIcon();
             _mainWindow.Show();
 
             StartMonitoring();
+            RefreshPending();
+            StartForegroundDetection();
+            _ = Dispatcher.InvokeAsync(PromptForFirstPending);
+            _ = ScanSteamAsync(showCompletion: false);
         }
         catch (Exception exception)
         {
@@ -63,9 +82,31 @@ public partial class App : System.Windows.Application
             ShowNewFolderButton = true
         };
 
-        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK
-            ? dialog.SelectedPath
-            : null;
+        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dialog.SelectedPath : null;
+    }
+
+    private void CreateTrayIcon()
+    {
+        var menu = new System.Windows.Forms.ContextMenuStrip();
+        menu.Items.Add("Open Game Reminders", null, (_, _) => Dispatcher.Invoke(ShowMainWindow));
+        menu.Items.Add("Scan Steam", null, (_, _) => Dispatcher.Invoke(ScanSteam));
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        menu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(() => Shutdown()));
+
+        _trayIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Text = "Game Reminders",
+            Icon = System.Drawing.SystemIcons.Application,
+            ContextMenuStrip = menu,
+            Visible = true
+        };
+        _trayIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowMainWindow);
+    }
+
+    private void ShowMainWindow()
+    {
+        _mainWindow?.Show();
+        _mainWindow?.Activate();
     }
 
     private void StartMonitoring()
@@ -85,6 +126,7 @@ public partial class App : System.Windows.Application
             var previous = _monitor;
             _monitor = replacement;
             previous?.Dispose();
+            _mainWindow?.SetGames(catalog.Games);
             _mainWindow?.SetStatus($"Monitoring {catalog.Games.Count} configured game(s)");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
@@ -95,10 +137,196 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private void HandleRescanRequested()
+    private void StartForegroundDetection()
     {
-        StartMonitoring();
+        _foregroundDetector = new ForegroundGameDetector();
+        _foregroundDetector.GameDetected += (_, detection) => Dispatcher.Invoke(() => AddDetection(detection, prompt: true));
+        _foregroundDetector.Start();
     }
+
+    private void AddManualGame() => EditAndSave(new GameDefinition
+    {
+        Id = $"custom-{Guid.NewGuid():N}",
+        Name = "New game",
+        Source = new GameSource { Type = "manual" }
+    });
+
+    private void EditGame(GameDefinition game) => EditAndSave(game);
+
+    private void EditAndSave(GameDefinition game, string? detectionKey = null)
+    {
+        var editor = new GameEditorWindow(game) { Owner = _mainWindow };
+        if (editor.ShowDialog() != true || editor.Result is null || _store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var catalog = _store.LoadCatalog();
+            var games = catalog.Games.Where(item => !string.Equals(item.Id, game.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(editor.Result)
+                .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            _store.SaveCatalog(catalog with { Games = games });
+            if (detectionKey is not null)
+            {
+                RemovePending(detectionKey);
+            }
+            StartMonitoring();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            MessageBox.Show($"The game could not be saved.\n\n{exception.Message}", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void RemoveGame(GameDefinition game)
+    {
+        if (_store is null || MessageBox.Show(
+                $"Remove '{game.Name}' from the catalog? Existing reminder files will be preserved but cannot be shown until this stable game ID is configured again.",
+                "Remove game", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var catalog = _store.LoadCatalog();
+            _store.SaveCatalog(catalog with
+            {
+                Games = catalog.Games.Where(item => !string.Equals(item.Id, game.Id, StringComparison.OrdinalIgnoreCase)).ToArray()
+            });
+            StartMonitoring();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            MessageBox.Show($"The game could not be removed.\n\n{exception.Message}", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ScanSteam() => _ = ScanSteamAsync(showCompletion: true);
+
+    private async Task ScanSteamAsync(bool showCompletion)
+    {
+        try
+        {
+            var discovered = await Task.Run(() => new SteamGameDiscovery().Discover());
+            var added = discovered.Count(candidate => AddDetection(candidate, prompt: false));
+            if (showCompletion)
+            {
+                _mainWindow?.SetStatus($"Steam scan found {added} new game(s) requiring setup");
+            }
+            if (added > 0)
+            {
+                PromptForFirstPending();
+            }
+        }
+        catch (Exception exception)
+        {
+            _mainWindow?.SetStatus($"Steam scan failed: {exception.Message}");
+        }
+    }
+
+    private bool AddDetection(PendingGameDetection detection, bool prompt)
+    {
+        if (_store is null || _settings.IgnoredDetectionKeys.Contains(detection.Key, StringComparer.OrdinalIgnoreCase) ||
+            _settings.PendingDetections.Any(item => string.Equals(item.Key, detection.Key, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        try
+        {
+            var catalog = _store.LoadCatalog();
+            if (catalog.Games.Any(game =>
+                    (detection.AppId is not null && string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
+                    game.Processes.Any(process => detection.Processes.Select(NameNormalizer.NormalizeProcessName).Contains(NameNormalizer.NormalizeProcessName(process), StringComparer.OrdinalIgnoreCase))))
+            {
+                return false;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            return false;
+        }
+
+        var updated = _settings with { PendingDetections = _settings.PendingDetections.Append(detection).ToArray() };
+        if (_settingsService?.TrySave(updated) != true)
+        {
+            _mainWindow?.SetStatus($"Could not persist detected game '{detection.Name}'; detection will be retried");
+            return false;
+        }
+        _settings = updated; // Persist before any prompt so closing or crashing cannot lose the detection.
+        RefreshPending();
+        if (prompt)
+        {
+            PromptFor(detection);
+        }
+        return true;
+    }
+
+    private void PromptForFirstPending()
+    {
+        var first = _settings.PendingDetections.OrderBy(item => item.DetectedAt).FirstOrDefault();
+        if (first is not null) PromptFor(first);
+    }
+
+    private void PromptFor(PendingGameDetection detection)
+    {
+        var result = MessageBox.Show(
+            $"Game Reminders detected '{detection.Name}'. Configure it now?\n\nChoosing No leaves it pending so it returns after the next login.",
+            "New game detected", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result == MessageBoxResult.Yes) ConfigureDetection(detection);
+    }
+
+    private void ConfigureDetection(PendingGameDetection detection)
+    {
+        var id = detection.SourceType == "steam" && !string.IsNullOrWhiteSpace(detection.AppId)
+            ? $"steam-{detection.AppId}"
+            : $"custom-{Guid.NewGuid():N}";
+        EditAndSave(new GameDefinition
+        {
+            Id = id,
+            Name = detection.Name,
+            Processes = detection.Processes,
+            Source = new GameSource { Type = detection.SourceType, AppId = detection.AppId }
+        }, detection.Key);
+    }
+
+    private void IgnoreDetection(PendingGameDetection detection)
+    {
+        var updated = _settings with
+        {
+            PendingDetections = _settings.PendingDetections.Where(item => !string.Equals(item.Key, detection.Key, StringComparison.OrdinalIgnoreCase)).ToArray(),
+            IgnoredDetectionKeys = _settings.IgnoredDetectionKeys.Append(detection.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+        };
+        if (_settingsService?.TrySave(updated) != true)
+        {
+            MessageBox.Show("The ignore choice could not be saved. The game remains pending.", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        _settings = updated;
+        RefreshPending();
+    }
+
+    private void RemovePending(string key)
+    {
+        var updated = _settings with
+        {
+            PendingDetections = _settings.PendingDetections.Where(item => !string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase)).ToArray()
+        };
+        if (_settingsService?.TrySave(updated) == true)
+        {
+            _settings = updated;
+        }
+        RefreshPending();
+    }
+
+    private void RefreshPending() => _mainWindow?.SetPending(
+        _settings.PendingDetections.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase).ToArray());
+
+    private void SaveSettings() => _settingsService?.Save(_settings);
 
     private async void OnGameLaunched(object? sender, GameDefinition game)
     {
@@ -109,11 +337,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
-            {
-                return;
-            }
-
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
             try
             {
                 await Dispatcher.InvokeAsync(() =>
@@ -123,30 +347,16 @@ public partial class App : System.Windows.Application
                     MessageBox.Show(status, "Could not display reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
             }
-            catch (TaskCanceledException)
-            {
-                // The application shut down while the failure was being reported.
-            }
-            catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
-            {
-                // The dispatcher completed shutdown between the check and invocation.
-            }
+            catch (TaskCanceledException) { }
+            catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) { }
         }
     }
 
     private void ShowReminders(GameDefinition game)
     {
-        if (_store is null || _openReminderWindows.ContainsKey(game.Id))
-        {
-            return;
-        }
-
+        if (_store is null || _openReminderWindows.ContainsKey(game.Id)) return;
         var reminders = _store.LoadPending(game.Id);
-        if (reminders.Count == 0)
-        {
-            return;
-        }
-
+        if (reminders.Count == 0) return;
         var window = new ReminderWindow(game, reminders, _store);
         _openReminderWindows[game.Id] = window;
         window.Closed += (_, _) => _openReminderWindows.Remove(game.Id);
@@ -162,7 +372,13 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _foregroundDetector?.Dispose();
         _monitor?.Dispose();
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
         base.OnExit(e);
     }
 }

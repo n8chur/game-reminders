@@ -34,6 +34,12 @@ public sealed class ReminderStore
 
     public GameCatalog LoadCatalog() => JsonProtocol.ReadCatalog(File.ReadAllText(CatalogPath));
 
+    public void SaveCatalog(GameCatalog catalog)
+    {
+        var updated = catalog with { UpdatedAt = DateTimeOffset.UtcNow };
+        AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(updated));
+    }
+
     public IReadOnlyList<Reminder> LoadPending(string gameId)
     {
         if (!Directory.Exists(InboxPath))

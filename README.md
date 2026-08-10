@@ -2,18 +2,18 @@
 
 Game Reminders is a private Windows and iPhone system for saving a reminder by voice and displaying it the next time its associated game launches. iCloud Drive is the synchronization layer and durable reminder store; there is no server or account system.
 
-The repository is currently at **Milestone 1 (prototype)**. It contains the file protocol, Windows process detection, a persistent reminder window, and automated Windows builds. Game discovery, alias management, the importable Shortcut, installer, and complete end-user documentation are later milestones.
+The repository is currently implementing **Milestone 2 (game management)**. It contains the file protocol, Windows process detection, persistent reminders, a notification-area client, Steam discovery, conservative foreground-game detection, and game/alias/executable management. The importable Shortcut, installer, and complete end-user documentation are later milestones.
 
-## Prototype setup
+## Development-build setup
 
 1. Download the `game-reminders-win-x64` artifact from the latest successful GitHub Actions run and extract it.
 2. Run `GameReminders.App.exe`.
 3. Select the `Game Reminders` folder in iCloud Drive when prompted.
 4. Mark that folder **Always keep on this device** in File Explorer.
-5. Edit the generated `games.json` to associate a game ID with an executable.
+5. Use **Add game**, **Scan Steam**, or the detected-game prompt to configure a game and its executable names.
 6. Add a conforming reminder file under `inbox`, then launch the configured executable.
 
-An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
+Closing the main window leaves Game Reminders running in the notification area. Detected games remain pending until configured or explicitly ignored. An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
 
 ## Development
 
@@ -26,4 +26,3 @@ dotnet build GameReminders.slnx --configuration Release --no-restore
 ```
 
 The application requires no administrator privileges and does not inject code into games.
-

@@ -13,6 +13,41 @@ public sealed class SettingsServiceTests : IDisposable
         var service = new SettingsService(settingsPath);
 
         service.Save(new AppSettings { ICloudRoot = @"C:\iCloudDrive\Game Reminders" });
+        Assert.False(service.TrySave(new AppSettings()));
+    }
+
+    [Fact]
+    public void PendingDetectionsRoundTrip()
+    {
+        var settingsPath = Path.Combine(_root, "settings.json");
+        var service = new SettingsService(settingsPath);
+        var detection = new PendingGameDetection
+        {
+            Key = "steam:123",
+            Name = "Test Game",
+            Processes = ["TestGame.exe"],
+            SourceType = "steam",
+            AppId = "123"
+        };
+
+        service.Save(new AppSettings { PendingDetections = [detection], IgnoredDetectionKeys = ["process:ignored"] });
+        var result = service.Load();
+
+        Assert.Equal("steam:123", Assert.Single(result.PendingDetections).Key);
+        Assert.Equal("process:ignored", Assert.Single(result.IgnoredDetectionKeys));
+    }
+
+    [Fact]
+    public void NullLocalCollectionsAreRecoveredAsEmpty()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        File.WriteAllText(settingsPath, "{ \"pendingDetections\": null, \"ignoredDetectionKeys\": null }");
+
+        var result = new SettingsService(settingsPath).Load();
+
+        Assert.Empty(result.PendingDetections);
+        Assert.Empty(result.IgnoredDetectionKeys);
     }
 
     public void Dispose()

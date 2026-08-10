@@ -161,6 +161,25 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(_root, ".settings.json.*.tmp"));
     }
 
+    [Fact]
+    public void SaveCatalogAtomicallyPreservesStableGameId()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = new GameDefinition { Id = "steam-123", Name = "Old Name", Processes = ["Old.exe"] };
+        store.SaveCatalog(new GameCatalog { Games = [original] });
+
+        store.SaveCatalog(store.LoadCatalog() with
+        {
+            Games = [original with { Name = "New Name", Aliases = ["Speech Name"], Processes = ["New.exe"] }]
+        });
+
+        var saved = Assert.Single(store.LoadCatalog().Games);
+        Assert.Equal("steam-123", saved.Id);
+        Assert.Equal("New Name", saved.Name);
+        Assert.Equal("Speech Name", Assert.Single(saved.Aliases));
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>

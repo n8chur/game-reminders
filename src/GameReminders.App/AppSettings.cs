@@ -6,6 +6,18 @@ namespace GameReminders.App;
 public sealed record AppSettings
 {
     public string? ICloudRoot { get; init; }
+    public IReadOnlyList<PendingGameDetection> PendingDetections { get; init; } = [];
+    public IReadOnlyList<string> IgnoredDetectionKeys { get; init; } = [];
+}
+
+public sealed record PendingGameDetection
+{
+    public required string Key { get; init; }
+    public required string Name { get; init; }
+    public IReadOnlyList<string> Processes { get; init; } = [];
+    public required string SourceType { get; init; }
+    public string? AppId { get; init; }
+    public DateTimeOffset DetectedAt { get; init; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class SettingsService
@@ -34,8 +46,24 @@ public sealed class SettingsService
 
         try
         {
-            return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath), JsonProtocol.Options)
+            var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath), JsonProtocol.Options)
                 ?? new AppSettings();
+            var pending = (settings.PendingDetections ?? [])
+                .OfType<PendingGameDetection>()
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key) &&
+                    !string.IsNullOrWhiteSpace(item.Name) &&
+                    !string.IsNullOrWhiteSpace(item.SourceType))
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First() with { Processes = group.First().Processes ?? [] })
+                .ToArray();
+            return settings with
+            {
+                PendingDetections = pending,
+                IgnoredDetectionKeys = (settings.IgnoredDetectionKeys ?? [])
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+            };
         }
         catch (JsonException)
         {
@@ -53,18 +81,26 @@ public sealed class SettingsService
 
     public void Save(AppSettings settings)
     {
+        TrySave(settings);
+    }
+
+    public bool TrySave(AppSettings settings)
+    {
         try
         {
             ReminderStore.AtomicWrite(_settingsPath, JsonSerializer.Serialize(settings, JsonProtocol.Options));
+            return true;
         }
         catch (IOException)
         {
             // Settings are a convenience cache. A transient local write failure
             // must not prevent the iCloud-backed reminder app from starting.
+            return false;
         }
         catch (UnauthorizedAccessException)
         {
             // Continue with the settings already loaded for this session.
+            return false;
         }
     }
 }
