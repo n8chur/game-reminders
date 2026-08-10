@@ -100,13 +100,38 @@ public partial class App : System.Windows.Application
         StartMonitoring();
     }
 
-    private void OnGameLaunched(object? sender, GameDefinition game)
+    private async void OnGameLaunched(object? sender, GameDefinition game)
     {
-        Dispatcher.InvokeAsync(async () =>
+        try
         {
-            await Task.Delay(TimeSpan.FromSeconds(5));
-            ShowReminders(game);
-        });
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await Dispatcher.InvokeAsync(() => ShowReminders(game));
+        }
+        catch (Exception exception)
+        {
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+            {
+                return;
+            }
+
+            try
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var status = $"Could not display reminders for '{game.Name}': {exception.Message}";
+                    _mainWindow?.SetStatus(status);
+                    MessageBox.Show(status, "Could not display reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // The application shut down while the failure was being reported.
+            }
+            catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+            {
+                // The dispatcher completed shutdown between the check and invocation.
+            }
+        }
     }
 
     private void ShowReminders(GameDefinition game)
