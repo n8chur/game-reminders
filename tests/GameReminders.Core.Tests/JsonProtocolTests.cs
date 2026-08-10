@@ -88,6 +88,28 @@ public sealed class JsonProtocolTests
     }
 
     [Fact]
+    public void AbsoluteAndRelativeMappingsForSameExecutableAreRejected()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition { Id = "steam", Name = "Steam", Processes = [@"Everwind\Everwind.exe"] },
+                new GameDefinition
+                {
+                    Id = "manual",
+                    Name = "Manual",
+                    Processes = [@"D:\SteamLibrary\steamapps\common\Everwind\Everwind.exe"]
+                }
+            ]
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteCatalog(catalog));
+
+        Assert.Contains("assigned to both", exception.Message);
+    }
+
+    [Fact]
     public void SameFilenameInDifferentGamePathsIsAllowed()
     {
         var catalog = new GameCatalog
