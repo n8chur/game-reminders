@@ -200,13 +200,16 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
-            var replacement = new ProcessLaunchMonitor(catalog.Games);
-            replacement.GameLaunched += OnGameLaunched;
-            replacement.Start();
-
             var previous = _monitor;
+            var replacement = new ProcessLaunchMonitor(
+                catalog.Games,
+                System.Diagnostics.Process.GetProcesses,
+                previous?.SnapshotActiveGameIds());
+            replacement.GameLaunched += OnGameLaunched;
+
             _monitor = replacement;
             previous?.Dispose();
+            replacement.Start();
             _actionRequiredGameIds = catalog.Games
                 .Where(game => game.Source?.RequiresExecutableReview == true)
                 .Select(game => game.Id)
@@ -436,12 +439,12 @@ public partial class App : System.Windows.Application
         {
             var catalog = _store.LoadCatalog();
             var detectionProcesses = detection.Processes
-                .Select(NameNormalizer.NormalizeExecutableIdentity)
                 .Where(process => !string.IsNullOrWhiteSpace(process))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToArray();
             if (catalog.Games.Any(game =>
                     (detection.AppId is not null && string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
-                    game.Processes.Any(process => detectionProcesses.Contains(NameNormalizer.NormalizeExecutableIdentity(process)))))
+                    game.Processes.Any(configured =>
+                        detectionProcesses.Any(detected => NameNormalizer.ExecutableMatches(configured, detected)))))
             {
                 return false;
             }
