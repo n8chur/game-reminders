@@ -16,6 +16,11 @@ public partial class GameEditorWindow : Window
         NameText.Text = game.Name;
         AliasesText.Text = string.Join(Environment.NewLine, game.Aliases);
         ProcessesText.Text = string.Join(Environment.NewLine, game.Processes);
+        var candidates = game.Source?.ExecutableCandidates ?? [];
+        CandidatesText.Text = string.Join(Environment.NewLine, candidates);
+        CandidatesLabel.Visibility = CandidatesText.Visibility = candidates.Count == 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     public GameDefinition? Result { get; private set; }
@@ -24,11 +29,22 @@ public partial class GameEditorWindow : Window
     {
         try
         {
+            var processes = SplitLines(ProcessesText.Text);
+            var source = _original.Source;
+            if (source is not null && processes.Count > 0)
+            {
+                source = source with
+                {
+                    RequiresExecutableReview = false,
+                    ExecutableCandidates = []
+                };
+            }
             var candidate = _original with
             {
                 Name = NameText.Text.Trim(),
                 Aliases = SplitLines(AliasesText.Text),
-                Processes = SplitLines(ProcessesText.Text)
+                Processes = processes,
+                Source = source
             };
             JsonProtocol.WriteCatalog(new GameCatalog { Games = [candidate] });
             var saveError = _save(candidate);

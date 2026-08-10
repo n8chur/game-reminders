@@ -61,6 +61,36 @@ public sealed class SteamCatalogImporterTests
         Assert.Empty(result.AddedGames[1].Processes);
     }
 
+    [Fact]
+    public void SuppressedSteamGameIsNotReadded()
+    {
+        var result = SteamCatalogImporter.Import(
+            new GameCatalog(),
+            [SteamDetection("123", "Removed", "Removed.exe")],
+            ["123"]);
+
+        Assert.Empty(result.AddedGames);
+        Assert.Empty(result.Catalog.Games);
+    }
+
+    [Fact]
+    public void AmbiguousExecutableIsAddedButMarkedForReview()
+    {
+        var detection = SteamDetection("123", "Ambiguous", string.Empty) with
+        {
+            Processes = [],
+            CandidateProcesses = [@"Ambiguous\Binaries\Game.exe", @"Ambiguous\Launcher.exe"],
+            RequiresExecutableReview = true
+        };
+
+        var result = SteamCatalogImporter.Import(new GameCatalog(), [detection]);
+
+        var game = Assert.Single(result.GamesNeedingExecutableReview);
+        Assert.True(game.Source?.RequiresExecutableReview);
+        Assert.Empty(game.Processes);
+        Assert.Equal(2, game.Source?.ExecutableCandidates.Count);
+    }
+
     private static PendingGameDetection SteamDetection(string appId, string name, string process) => new()
     {
         Key = $"steam:{appId}",

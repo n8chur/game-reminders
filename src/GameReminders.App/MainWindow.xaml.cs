@@ -16,6 +16,9 @@ public partial class MainWindow : Window
     private readonly Action _scanSteam;
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
+    private readonly Action<SuppressedSteamGame> _restoreSteamGame;
+    private readonly Action _markGamesReviewed;
+    private bool _gamesSeenSinceActivation;
 
     public MainWindow(
         string root,
@@ -26,7 +29,9 @@ public partial class MainWindow : Window
         Action<GameDefinition> removeGame,
         Action scanSteam,
         Action<PendingGameDetection> configureDetection,
-        Action<PendingGameDetection> ignoreDetection)
+        Action<PendingGameDetection> ignoreDetection,
+        Action<SuppressedSteamGame> restoreSteamGame,
+        Action markGamesReviewed)
     {
         InitializeComponent();
         _root = root;
@@ -38,13 +43,25 @@ public partial class MainWindow : Window
         _scanSteam = scanSteam;
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
+        _restoreSteamGame = restoreSteamGame;
+        _markGamesReviewed = markGamesReviewed;
         RootPathText.Text = root;
         Closing += (_, args) =>
         {
             args.Cancel = ShouldHideOnClose(_allowClose);
             if (args.Cancel)
             {
+                MarkGamesReviewedIfSeen();
                 Hide();
+            }
+        };
+        Activated += (_, _) => _gamesSeenSinceActivation = ManagementTabs.SelectedItem == GamesTab;
+        Deactivated += (_, _) => MarkGamesReviewedIfSeen();
+        ManagementTabs.SelectionChanged += (_, _) =>
+        {
+            if (ManagementTabs.SelectedItem == GamesTab && IsVisible)
+            {
+                _gamesSeenSinceActivation = true;
             }
         };
     }
@@ -55,11 +72,25 @@ public partial class MainWindow : Window
 
     public void SetStatus(string status) => StatusText.Text = status;
 
-    public void SetGames(IReadOnlyList<GameDefinition> games) => GamesList.ItemsSource = games;
+    public void SetGames(IReadOnlyList<GameDefinition> games, IReadOnlySet<string> unreviewedGameIds)
+    {
+        GamesList.ItemsSource = games.Select(game => new GameListItem(
+            game,
+            game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
+                unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
+        GamesTab.Header = unreviewedGameIds.Count > 0 ? $"Games ({unreviewedGameIds.Count} new)" : "Games";
+    }
 
     public void SetPending(IReadOnlyList<PendingGameDetection> pending) => PendingList.ItemsSource = pending;
 
-    public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
+    public void SetSuppressedSteamGames(IReadOnlyList<SuppressedSteamGame> games) =>
+        SuppressedSteamList.ItemsSource = games;
+
+    public void ShowGames()
+    {
+        ManagementTabs.SelectedItem = GamesTab;
+        if (IsVisible) _gamesSeenSinceActivation = true;
+    }
 
     public void ShowDetectedGames() => ManagementTabs.SelectedItem = DetectedGamesTab;
 
@@ -70,11 +101,11 @@ public partial class MainWindow : Window
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
     private void EditGame_Click(object sender, RoutedEventArgs e)
     {
-        if (GamesList.SelectedItem is GameDefinition game) _editGame(game);
+        if (GamesList.SelectedItem is GameListItem item) _editGame(item.Game);
     }
     private void RemoveGame_Click(object sender, RoutedEventArgs e)
     {
-        if (GamesList.SelectedItem is GameDefinition game) _removeGame(game);
+        if (GamesList.SelectedItem is GameListItem item) _removeGame(item.Game);
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
     private void ConfigureDetection_Click(object sender, RoutedEventArgs e)
@@ -85,6 +116,26 @@ public partial class MainWindow : Window
     {
         if (PendingList.SelectedItem is PendingGameDetection detection) _ignoreDetection(detection);
     }
-    private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
+    private void RestoreSteamGame_Click(object sender, RoutedEventArgs e)
+    {
+        if (SuppressedSteamList.SelectedItem is SuppressedSteamGame game) _restoreSteamGame(game);
+    }
+    private void Hide_Click(object sender, RoutedEventArgs e)
+    {
+        MarkGamesReviewedIfSeen();
+        Hide();
+    }
     private void Exit_Click(object sender, RoutedEventArgs e) => _exit();
+
+    private void MarkGamesReviewedIfSeen()
+    {
+        if (!_gamesSeenSinceActivation) return;
+        _gamesSeenSinceActivation = false;
+        _markGamesReviewed();
+    }
+}
+
+internal sealed record GameListItem(GameDefinition Game, string Badge)
+{
+    public Visibility BadgeVisibility => string.IsNullOrEmpty(Badge) ? Visibility.Collapsed : Visibility.Visible;
 }

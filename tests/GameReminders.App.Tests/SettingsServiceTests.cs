@@ -30,11 +30,19 @@ public sealed class SettingsServiceTests : IDisposable
             AppId = "123"
         };
 
-        service.Save(new AppSettings { PendingDetections = [detection], IgnoredDetectionKeys = ["process:ignored"] });
+        service.Save(new AppSettings
+        {
+            PendingDetections = [detection],
+            IgnoredDetectionKeys = ["process:ignored"],
+            SuppressedSteamGames = [new SuppressedSteamGame { AppId = "456", Name = "Removed" }],
+            UnreviewedGameIds = ["steam-123"]
+        });
         var result = service.Load();
 
         Assert.Equal("steam:123", Assert.Single(result.PendingDetections).Key);
         Assert.Equal("process:ignored", Assert.Single(result.IgnoredDetectionKeys));
+        Assert.Equal("456", Assert.Single(result.SuppressedSteamGames).AppId);
+        Assert.Equal("steam-123", Assert.Single(result.UnreviewedGameIds));
     }
 
     [Fact]
@@ -42,12 +50,14 @@ public sealed class SettingsServiceTests : IDisposable
     {
         Directory.CreateDirectory(_root);
         var settingsPath = Path.Combine(_root, "settings.json");
-        File.WriteAllText(settingsPath, "{ \"pendingDetections\": null, \"ignoredDetectionKeys\": null }");
+        File.WriteAllText(settingsPath, "{ \"pendingDetections\": null, \"ignoredDetectionKeys\": null, \"suppressedSteamGames\": null, \"unreviewedGameIds\": null }");
 
         var result = new SettingsService(settingsPath).Load();
 
         Assert.Empty(result.PendingDetections);
         Assert.Empty(result.IgnoredDetectionKeys);
+        Assert.Empty(result.SuppressedSteamGames);
+        Assert.Empty(result.UnreviewedGameIds);
     }
 
     [Fact]

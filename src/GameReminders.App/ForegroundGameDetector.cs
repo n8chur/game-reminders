@@ -112,9 +112,9 @@ public sealed class ForegroundGameDetector : IDisposable
 
             return new PendingGameDetection
             {
-                Key = $"process:{process.ProcessName.ToLowerInvariant()}",
+                Key = $"process:{GameReminders.Core.NameNormalizer.NormalizeExecutableIdentity(path)}",
                 Name = process.MainWindowTitle,
-                Processes = [$"{process.ProcessName}.exe"],
+                Processes = [path],
                 SourceType = "detected"
             };
         }

@@ -83,6 +83,31 @@ public sealed class SteamGameDiscoveryTests
         Assert.Null(SteamGameDiscovery.CreateDetection(values, @"D:\\SteamLibrary\\steamapps", _ => []));
     }
 
+    [Fact]
+    public void ClearNameMatchSelectsOnlyTheLikelyGameExecutable()
+    {
+        var selection = SteamGameDiscovery.SelectExecutable("Destiny 2",
+        [
+            @"Destiny 2\destiny2.exe",
+            @"Destiny 2\Tools\LevelEditor.exe",
+            @"Destiny 2\Launcher.exe"
+        ]);
+
+        Assert.Equal(@"Destiny 2\destiny2.exe", selection.Process);
+    }
+
+    [Fact]
+    public void GenericExecutableCandidatesRequireReview()
+    {
+        var selection = SteamGameDiscovery.SelectExecutable("Two Unreal Games",
+        [
+            @"Two Unreal Games\Binaries\Win64\Game-Win64-Shipping.exe",
+            @"Two Unreal Games\Launcher.exe"
+        ]);
+
+        Assert.Null(selection.Process);
+    }
+
     private static IEnumerable<string> ThrowDuringEnumeration()
     {
         yield return @"D:\\SteamLibrary\\steamapps\\appmanifest_123.acf";

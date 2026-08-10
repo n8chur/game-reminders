@@ -10,8 +10,8 @@
         "For Ever"
       ],
       "processes": [
-        "Farever.exe",
-        "Farever-Win64-Shipping.exe"
+        "Farever\\Farever.exe",
+        "Farever\\Binaries\\Win64\\Farever-Win64-Shipping.exe"
       ],
       "source": {
         "type": "manual"
@@ -19,4 +19,3 @@
     }
   ]
 }
-

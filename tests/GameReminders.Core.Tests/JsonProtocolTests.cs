@@ -88,6 +88,21 @@ public sealed class JsonProtocolTests
     }
 
     [Fact]
+    public void SameFilenameInDifferentGamePathsIsAllowed()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition { Id = "first", Name = "First", Processes = [@"First\Binaries\Game.exe"] },
+                new GameDefinition { Id = "second", Name = "Second", Processes = [@"Second\Binaries\Game.exe"] }
+            ]
+        };
+
+        JsonProtocol.WriteCatalog(catalog);
+    }
+
+    [Fact]
     public void NullProcessNameIsRejectedAsInvalidCatalogData()
     {
         const string json = """

@@ -99,7 +99,7 @@ public static class JsonProtocol
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
                 }
 
-                var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
+                var normalizedProcess = NameNormalizer.NormalizeExecutableIdentity(process);
                 if (string.IsNullOrWhiteSpace(normalizedProcess))
                 {
                     throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
@@ -113,6 +113,20 @@ public static class JsonProtocol
                 }
 
                 processOwners[normalizedProcess] = game.Id;
+            }
+
+            if (game.Source?.ExecutableCandidates is null)
+            {
+                throw new InvalidDataException($"Game '{game.Id}' requires an executableCandidates collection.");
+            }
+
+            foreach (var candidate in game.Source?.ExecutableCandidates ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(candidate) ||
+                    string.IsNullOrWhiteSpace(NameNormalizer.NormalizeExecutableIdentity(candidate)))
+                {
+                    throw new InvalidDataException($"Game '{game.Id}' contains an empty executable candidate.");
+                }
             }
         }
     }

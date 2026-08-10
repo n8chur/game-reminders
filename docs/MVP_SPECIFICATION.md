@@ -24,11 +24,13 @@ The dependable display target is borderless fullscreen. The application will not
 
 ## Game discovery and aliases
 
-The client supports Steam metadata, conservative foreground-application detection, and manual addition. Games confidently identified from Steam metadata are added automatically with a stable Steam app ID and summarized in one non-blocking notification. Clicking the notification opens game management. Notifications are informational and may be suppressed by Windows without affecting discovery or reminder behavior.
+The client supports Steam metadata, conservative foreground-application detection, and manual addition. Installed Steam games are added automatically with a stable Steam app ID and summarized in one non-blocking notification. Clicking the notification opens game management. Notifications are informational and may be suppressed by Windows without affecting discovery or reminder behavior. Removing an imported Steam game creates Windows-only suppression state keyed by app ID; scans do not recreate it unless the user explicitly allows it to be re-added.
 
 Uncertain foreground-application detections are saved to Windows-only pending state and shown in **Detected games** for manual configuration or dismissal. Discovery never opens a blocking setup prompt, including during startup and manual scans.
 
-The setup and management UI supports canonical names, aliases, and associated executables. Suggestions come from local names and metadata; speech-recognition variants such as `Forever` for `Farever` are added manually.
+The setup and management UI supports canonical names, aliases, and associated executables. Steam discovery excludes known helper executables and ranks remaining candidates by their relationship to the game name. A confident match stores the complete path relative to `steamapps\common`; this distinguishes generic executable filenames while remaining portable across Steam library roots. An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED** with the detected candidates available for review. Existing filename-only mappings remain supported, and absolute paths may be entered manually.
+
+Newly imported games and games needing executable review are indicated on the Games list and by a persistent tray-icon badge. Informational balloon notifications are optional; the badges remain until the Games list has been viewed and the management window is subsequently hidden or deactivated. An executable-review badge remains until a valid executable mapping is saved.
 
 ## File layout
 
@@ -46,7 +48,7 @@ Only the Windows client writes `games.json`, using a temporary file followed by 
 
 ## Windows implementation
 
-The Windows application uses C#, the current .NET LTS release, and WPF. It requires no administrator privileges. Windows-only settings, pending detections, ignored processes, and diagnostic logs live under the user's application-data directory; reminder state does not.
+The Windows application uses C#, the current .NET LTS release, and WPF. It requires no administrator privileges. Windows-only settings, pending detections, ignored processes, suppressed Steam app IDs, review indicators, and diagnostic logs live under the user's application-data directory; reminder state does not.
 
 Development builds are unsigned portable ZIP artifacts built by GitHub Actions. A conventional installer and launch-at-login behavior follow after core behavior stabilizes.
 
@@ -65,6 +67,8 @@ Development builds are unsigned portable ZIP artifacts built by GitHub Actions. 
 - Launching a matching game displays its reminders and the popup persists until handled.
 - Closing or crashing cannot complete a reminder.
 - Show on next launch redisplays the reminder on a later launch; Dismiss prevents redisplay.
-- A trusted Steam game is added without a blocking prompt; an uncertain detection persists until configured or ignored.
+- A Steam game is added without a blocking prompt; ambiguous executable selection is visibly marked for review, and an uncertain foreground detection persists until configured or ignored.
+- Removing a Steam game prevents its automatic re-addition, and the user can deliberately restore it.
+- Games with identical executable filenames in different paths resolve by path rather than triggering each other's reminders.
 - Already-downloaded files work offline.
 - Normal operation requires neither administrator privileges nor game injection.

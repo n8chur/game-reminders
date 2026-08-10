@@ -52,4 +52,31 @@ public sealed class ProcessLaunchMonitorTests
 
         Assert.Equal(0, launches);
     }
+
+    [Fact]
+    public void FullPathDistinguishesGamesWithTheSameExecutableFilename()
+    {
+        using var current = Process.GetCurrentProcess();
+        var currentPath = current.MainModule!.FileName;
+        var filename = Path.GetFileName(currentPath);
+        var expected = new GameDefinition
+        {
+            Id = "expected",
+            Name = "Expected",
+            Processes = [currentPath]
+        };
+        var other = new GameDefinition
+        {
+            Id = "other",
+            Name = "Other",
+            Processes = [Path.Combine(@"C:\OtherGame", filename)]
+        };
+        using var monitor = new ProcessLaunchMonitor([expected, other], () => [Process.GetCurrentProcess()]);
+        GameDefinition? launched = null;
+        monitor.GameLaunched += (_, game) => launched = game;
+
+        monitor.ScanOnce();
+
+        Assert.Equal("expected", launched?.Id);
+    }
 }

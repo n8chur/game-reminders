@@ -26,4 +26,15 @@ public sealed class NameNormalizerTests
     {
         Assert.Throws<ArgumentNullException>(() => NameNormalizer.NormalizeProcessName(null!));
     }
+
+    [Fact]
+    public void ExecutableIdentityPreservesDistinguishingPath()
+    {
+        Assert.NotEqual(
+            NameNormalizer.NormalizeExecutableIdentity(@"FirstGame\Binaries\Game.exe"),
+            NameNormalizer.NormalizeExecutableIdentity(@"SecondGame\Binaries\Game.exe"));
+        Assert.True(NameNormalizer.ExecutablePathMatches(
+            @"FirstGame\Binaries\Game.exe",
+            @"D:\SteamLibrary\steamapps\common\FirstGame\Binaries\GAME.EXE"));
+    }
 }
