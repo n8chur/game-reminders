@@ -60,6 +60,52 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Equal(new[] { earlier.Id, later.Id }, pending.Select(reminder => reminder.Id));
     }
 
+    [Fact]
+    public void RepeatedInvalidReminderIsMovedToInvalidAndReported()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var source = Path.Combine(store.InboxPath, "malformed.json");
+        File.WriteAllText(source, "{ not-json }");
+        InvalidReminderEventArgs? detected = null;
+        store.InvalidReminderDetected += (_, args) => detected = args;
+
+        store.LoadPending("custom-farever");
+        store.LoadPending("custom-farever");
+
+        Assert.True(File.Exists(source));
+        Assert.Null(detected);
+
+        store.LoadPending("custom-farever");
+
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(Path.Combine(store.InvalidPath, "malformed.json")));
+        var issue = Assert.IsType<InvalidReminderEventArgs>(detected);
+        Assert.Equal("malformed.json", issue.FileName);
+    }
+
+    [Fact]
+    public void InvalidArchiveCollisionPreservesBothFilesAndIsReported()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var source = Path.Combine(store.InboxPath, "malformed.json");
+        var destination = Path.Combine(store.InvalidPath, "malformed.json");
+        File.WriteAllText(source, "{ not-json }");
+        File.WriteAllText(destination, "existing data");
+        InvalidReminderEventArgs? detected = null;
+        store.InvalidReminderDetected += (_, args) => detected = args;
+
+        store.LoadPending("custom-farever");
+        store.LoadPending("custom-farever");
+        store.LoadPending("custom-farever");
+
+        Assert.True(File.Exists(source));
+        Assert.Equal("existing data", File.ReadAllText(destination));
+        var issue = Assert.IsType<InvalidReminderEventArgs>(detected);
+        Assert.Contains("same name", issue.Reason);
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>
