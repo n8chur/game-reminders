@@ -3,6 +3,7 @@ namespace GameReminders.Core;
 public sealed class ReminderStore
 {
     private const int InvalidFileRetryLimit = 3;
+    private const int SyncProviderRetryLimit = 4;
     private readonly string _root;
     private readonly Dictionary<string, InvalidFileAttempts> _invalidFileAttempts =
         new(StringComparer.OrdinalIgnoreCase);
@@ -28,16 +29,25 @@ public sealed class ReminderStore
 
         if (!File.Exists(CatalogPath))
         {
-            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(new GameCatalog()));
+            RetrySyncProviderOperation(() =>
+            {
+                AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(new GameCatalog()));
+                return true;
+            });
         }
     }
 
-    public GameCatalog LoadCatalog() => JsonProtocol.ReadCatalog(File.ReadAllText(CatalogPath));
+    public GameCatalog LoadCatalog() => JsonProtocol.ReadCatalog(
+        RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath)));
 
     public void SaveCatalog(GameCatalog catalog)
     {
         var updated = catalog with { UpdatedAt = DateTimeOffset.UtcNow };
-        AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(updated));
+        RetrySyncProviderOperation(() =>
+        {
+            AtomicWrite(CatalogPath, JsonProtocol.WriteCatalog(updated));
+            return true;
+        });
     }
 
     public IReadOnlyList<Reminder> LoadPending(string gameId)
@@ -217,6 +227,30 @@ public sealed class ReminderStore
             }
         }
     }
+
+    internal static T RetrySyncProviderOperation<T>(
+        Func<T> operation,
+        Action<int>? wait = null,
+        int retryLimit = SyncProviderRetryLimit)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(retryLimit, 1);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return operation();
+            }
+            catch (Exception exception) when (
+                attempt < retryLimit &&
+                exception is IOException or UnauthorizedAccessException)
+            {
+                (wait ?? WaitBeforeRetry)(attempt);
+            }
+        }
+    }
+
+    private static void WaitBeforeRetry(int attempt) =>
+        Thread.Sleep(TimeSpan.FromMilliseconds(100 * (1 << (attempt - 1))));
 
     private sealed record InvalidFileAttempts(InvalidFileSignature Signature, int Count, bool Reported);
 
