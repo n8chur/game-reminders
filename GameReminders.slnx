@@ -5,6 +5,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/GameReminders.Core.Tests/GameReminders.Core.Tests.csproj" />
+    <Project Path="tests/GameReminders.App.Tests/GameReminders.App.Tests.csproj" />
   </Folder>
 </Solution>
-
