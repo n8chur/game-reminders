@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Text.Json;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -74,24 +75,29 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        var catalog = _store.LoadCatalog();
-        _monitor?.Dispose();
-        _monitor = new ProcessLaunchMonitor(catalog.Games);
-        _monitor.GameLaunched += OnGameLaunched;
-        _monitor.Start();
-        _mainWindow?.SetStatus($"Monitoring {catalog.Games.Count} configured game(s)");
+        try
+        {
+            var catalog = _store.LoadCatalog();
+            var replacement = new ProcessLaunchMonitor(catalog.Games);
+            replacement.GameLaunched += OnGameLaunched;
+            replacement.Start();
+
+            var previous = _monitor;
+            _monitor = replacement;
+            previous?.Dispose();
+            _mainWindow?.SetStatus($"Monitoring {catalog.Games.Count} configured game(s)");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            var status = $"Could not load games.json: {exception.Message}";
+            _mainWindow?.SetStatus(status);
+            MessageBox.Show(status, "Could not reload games.json", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void HandleRescanRequested()
     {
-        try
-        {
-            StartMonitoring();
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(exception.Message, "Could not reload games.json", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        StartMonitoring();
     }
 
     private void OnGameLaunched(object? sender, GameDefinition game)
