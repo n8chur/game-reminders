@@ -11,15 +11,14 @@ if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
 
 [xml]$plist = Get-Content -LiteralPath $Path -Raw
 $rootDictionary = $plist.plist.dict
-$rootKeys = @($rootDictionary.key)
-$actionsKeyIndex = [Array]::IndexOf($rootKeys, "WFWorkflowActions")
-$questionsKeyIndex = [Array]::IndexOf($rootKeys, "WFWorkflowImportQuestions")
+$actionsArray = $rootDictionary.SelectSingleNode("key[text()='WFWorkflowActions']/following-sibling::*[1][self::array]")
+$questionsArray = $rootDictionary.SelectSingleNode("key[text()='WFWorkflowImportQuestions']/following-sibling::*[1][self::array]")
 
-if ($actionsKeyIndex -lt 0 -or $questionsKeyIndex -lt 0) {
+if ($null -eq $actionsArray -or $null -eq $questionsArray) {
     throw "Shortcut artifact is missing actions or import questions."
 }
 
-$actions = @($rootDictionary.array[$actionsKeyIndex].dict)
+$actions = @($actionsArray.dict)
 if ($actions.Count -ne 108) {
     throw "Expected 108 Shortcut actions, found $($actions.Count)."
 }
@@ -44,7 +43,7 @@ if ($firstAction.WFWorkflowActionIdentifier.InnerText -ne "is.workflow.actions.d
     throw "The first action is not configured for the Game Reminders folder import question."
 }
 
-$questions = @($rootDictionary.array[$questionsKeyIndex].dict)
+$questions = @($questionsArray.dict)
 if ($questions.Count -ne 1) {
     throw "Expected exactly one folder import question, found $($questions.Count)."
 }
