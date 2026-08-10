@@ -43,6 +43,24 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void CompleteSucceedsWhenSyncAlreadyRemovedInboxFileAndArchivedReminderExists()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.InboxPath, filename);
+        var destination = Path.Combine(store.CompletedPath, filename);
+        File.WriteAllText(destination, JsonProtocol.WriteReminder(reminder));
+        var pending = reminder with { SourcePath = source };
+
+        store.Complete(pending);
+
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(destination));
+    }
+
+    [Fact]
     public void LoadPendingFiltersByGameIdAndSortsByCreationTime()
     {
         var store = new ReminderStore(_root);
