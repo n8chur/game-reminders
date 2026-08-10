@@ -116,4 +116,13 @@ public sealed class JsonProtocolTests
     {
         Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
     }
+
+    [Theory]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": null }] }")]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": [null] }] }")]
+    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": [\"  \" ] }] }")]
+    public void NullOrEmptyAliasesAreRejected(string json)
+    {
+        Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
+    }
 }
