@@ -313,7 +313,8 @@ public partial class App : System.Windows.Application
         {
             var catalog = _store.LoadCatalog();
             var source = game.Source;
-            if (string.Equals(source?.Type, "steam", StringComparison.OrdinalIgnoreCase) &&
+            if (source is not null &&
+                string.Equals(source.Type, "steam", StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(source.AppId))
             {
                 var suppressed = new SuppressedSteamGame { AppId = source.AppId, Name = game.Name };
