@@ -17,7 +17,7 @@ public sealed class GameEditorWindowTests
     }
 
     [Fact]
-    public void SelectingDetectedPathsAddsAllUniqueExecutables()
+    public void AddingDetectedPathAppendsOnlyUniqueExecutables()
     {
         var result = GameEditorWindow.MergeExecutablePaths(
             "Everwind\\Everwind.exe",
@@ -26,6 +26,15 @@ public sealed class GameEditorWindowTests
         Assert.Equal(2, result.Count);
         Assert.Equal("Everwind\\Everwind.exe", result[0]);
         Assert.Equal("Everwind\\Binaries\\Everwind-Win64-Shipping.exe", result[1]);
+    }
+
+    [Fact]
+    public void SelectingDetectedPathReplacesExistingExecutables()
+    {
+        var result = GameEditorWindow.ReplaceExecutablePaths(
+            [" Mistfall Hunter\\MistfallHunter.exe "]);
+
+        Assert.Equal("Mistfall Hunter\\MistfallHunter.exe", Assert.Single(result));
     }
 
     [Fact]
