@@ -12,42 +12,78 @@ public sealed class ForegroundGameDetector : IDisposable
         "gamebar", "msedge", "searchhost", "steam", "textinputhost"
     };
     private readonly System.Threading.Timer _timer;
+    private readonly Func<PendingGameDetection?> _tryDetect;
+    private readonly object _lifecycleGate = new();
     private string? _candidate;
     private int _candidateScans;
+    private int _scanInProgress;
     private bool _disposed;
 
-    public ForegroundGameDetector() =>
+    public ForegroundGameDetector()
+        : this(TryDetect)
+    {
+    }
+
+    internal ForegroundGameDetector(Func<PendingGameDetection?> tryDetect)
+    {
+        _tryDetect = tryDetect;
         _timer = new System.Threading.Timer(Scan, null, Timeout.Infinite, Timeout.Infinite);
+    }
 
     public event EventHandler<PendingGameDetection>? GameDetected;
 
     public void Start() => _timer.Change(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5));
 
+    internal void ScanOnce() => Scan(null);
+
     private void Scan(object? state)
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _scanInProgress, 1) == 1)
         {
             return;
         }
 
-        var detection = TryDetect();
-        if (detection is null)
+        try
         {
-            _candidate = null;
-            _candidateScans = 0;
-            return;
-        }
+            lock (_lifecycleGate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+            }
 
-        if (!string.Equals(_candidate, detection.Key, StringComparison.OrdinalIgnoreCase))
-        {
-            _candidate = detection.Key;
-            _candidateScans = 1;
-            return;
-        }
+            var detection = _tryDetect();
+            if (detection is null)
+            {
+                _candidate = null;
+                _candidateScans = 0;
+                return;
+            }
 
-        if (++_candidateScans == 3)
+            if (!string.Equals(_candidate, detection.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                _candidate = detection.Key;
+                _candidateScans = 1;
+                return;
+            }
+
+            if (++_candidateScans == 3)
+            {
+                lock (_lifecycleGate)
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    GameDetected?.Invoke(this, detection);
+                }
+            }
+        }
+        finally
         {
-            GameDetected?.Invoke(this, detection);
+            Volatile.Write(ref _scanInProgress, 0);
         }
     }
 
@@ -104,8 +140,16 @@ public sealed class ForegroundGameDetector : IDisposable
 
     public void Dispose()
     {
-        _disposed = true;
-        _timer.Dispose();
+        lock (_lifecycleGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _timer.Dispose();
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
