@@ -54,7 +54,16 @@ public sealed class SettingsService
                     !string.IsNullOrWhiteSpace(item.Name) &&
                     !string.IsNullOrWhiteSpace(item.SourceType))
                 .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First() with { Processes = group.First().Processes ?? [] })
+                .Select(group =>
+                {
+                    var item = group.First();
+                    var processes = (item.Processes ?? [])
+                        .Where(process => !string.IsNullOrWhiteSpace(process))
+                        .Where(process => !string.IsNullOrWhiteSpace(NameNormalizer.NormalizeProcessName(process)))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                    return item with { Processes = processes };
+                })
                 .ToArray();
             return settings with
             {
