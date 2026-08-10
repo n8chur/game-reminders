@@ -1,0 +1,84 @@
+using System.Diagnostics;
+using GameReminders.Core;
+
+namespace GameReminders.App;
+
+public sealed class ProcessLaunchMonitor : IDisposable
+{
+    private readonly Dictionary<string, GameDefinition> _gamesByProcess;
+    private readonly System.Threading.Timer _timer;
+    private readonly HashSet<string> _activeGameIds = new(StringComparer.OrdinalIgnoreCase);
+    private int _scanInProgress;
+
+    public ProcessLaunchMonitor(IReadOnlyList<GameDefinition> games)
+    {
+        _gamesByProcess = games
+            .SelectMany(game => game.Processes.Select(process => (Process: NameNormalizer.NormalizeProcessName(process), Game: game)))
+            .GroupBy(item => item.Process, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Game, StringComparer.OrdinalIgnoreCase);
+        _timer = new System.Threading.Timer(Scan, null, Timeout.Infinite, Timeout.Infinite);
+    }
+
+    public event EventHandler<GameDefinition>? GameLaunched;
+
+    public void Start()
+    {
+        // Scan immediately so a configured game that was already running when
+        // the client started still triggers its pending reminders.
+        _timer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void Scan(object? state)
+    {
+        if (Interlocked.Exchange(ref _scanInProgress, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            var running = FindRunningGames().ToDictionary(game => game.Id, StringComparer.OrdinalIgnoreCase);
+            var launched = running.Values.Where(game => !_activeGameIds.Contains(game.Id)).ToArray();
+
+            _activeGameIds.Clear();
+            _activeGameIds.UnionWith(running.Keys);
+
+            foreach (var game in launched)
+            {
+                GameLaunched?.Invoke(this, game);
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _scanInProgress, 0);
+        }
+    }
+
+    private IEnumerable<GameDefinition> FindRunningGames()
+    {
+        var found = new Dictionary<string, GameDefinition>(StringComparer.OrdinalIgnoreCase);
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                var processName = NameNormalizer.NormalizeProcessName(process.ProcessName);
+                if (_gamesByProcess.TryGetValue(processName, out var game))
+                {
+                    found.TryAdd(game.Id, game);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // The process exited while it was being inspected.
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return found.Values;
+    }
+
+    public void Dispose() => _timer.Dispose();
+}

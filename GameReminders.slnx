@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GameReminders.Core/GameReminders.Core.csproj" />
+    <Project Path="src/GameReminders.App/GameReminders.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GameReminders.Core.Tests/GameReminders.Core.Tests.csproj" />
+  </Folder>
+</Solution>
+
