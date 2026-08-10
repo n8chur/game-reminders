@@ -15,11 +15,35 @@ public static class JsonProtocol
 
     public static GameCatalog ReadCatalog(string json)
     {
+        if (IsEmptyCatalogPlaceholder(json))
+        {
+            return new GameCatalog { UpdatedAt = DateTimeOffset.UnixEpoch };
+        }
+
         var catalog = JsonSerializer.Deserialize<GameCatalog>(json, Options)
             ?? throw new InvalidDataException("games.json contained no catalog.");
 
         ValidateCatalog(catalog);
         return catalog;
+    }
+
+    internal static bool IsEmptyCatalogPlaceholder(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                   !document.RootElement.EnumerateObject().Any();
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     public static Reminder ReadReminder(string json, string? sourcePath = null)
