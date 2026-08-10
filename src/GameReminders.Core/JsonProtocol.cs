@@ -51,6 +51,7 @@ public static class JsonProtocol
         }
 
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var processOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var game in catalog.Games)
         {
             if (string.IsNullOrWhiteSpace(game.Id) || string.IsNullOrWhiteSpace(game.Name))
@@ -61,6 +62,24 @@ public static class JsonProtocol
             if (!ids.Add(game.Id))
             {
                 throw new InvalidDataException($"Duplicate game id '{game.Id}'.");
+            }
+
+            foreach (var process in game.Processes)
+            {
+                var normalizedProcess = NameNormalizer.NormalizeProcessName(process);
+                if (string.IsNullOrWhiteSpace(normalizedProcess))
+                {
+                    throw new InvalidDataException($"Game '{game.Id}' contains an empty process name.");
+                }
+
+                if (processOwners.TryGetValue(normalizedProcess, out var ownerId) &&
+                    !string.Equals(ownerId, game.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Process '{process}' is assigned to both '{ownerId}' and '{game.Id}'.");
+                }
+
+                processOwners[normalizedProcess] = game.Id;
             }
         }
     }
@@ -73,10 +92,11 @@ public static class JsonProtocol
         }
 
         if (reminder.Id == Guid.Empty || string.IsNullOrWhiteSpace(reminder.GameId) ||
-            string.IsNullOrWhiteSpace(reminder.Message))
+            string.IsNullOrWhiteSpace(reminder.GameNameAtCreation) ||
+            string.IsNullOrWhiteSpace(reminder.Message) || reminder.CreatedAt == default)
         {
-            throw new InvalidDataException("A reminder requires a non-empty id, gameId, and message.");
+            throw new InvalidDataException(
+                "A reminder requires a non-empty id, gameId, gameNameAtCreation, message, and createdAt.");
         }
     }
 }
-
