@@ -6,6 +6,7 @@ namespace GameReminders.App;
 
 public partial class MainWindow : Window
 {
+    private bool _allowClose;
     private readonly string _root;
     private readonly Action _reload;
     private readonly Action _exit;
@@ -38,8 +39,19 @@ public partial class MainWindow : Window
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
         RootPathText.Text = root;
-        Closing += (_, args) => { args.Cancel = true; Hide(); };
+        Closing += (_, args) =>
+        {
+            args.Cancel = ShouldHideOnClose(_allowClose);
+            if (args.Cancel)
+            {
+                Hide();
+            }
+        };
     }
+
+    internal static bool ShouldHideOnClose(bool allowClose) => !allowClose;
+
+    public void AllowClose() => _allowClose = true;
 
     public void SetStatus(string status) => StatusText.Text = status;
 
