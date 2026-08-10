@@ -111,17 +111,11 @@ public sealed class SettingsService
                     .ToArray()
             };
         }
-        catch (JsonException)
+        catch (JsonException exception)
         {
-            return new AppSettings();
-        }
-        catch (IOException)
-        {
-            return new AppSettings();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return new AppSettings();
+            throw new InvalidDataException(
+                "Local settings.json is malformed and was preserved. Correct or restore the file, then restart Game Reminders.",
+                exception);
         }
     }
 
