@@ -55,7 +55,6 @@
                     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <ListBox x:Name="PendingList" DisplayMemberPath="Name" MouseDoubleClick="ConfigureDetection_Click" />
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                        <Button Content="Scan Steam" Click="ScanSteam_Click" />
                         <Button Content="Configure" Click="ConfigureDetection_Click" />
                         <Button Content="Ignore" Click="IgnoreDetection_Click" />
                     </StackPanel>
@@ -73,8 +72,9 @@
         </TabControl>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-            <Button Content="Open folder" Click="OpenFolder_Click" />
-            <Button Content="Reload" Click="Reload_Click" />
+            <Button Content="Open folder" Click="OpenFolder_Click" ToolTip="Open the authoritative iCloud Game Reminders folder" />
+            <Button Content="Reload games.json" Click="Reload_Click" ToolTip="Reload the existing game catalog from iCloud" />
+            <Button Content="Scan Steam" Click="ScanSteam_Click" ToolTip="Discover installed Steam games and update the catalog" />
             <Button Content="Hide" Click="Hide_Click" />
             <Button Content="Exit" Click="Exit_Click" />
         </StackPanel>
