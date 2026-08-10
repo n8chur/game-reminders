@@ -24,7 +24,10 @@ public sealed class ProcessLaunchMonitor : IDisposable
     {
     }
 
-    internal ProcessLaunchMonitor(IReadOnlyList<GameDefinition> games, Func<Process[]> getProcesses)
+    internal ProcessLaunchMonitor(
+        IReadOnlyList<GameDefinition> games,
+        Func<Process[]> getProcesses,
+        IEnumerable<string>? activeGameIds = null)
     {
         var mappings = games
             .SelectMany(game => game.Processes.Select(process => (Process: process, Game: game)))
@@ -43,6 +46,7 @@ public sealed class ProcessLaunchMonitor : IDisposable
                 StringComparer.OrdinalIgnoreCase);
         _getProcesses = getProcesses;
         _timer = new System.Threading.Timer(Scan, null, Timeout.Infinite, Timeout.Infinite);
+        _activeGameIds.UnionWith(activeGameIds ?? []);
     }
 
     public event EventHandler<GameDefinition>? GameLaunched;
@@ -66,10 +70,18 @@ public sealed class ProcessLaunchMonitor : IDisposable
         try
         {
             var running = FindRunningGames().ToDictionary(game => game.Id, StringComparer.OrdinalIgnoreCase);
-            var launched = running.Values.Where(game => !_activeGameIds.Contains(game.Id)).ToArray();
+            GameDefinition[] launched;
+            lock (_lifecycleGate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
 
-            _activeGameIds.Clear();
-            _activeGameIds.UnionWith(running.Keys);
+                launched = running.Values.Where(game => !_activeGameIds.Contains(game.Id)).ToArray();
+                _activeGameIds.Clear();
+                _activeGameIds.UnionWith(running.Keys);
+            }
 
             foreach (var game in launched)
             {
@@ -164,6 +176,14 @@ public sealed class ProcessLaunchMonitor : IDisposable
         }
 
         return found.Values;
+    }
+
+    internal IReadOnlyCollection<string> SnapshotActiveGameIds()
+    {
+        lock (_lifecycleGate)
+        {
+            return _activeGameIds.ToArray();
+        }
     }
 
     public void Dispose()
