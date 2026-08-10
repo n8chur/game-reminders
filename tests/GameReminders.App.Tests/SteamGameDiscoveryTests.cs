@@ -20,4 +20,20 @@ public sealed class SteamGameDiscoveryTests
         Assert.Equal("path", pair.Key);
         Assert.Equal(@"D:\\SteamLibrary", pair.Value);
     }
+
+    [Fact]
+    public void ManifestEnumerationFailureSkipsInaccessibleLibrary()
+    {
+        var manifests = SteamGameDiscovery.EnumerateManifestFiles(
+            @"D:\\SteamLibrary\\steamapps",
+            (_, _) => ThrowDuringEnumeration());
+
+        Assert.Empty(manifests);
+    }
+
+    private static IEnumerable<string> ThrowDuringEnumeration()
+    {
+        yield return @"D:\\SteamLibrary\\steamapps\\appmanifest_123.acf";
+        throw new UnauthorizedAccessException("Library became inaccessible.");
+    }
 }
