@@ -31,6 +31,24 @@ public sealed class SteamGameDiscoveryTests
         Assert.Empty(manifests);
     }
 
+    [Theory]
+    [InlineData("", "Test Game", "TestGame")]
+    [InlineData("123", "Test Game", "")]
+    [InlineData("123", "", "TestGame")]
+    public void EmptyRequiredManifestValuesAreRejected(string appId, string name, string installDir)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appid"] = appId,
+            ["name"] = name,
+            ["installdir"] = installDir
+        };
+
+        var detection = SteamGameDiscovery.CreateDetection(values, @"D:\\SteamLibrary\\steamapps", _ => []);
+
+        Assert.Null(detection);
+    }
+
     private static IEnumerable<string> ThrowDuringEnumeration()
     {
         yield return @"D:\\SteamLibrary\\steamapps\\appmanifest_123.acf";

@@ -59,6 +59,10 @@ public partial class MainWindow : Window
 
     public void SetPending(IReadOnlyList<PendingGameDetection> pending) => PendingList.ItemsSource = pending;
 
+    public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
+
+    public void ShowDetectedGames() => ManagementTabs.SelectedItem = DetectedGamesTab;
+
     private void OpenFolder_Click(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("explorer.exe", _root) { UseShellExecute = true });
 

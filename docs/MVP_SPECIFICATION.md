@@ -24,7 +24,9 @@ The dependable display target is borderless fullscreen. The application will not
 
 ## Game discovery and aliases
 
-The client supports Steam metadata, conservative foreground-application detection, and manual addition. An unknown likely game is saved to Windows-only pending state before its setup prompt appears. Closing an unresolved setup prompt makes it return after the next login.
+The client supports Steam metadata, conservative foreground-application detection, and manual addition. Games confidently identified from Steam metadata are added automatically with a stable Steam app ID and summarized in one non-blocking notification. Clicking the notification opens game management. Notifications are informational and may be suppressed by Windows without affecting discovery or reminder behavior.
+
+Uncertain foreground-application detections are saved to Windows-only pending state and shown in **Detected games** for manual configuration or dismissal. Discovery never opens a blocking setup prompt, including during startup and manual scans.
 
 The setup and management UI supports canonical names, aliases, and associated executables. Suggestions come from local names and metadata; speech-recognition variants such as `Forever` for `Farever` are added manually.
 
@@ -51,7 +53,7 @@ Development builds are unsigned portable ZIP artifacts built by GitHub Actions. 
 ## Delivery milestones
 
 1. File/process prototype: catalog loading, reminder scanning, configured process detection, persistent popup, Dismiss, and Show on next launch.
-2. Game management: tray UI, Steam discovery, persistent new-game prompts, and alias/executable editing.
+2. Game management: tray UI, automatic trusted Steam discovery, persistent uncertain detections, and alias/executable editing.
 3. iPhone Shortcut: exact normalized matching, no-match handling, reminder creation, repository-hosted importable Shortcut, and human-readable definition.
 4. Reliability and packaging: startup registration, rescans, invalid-file handling, diagnostics, first-run wizard, and portable builds.
 5. Polish: Windows 11 appearance, multiple reminders and monitors, accessibility, installer, and a complete README covering installation of both components, usage, supported features, limitations, configuration, and troubleshooting.
@@ -63,7 +65,6 @@ Development builds are unsigned portable ZIP artifacts built by GitHub Actions. 
 - Launching a matching game displays its reminders and the popup persists until handled.
 - Closing or crashing cannot complete a reminder.
 - Show on next launch redisplays the reminder on a later launch; Dismiss prevents redisplay.
-- A new-game setup prompt persists when closed without a decision.
+- A trusted Steam game is added without a blocking prompt; an uncertain detection persists until configured or ignored.
 - Already-downloaded files work offline.
 - Normal operation requires neither administrator privileges nor game injection.
-

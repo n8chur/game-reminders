@@ -54,7 +54,6 @@ public partial class App : System.Windows.Application
             StartMonitoring();
             RefreshPending();
             StartForegroundDetection();
-            _ = Dispatcher.InvokeAsync(PromptForFirstPending);
             _ = ScanSteamAsync(showCompletion: false);
         }
         catch (Exception exception)
@@ -109,6 +108,18 @@ public partial class App : System.Windows.Application
         _mainWindow?.Activate();
     }
 
+    private void ShowGames()
+    {
+        ShowMainWindow();
+        _mainWindow?.ShowGames();
+    }
+
+    private void ShowDetectedGames()
+    {
+        ShowMainWindow();
+        _mainWindow?.ShowDetectedGames();
+    }
+
     private void ShutdownApplication()
     {
         _mainWindow?.AllowClose();
@@ -159,7 +170,13 @@ public partial class App : System.Windows.Application
 
         try
         {
-            await Dispatcher.InvokeAsync(() => AddDetection(detection, prompt: true));
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (AddDetection(detection))
+                {
+                    ShowReviewNotification(1, trustedSteamGames: false);
+                }
+            });
         }
         catch (TaskCanceledException)
         {
@@ -239,14 +256,26 @@ public partial class App : System.Windows.Application
         try
         {
             var discovered = await Task.Run(() => new SteamGameDiscovery().Discover());
-            var added = discovered.Count(candidate => AddDetection(candidate, prompt: false));
-            if (showCompletion)
+            if (_store is null)
             {
-                _mainWindow?.SetStatus($"Steam scan found {added} new game(s) requiring setup");
+                return;
             }
+
+            var catalog = _store.LoadCatalog();
+            var import = SteamCatalogImporter.Import(catalog, discovered);
+            var added = import.AddedGames.Count;
             if (added > 0)
             {
-                PromptForFirstPending();
+                _store.SaveCatalog(import.Catalog);
+                StartMonitoring();
+                ShowReviewNotification(added, trustedSteamGames: true);
+            }
+            RemoveConfiguredPending(import.Catalog);
+            if (showCompletion)
+            {
+                _mainWindow?.SetStatus(added == 0
+                    ? "Steam scan found no new games"
+                    : $"Steam scan added {added} new game(s)");
             }
         }
         catch (Exception exception)
@@ -255,7 +284,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private bool AddDetection(PendingGameDetection detection, bool prompt)
+    private bool AddDetection(PendingGameDetection detection)
     {
         if (_store is null || _settings.IgnoredDetectionKeys.Contains(detection.Key, StringComparer.OrdinalIgnoreCase) ||
             _settings.PendingDetections.Any(item => string.Equals(item.Key, detection.Key, StringComparison.OrdinalIgnoreCase)))
@@ -266,9 +295,13 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
+            var detectionProcesses = detection.Processes
+                .Select(NameNormalizer.NormalizeProcessName)
+                .Where(process => !string.IsNullOrWhiteSpace(process))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (catalog.Games.Any(game =>
                     (detection.AppId is not null && string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
-                    game.Processes.Any(process => detection.Processes.Select(NameNormalizer.NormalizeProcessName).Contains(NameNormalizer.NormalizeProcessName(process), StringComparer.OrdinalIgnoreCase))))
+                    game.Processes.Any(process => detectionProcesses.Contains(NameNormalizer.NormalizeProcessName(process)))))
             {
                 return false;
             }
@@ -284,27 +317,69 @@ public partial class App : System.Windows.Application
             _mainWindow?.SetStatus($"Could not persist detected game '{detection.Name}'; detection will be retried");
             return false;
         }
-        _settings = updated; // Persist before any prompt so closing or crashing cannot lose the detection.
+        _settings = updated;
         RefreshPending();
-        if (prompt)
-        {
-            PromptFor(detection);
-        }
         return true;
     }
 
-    private void PromptForFirstPending()
+    private void ShowReviewNotification(int count, bool trustedSteamGames)
     {
-        var first = _settings.PendingDetections.OrderBy(item => item.DetectedAt).FirstOrDefault();
-        if (first is not null) PromptFor(first);
+        if (_trayIcon is null)
+        {
+            return;
+        }
+
+        _trayIcon.BalloonTipTitle = "Game Reminders";
+        _trayIcon.BalloonTipText = trustedSteamGames
+            ? count == 1
+                ? "A Steam game was added. Click to review it."
+                : $"{count} Steam games were added. Click to review them."
+            : count == 1
+                ? "A potential game needs review. Click to open Detected games."
+                : $"{count} potential games need review. Click to open Detected games.";
+        _trayIcon.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.Info;
+        _trayIcon.BalloonTipClicked -= OnReviewNotificationClicked;
+        _trayIcon.BalloonTipClicked += OnReviewNotificationClicked;
+        _reviewNotificationShowsGames = trustedSteamGames;
+        _trayIcon.ShowBalloonTip(5000);
     }
 
-    private void PromptFor(PendingGameDetection detection)
+    private bool _reviewNotificationShowsGames;
+
+    private void OnReviewNotificationClicked(object? sender, EventArgs e)
     {
-        var result = MessageBox.Show(
-            $"Game Reminders detected '{detection.Name}'. Configure it now?\n\nChoosing No leaves it pending so it returns after the next login.",
-            "New game detected", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (result == MessageBoxResult.Yes) ConfigureDetection(detection);
+        if (_reviewNotificationShowsGames)
+        {
+            ShowGames();
+        }
+        else
+        {
+            ShowDetectedGames();
+        }
+    }
+
+    private void RemoveConfiguredPending(GameCatalog catalog)
+    {
+        var appIds = catalog.Games
+            .Select(game => game.Source?.AppId)
+            .Where(appId => !string.IsNullOrWhiteSpace(appId))
+            .Select(appId => appId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var retained = _settings.PendingDetections
+            .Where(item => string.IsNullOrWhiteSpace(item.AppId) || !appIds.Contains(item.AppId))
+            .ToArray();
+        if (retained.Length == _settings.PendingDetections.Count)
+        {
+            return;
+        }
+
+        var updated = _settings with { PendingDetections = retained };
+        _settings = updated;
+        RefreshPending();
+        if (_settingsService?.TrySave(updated) != true)
+        {
+            _mainWindow?.SetStatus("Steam games were added, but cached detections could not be cleaned up");
+        }
     }
 
     private void ConfigureDetection(PendingGameDetection detection)

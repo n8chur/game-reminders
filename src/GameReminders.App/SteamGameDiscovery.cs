@@ -38,24 +38,11 @@ public sealed class SteamGameDiscovery
                     var values = ParsePairs(File.ReadAllText(manifest))
                         .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                         .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase);
-                    if (!values.TryGetValue("appid", out var appId) ||
-                        !values.TryGetValue("name", out var name) ||
-                        !values.TryGetValue("installdir", out var installDir) ||
-                        string.IsNullOrWhiteSpace(name))
+                    var detection = CreateDetection(values, steamApps);
+                    if (detection is not null)
                     {
-                        continue;
+                        results[detection.Key] = detection;
                     }
-
-                    var gameRoot = Path.Combine(steamApps, "common", installDir);
-                    var processes = FindLikelyExecutables(gameRoot);
-                    results[$"steam:{appId}"] = new PendingGameDetection
-                    {
-                        Key = $"steam:{appId}",
-                        Name = name,
-                        Processes = processes,
-                        SourceType = "steam",
-                        AppId = appId
-                    };
                 }
                 catch (IOException)
                 {
@@ -87,6 +74,29 @@ public sealed class SteamGameDiscovery
         {
             return [];
         }
+    }
+
+    internal static PendingGameDetection? CreateDetection(
+        IReadOnlyDictionary<string, string> values,
+        string steamApps,
+        Func<string, IReadOnlyList<string>>? findLikelyExecutables = null)
+    {
+        if (!values.TryGetValue("appid", out var appId) || string.IsNullOrWhiteSpace(appId) ||
+            !values.TryGetValue("name", out var name) || string.IsNullOrWhiteSpace(name) ||
+            !values.TryGetValue("installdir", out var installDir) || string.IsNullOrWhiteSpace(installDir))
+        {
+            return null;
+        }
+
+        var gameRoot = Path.Combine(steamApps, "common", installDir);
+        return new PendingGameDetection
+        {
+            Key = $"steam:{appId}",
+            Name = name,
+            Processes = (findLikelyExecutables ?? FindLikelyExecutables)(gameRoot),
+            SourceType = "steam",
+            AppId = appId
+        };
     }
 
     private static string? FindSteamRoot()

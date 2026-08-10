@@ -10,10 +10,10 @@ The repository is currently implementing **Milestone 2 (game management)**. It c
 2. Run `GameReminders.App.exe`.
 3. Select the `Game Reminders` folder in iCloud Drive when prompted.
 4. Mark that folder **Always keep on this device** in File Explorer.
-5. Use **Add game**, **Scan Steam**, or the detected-game prompt to configure a game and its executable names.
+5. Use **Add game** or **Scan Steam** to populate the catalog, then edit aliases or executable names as needed.
 6. Add a conforming reminder file under `inbox`, then launch the configured executable.
 
-Closing the main window leaves Game Reminders running in the notification area. Detected games remain pending until configured or explicitly ignored. An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
+Closing the main window leaves Game Reminders running in the notification area. Steam games are added automatically and summarized with a non-blocking notification; uncertain foreground detections remain pending until configured or explicitly ignored. An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
 
 ## Development
 
