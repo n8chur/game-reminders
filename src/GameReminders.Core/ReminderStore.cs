@@ -37,8 +37,19 @@ public sealed class ReminderStore
         }
     }
 
-    public GameCatalog LoadCatalog() => JsonProtocol.ReadCatalog(
-        RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath)));
+    public GameCatalog LoadCatalog()
+    {
+        var json = RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath));
+        var catalog = JsonProtocol.ReadCatalog(json);
+        if (!JsonProtocol.IsEmptyCatalogPlaceholder(json))
+        {
+            return catalog;
+        }
+
+        SaveCatalog(catalog);
+        return JsonProtocol.ReadCatalog(
+            RetrySyncProviderOperation(() => File.ReadAllText(CatalogPath)));
+    }
 
     public void SaveCatalog(GameCatalog catalog)
     {
