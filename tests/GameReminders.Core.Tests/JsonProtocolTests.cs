@@ -44,5 +44,46 @@ public sealed class JsonProtocolTests
 
         Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadReminder(json));
     }
-}
 
+    [Fact]
+    public void EmptyGameNameAtCreationIsRejected()
+    {
+        var reminder = CreateReminder() with { GameNameAtCreation = " " };
+
+        Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteReminder(reminder));
+    }
+
+    [Fact]
+    public void DefaultCreatedAtIsRejected()
+    {
+        var reminder = CreateReminder() with { CreatedAt = default };
+
+        Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteReminder(reminder));
+    }
+
+    private static Reminder CreateReminder() => new()
+    {
+        Id = Guid.Parse("0198a7de-81a2-74fe-b560-0242ac120002"),
+        GameId = "custom-farever",
+        GameNameAtCreation = "Farever",
+        Message = "Change my build",
+        CreatedAt = DateTimeOffset.Parse("2026-08-10T20:35:00Z")
+    };
+
+    [Fact]
+    public void ProcessAssignedToMultipleGamesIsRejected()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition { Id = "first", Name = "First", Processes = ["Shared.exe"] },
+                new GameDefinition { Id = "second", Name = "Second", Processes = ["SHARED"] }
+            ]
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteCatalog(catalog));
+
+        Assert.Contains("assigned to both", exception.Message);
+    }
+}
