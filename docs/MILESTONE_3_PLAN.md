@@ -13,8 +13,8 @@ Add the iPhone half of Game Reminders without introducing a server or a second r
 3. Continue only when exactly one game matches. Unknown and ambiguous names must create no file and must explain the failure.
 4. Ask for a non-empty reminder message.
 5. Create a reminder with a new UUID, the stable game ID, the current display name, the message, and an ISO 8601 creation timestamp.
-6. Save one new `<UUID>.json` file to `inbox` without modifying `games.json` or overwriting another reminder.
-7. Report success only after the file save succeeds.
+6. Stage one new reminder with a non-JSON temporary extension in `inbox`, then rename it to `<UUID>.json` without modifying `games.json` or overwriting another reminder.
+7. Report success only after the final rename succeeds.
 
 ## Deliverables
 
