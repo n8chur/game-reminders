@@ -10,16 +10,9 @@
     "sharingMode": "anyone"
   },
   "configuration": {
-    "catalogFolder": {
-      "variable": "catalogFolder",
-      "type": "folder",
-      "importQuestion": "Choose your Game Reminders folder in iCloud Drive."
-    },
-    "inboxFolder": {
-      "variable": "inboxBaseFolder",
-      "type": "folder",
-      "importQuestion": "Choose the same Game Reminders folder again for the inbox."
-    }
+    "iCloudContainer": "Shortcuts",
+    "relativeFolder": "Game Reminders",
+    "importQuestions": false
   },
   "normalization": {
     "case": "lowercase",
@@ -30,7 +23,7 @@
   "workflow": [
     {
       "action": "getFile",
-      "folder": "catalogFolder",
+      "folder": "Shortcuts/Game Reminders",
       "relativePath": "games.json",
       "error": "Game Reminders could not read games.json from the selected folder."
     },
@@ -209,7 +202,7 @@
     },
     {
       "action": "getFile",
-      "folder": "inboxBaseFolder",
+      "folder": "Shortcuts/Game Reminders",
       "relativePath": "inbox",
       "output": "inboxFolder"
     },
