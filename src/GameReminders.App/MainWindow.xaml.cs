@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using GameReminders.Core;
@@ -8,44 +7,36 @@ namespace GameReminders.App;
 public partial class MainWindow : Window
 {
     private bool _allowClose;
-    private readonly string _root;
-    private readonly Action _reload;
-    private readonly Action _exit;
     private readonly Action _addGame;
     private readonly Action<GameDefinition> _editGame;
     private readonly Action<GameDefinition> _removeGame;
     private readonly Action _scanSteam;
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
-    private readonly Action<SuppressedSteamGame> _restoreSteamGame;
+    private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
     private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
+    private IReadOnlyList<GameListItem> _games = [];
+    private IReadOnlyList<PendingGameDetection> _pending = [];
 
     public MainWindow(
-        string root,
-        Action reload,
-        Action exit,
         Action addGame,
         Action<GameDefinition> editGame,
         Action<GameDefinition> removeGame,
         Action scanSteam,
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
-        Action<SuppressedSteamGame> restoreSteamGame,
+        Action<IgnoredDiscoveryItem> restoreIgnored,
         Action<IReadOnlyCollection<string>> markGamesReviewed)
     {
         InitializeComponent();
-        _root = root;
-        _reload = reload;
-        _exit = exit;
         _addGame = addGame;
         _editGame = editGame;
         _removeGame = removeGame;
         _scanSteam = scanSteam;
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
-        _restoreSteamGame = restoreSteamGame;
+        _restoreIgnored = restoreIgnored;
         _markGamesReviewed = markGamesReviewed;
-        RootPathText.Text = root;
         Closing += (_, args) =>
         {
             args.Cancel = ShouldHideOnClose(_allowClose);
@@ -62,19 +53,26 @@ public partial class MainWindow : Window
 
     public void AllowClose() => _allowClose = true;
 
-    public void SetStatus(string status) => StatusText.Text = status;
+    public void SetStatus(string? status, bool isIssue = false)
+    {
+        StatusText.Text = status ?? string.Empty;
+        StatusBanner.Visibility = string.IsNullOrWhiteSpace(status) ? Visibility.Collapsed : Visibility.Visible;
+        StatusBanner.Background = (System.Windows.Media.Brush)FindResource(
+            isIssue ? "IssueBackgroundBrush" : "NoticeBackgroundBrush");
+        StatusText.Foreground = (System.Windows.Media.Brush)FindResource(
+            isIssue ? "IssueTextBrush" : "NoticeTextBrush");
+    }
 
     public void SetGames(IReadOnlyList<GameDefinition> games, IReadOnlySet<string> unreviewedGameIds)
     {
         var selectedGameId = (GamesList.SelectedItem as GameListItem)?.Game.Id;
-        var items = games.Select(game => new GameListItem(
+        _games = games.Select(game => new GameListItem(
             game,
             unreviewedGameIds.Contains(game.Id),
             game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
                 unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
-        GamesList.ItemsSource = items;
-        GamesList.SelectedItem = FindItemByGameId(items, selectedGameId);
-        var newCount = items.Count(item => item.IsUnreviewed);
+        ApplyFilter(selectedGameId);
+        var newCount = _games.Count(item => item.IsUnreviewed);
         GamesTab.Header = newCount > 0 ? $"Games ({newCount} new)" : "Games";
     }
 
@@ -83,22 +81,52 @@ public partial class MainWindow : Window
             ? null
             : items.FirstOrDefault(item => string.Equals(item.Game.Id, gameId, StringComparison.OrdinalIgnoreCase));
 
-    public void SetPending(IReadOnlyList<PendingGameDetection> pending) => PendingList.ItemsSource = pending;
-
-    public void SetSuppressedSteamGames(IReadOnlyList<SuppressedSteamGame> games) =>
-        SuppressedSteamList.ItemsSource = games;
-
-    public void ShowGames()
+    public void SetPending(IReadOnlyList<PendingGameDetection> pending)
     {
-        ManagementTabs.SelectedItem = GamesTab;
+        _pending = pending;
+        ApplyFilter();
     }
 
-    public void ShowDetectedGames() => ManagementTabs.SelectedItem = DetectedGamesTab;
+    public void SetIgnored(IReadOnlyList<IgnoredDiscoveryItem> ignored)
+    {
+        IgnoredList.ItemsSource = ignored;
+        IgnoredList.Visibility = ignored.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        IgnoredEmptyText.Visibility = ignored.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        IgnoredTab.Header = ignored.Count > 0 ? $"Ignored ({ignored.Count})" : "Ignored";
+    }
 
-    private void OpenFolder_Click(object sender, RoutedEventArgs e) =>
-        Process.Start(new ProcessStartInfo("explorer.exe", _root) { UseShellExecute = true });
+    public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
 
-    private void Reload_Click(object sender, RoutedEventArgs e) => _reload();
+    private void ApplyFilter(string? selectedGameId = null)
+    {
+        if (GamesList is null || PendingList is null)
+        {
+            return;
+        }
+
+        selectedGameId ??= (GamesList.SelectedItem as GameListItem)?.Game.Id;
+        var query = SearchText?.Text?.Trim() ?? string.Empty;
+        var games = _games.Where(item => Matches(item.Game.Name, query)).ToArray();
+        var pending = _pending.Where(item => Matches(item.Name, query)).ToArray();
+
+        GamesList.ItemsSource = games;
+        GamesList.SelectedItem = FindItemByGameId(games, selectedGameId);
+        PendingList.ItemsSource = pending;
+        ConfiguredCountText.Text = CountLabel(games.Length, "game");
+        DetectedCountText.Text = CountLabel(pending.Length, "item");
+        GamesList.Visibility = games.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        GamesEmptyText.Visibility = games.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        DetectedSection.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        DetectionActions.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    internal static bool Matches(string value, string query) =>
+        string.IsNullOrWhiteSpace(query) || value.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+
+    internal static string CountLabel(int count, string singular) => $"{count} {(count == 1 ? singular : singular + "s")}";
+
+    private void SearchText_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
+    private void DismissStatus_Click(object sender, RoutedEventArgs e) => SetStatus(null);
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
     private void EditGame_Click(object sender, RoutedEventArgs e)
     {
@@ -117,16 +145,10 @@ public partial class MainWindow : Window
     {
         if (PendingList.SelectedItem is PendingGameDetection detection) _ignoreDetection(detection);
     }
-    private void RestoreSteamGame_Click(object sender, RoutedEventArgs e)
+    private void RestoreIgnored_Click(object sender, RoutedEventArgs e)
     {
-        if (SuppressedSteamList.SelectedItem is SuppressedSteamGame game) _restoreSteamGame(game);
+        if (IgnoredList.SelectedItem is IgnoredDiscoveryItem item) _restoreIgnored(item);
     }
-    private void Hide_Click(object sender, RoutedEventArgs e)
-    {
-        MarkVisibleGamesReviewed();
-        Hide();
-    }
-    private void Exit_Click(object sender, RoutedEventArgs e) => _exit();
 
     private void GamesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -145,17 +167,10 @@ public partial class MainWindow : Window
         }
 
         var visibleIds = GamesList.Items.OfType<GameListItem>()
-            .Where(item => ShouldAcknowledge(
-                item,
-                isSelected: false,
-                isVisible: IsItemVisible(item),
-                acknowledgeVisibleRows: true))
+            .Where(item => ShouldAcknowledge(item, false, IsItemVisible(item), true))
             .Select(item => item.Game.Id)
             .ToArray();
-        if (visibleIds.Length > 0)
-        {
-            _markGamesReviewed(visibleIds);
-        }
+        if (visibleIds.Length > 0) _markGamesReviewed(visibleIds);
     }
 
     private bool IsItemVisible(GameListItem item)
@@ -169,9 +184,7 @@ public partial class MainWindow : Window
         try
         {
             var origin = container.TranslatePoint(new Point(0, 0), GamesList);
-            var itemBounds = new Rect(origin, container.RenderSize);
-            var viewport = new Rect(new Point(0, 0), GamesList.RenderSize);
-            return IsFullyWithinViewport(itemBounds, viewport);
+            return IsFullyWithinViewport(new Rect(origin, container.RenderSize), new Rect(new Point(0, 0), GamesList.RenderSize));
         }
         catch (InvalidOperationException)
         {
@@ -179,11 +192,7 @@ public partial class MainWindow : Window
         }
     }
 
-    internal static bool ShouldAcknowledge(
-        GameListItem item,
-        bool isSelected,
-        bool isVisible,
-        bool acknowledgeVisibleRows) =>
+    internal static bool ShouldAcknowledge(GameListItem item, bool isSelected, bool isVisible, bool acknowledgeVisibleRows) =>
         item.IsUnreviewed && (isSelected || (acknowledgeVisibleRows && isVisible));
 
     internal static bool IsFullyWithinViewport(Rect itemBounds, Rect viewport) =>
@@ -193,4 +202,13 @@ public partial class MainWindow : Window
 internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, string Badge)
 {
     public Visibility BadgeVisibility => string.IsNullOrEmpty(Badge) ? Visibility.Collapsed : Visibility.Visible;
+    public string BadgeBackground => Badge == "ACTION REQUIRED" ? "#B42318" : "#16803A";
+    public string SourceLabel => Game.Source?.Type?.Trim().ToLowerInvariant() switch
+    {
+        "steam" => "Steam",
+        "detected" => "Detected application",
+        _ => "Manual"
+    };
 }
+
+internal sealed record IgnoredDiscoveryItem(string Key, string Name, string SourceLabel, string? SteamAppId = null);

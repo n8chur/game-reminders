@@ -6,7 +6,7 @@
         MinWidth="520" MaxWidth="760" MaxHeight="700"
         WindowStartupLocation="CenterScreen"
         Topmost="True" ShowActivated="False"
-        Background="{StaticResource WindowBackground}">
+        Background="{DynamicResource WindowBackground}">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -21,8 +21,7 @@
             <StackPanel x:Name="ReminderList" />
         </ScrollViewer>
 
-        <TextBlock Grid.Row="2" Margin="0,12,0,0" Foreground="#666666" TextWrapping="Wrap"
+        <TextBlock Grid.Row="2" Margin="0,12,0,0" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"
                    Text="Closing this window keeps every unresolved reminder pending for the next launch." />
     </Grid>
 </Window>
-

@@ -88,8 +88,10 @@ public partial class GameEditorWindow : Window
 
         var canSave = CanSave(_original?.Source, SplitLines(ProcessesText.Text));
         SaveButton.IsEnabled = canSave;
-        ProcessesLabel.Foreground = canSave ? SystemColors.ControlTextBrush : Brushes.Firebrick;
-        ProcessesHelp.Foreground = canSave ? Brushes.DimGray : Brushes.Firebrick;
+        var normalText = (Brush)FindResource("TextBrush");
+        var secondaryText = (Brush)FindResource("SecondaryTextBrush");
+        ProcessesLabel.Foreground = canSave ? normalText : Brushes.Firebrick;
+        ProcessesHelp.Foreground = canSave ? secondaryText : Brushes.Firebrick;
         ProcessesHelp.Text = canSave
             ? "Add every executable that should count as launching this game."
             : "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.";
