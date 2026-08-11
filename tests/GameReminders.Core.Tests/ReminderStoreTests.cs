@@ -37,7 +37,58 @@ public sealed class ReminderStoreTests : IDisposable
         store.Complete(pending);
 
         Assert.False(File.Exists(source));
-        Assert.True(File.Exists(Path.Combine(store.CompletedPath, Path.GetFileName(source))));
+        var destination = Path.Combine(store.CompletedPath, Path.GetFileName(source));
+        Assert.True(File.Exists(destination));
+        Assert.False(File.Exists(Path.Combine(_root, Path.GetFileName(source))));
+        Assert.Equal(
+            new[] { destination },
+            Directory.EnumerateFiles(_root, "*.json", SearchOption.AllDirectories)
+                .Where(path => !string.Equals(path, store.CatalogPath, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void CompleteRemovesMatchingLegacyRootDuplicate()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.InboxPath, filename);
+        var rootDuplicate = Path.Combine(_root, filename);
+        var json = JsonProtocol.WriteReminder(reminder);
+        File.WriteAllText(source, json);
+        File.WriteAllText(rootDuplicate, json);
+
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+        store.Complete(pending);
+
+        Assert.False(File.Exists(source));
+        Assert.False(File.Exists(rootDuplicate));
+        Assert.True(File.Exists(Path.Combine(store.CompletedPath, filename)));
+    }
+
+    [Fact]
+    public void CompletePreservesConflictingRootDuplicateAndPendingReminder()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.InboxPath, filename);
+        var rootDuplicate = Path.Combine(_root, filename);
+        var sourceJson = JsonProtocol.WriteReminder(reminder);
+        var duplicateJson = JsonProtocol.WriteReminder(reminder with { Message = "Conflicting root message" });
+        File.WriteAllText(source, sourceJson);
+        File.WriteAllText(rootDuplicate, duplicateJson);
+
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+
+        var exception = Assert.Throws<InvalidDataException>(() => store.Complete(pending));
+
+        Assert.Contains("conflicts", exception.Message);
+        Assert.Equal(sourceJson, File.ReadAllText(source));
+        Assert.Equal(duplicateJson, File.ReadAllText(rootDuplicate));
+        Assert.False(File.Exists(Path.Combine(store.CompletedPath, filename)));
     }
 
     [Fact]
