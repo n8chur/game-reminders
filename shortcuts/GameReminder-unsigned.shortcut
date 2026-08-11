@@ -13,22 +13,10 @@
 					<string>gamesFile</string>
 					<key>UUID</key>
 					<string>0d484cb4-a759-444e-a611-542b39a027c6</string>
-					<key>WFFile</key>
-					<dict>
-						<key>displayName</key>
-						<string>Game Reminders</string>
-						<key>fileLocation</key>
-						<dict>
-							<key>relativeSubpath</key>
-							<string>Game Reminders</string>
-						</dict>
-						<key>filename</key>
-						<string>Game Reminders</string>
-					</dict>
 					<key>WFFileErrorIfNotFound</key>
 					<true/>
 					<key>WFGetFilePath</key>
-					<string>games.json</string>
+					<string>Game Reminders/games.json</string>
 				</dict>
 			</dict>
 			<dict>
@@ -2229,22 +2217,10 @@
 					<string>inboxFolder</string>
 					<key>UUID</key>
 					<string>ede333a6-2f56-440a-b655-fb03f8a62cfa</string>
-					<key>WFFile</key>
-					<dict>
-						<key>displayName</key>
-						<string>Game Reminders</string>
-						<key>fileLocation</key>
-						<dict>
-							<key>relativeSubpath</key>
-							<string>Game Reminders</string>
-						</dict>
-						<key>filename</key>
-						<string>Game Reminders</string>
-					</dict>
 					<key>WFFileErrorIfNotFound</key>
 					<true/>
 					<key>WFGetFilePath</key>
-					<string>inbox</string>
+					<string>Game Reminders/inbox</string>
 				</dict>
 			</dict>
 			<dict>
