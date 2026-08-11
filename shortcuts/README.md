@@ -12,7 +12,7 @@ Apple will not import the unsigned artifact directly. `GameReminder.shortcut` is
 
 The canonical Shortcut uses the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders`. Both `games.json` and `inbox` are resolved relative to Shortcuts' built-in iCloud container, so the workflow contains no imported folder bookmark or setup question. Nothing is stored at the root of the `Shortcuts` directory.
 
-The authoritative folder must contain:
+The authoritative folder must contain `games.json`. The Shortcut creates `inbox` on first use if it is missing; Windows creates the remaining managed folders as needed:
 
 ```text
 iCloud Drive/
@@ -50,7 +50,7 @@ The Windows app must be pointed at that same `Game Reminders` folder and it shou
    | `message` | Reminder text |
    | `createdAt` | ISO 8601 current date |
 
-10. Serialize the dictionary as JSON. Resolve `inbox` beneath the same fixed `iCloud Drive/Shortcuts/Game Reminders` folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
+10. Serialize the dictionary as JSON. Create or reuse `inbox` beneath the same fixed `iCloud Drive/Shortcuts/Game Reminders` folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
 11. Only after the final rename succeeds, show **Reminder saved for <game name>.**
 
 The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The staging filename intentionally has no leading dot so macOS does not preserve the finalized reminder as hidden. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
@@ -74,7 +74,8 @@ Do not commit a privately shared export or a file containing Apple contact infor
 - Two games whose names/aliases normalize to the same value create no file.
 - Empty game and reminder prompts create no file.
 - Quotes, emoji, and line breaks in the reminder message remain valid escaped JSON.
-- A successful run creates exactly one new UUID-named `.json` file in `inbox`.
+- With `inbox` absent, the first successful run creates it and writes exactly one new UUID-named `.json` file there.
+- With `inbox` already present, a successful run reuses it and creates exactly one new UUID-named `.json` file.
 - An existing destination is not overwritten.
 - If iCloud is unavailable or the save/rename fails, no success message appears.
 - After iCloud sync, launching the matched game on Windows displays the reminder.

@@ -135,10 +135,11 @@ $saveParameters = Convert-PlistDictionary $saveAction.WFWorkflowActionParameters
 $moveParameters = Convert-PlistDictionary $moveAction.WFWorkflowActionParameters
 $renameParameters = Convert-PlistDictionary $renameAction.WFWorkflowActionParameters
 
-if ($inboxAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.documentpicker.open' -or
-    $inboxParameters.WFGetFilePath.InnerText -ne 'Game Reminders/inbox' -or
-    $inboxParameters.ContainsKey('WFFile')) {
-    throw 'The inbox lookup must read Game Reminders/inbox directly from the built-in Shortcuts container.'
+if ($inboxAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.file.createfolder' -or
+    $inboxParameters.WFFilePath.InnerText -ne 'Game Reminders/inbox' -or
+    $inboxParameters.ContainsKey('WFFile') -or
+    $inboxParameters.ContainsKey('WFFileErrorIfNotFound')) {
+    throw 'The Shortcut must create or reuse Game Reminders/inbox in the built-in Shortcuts container.'
 }
 
 $stagingPath = Convert-PlistDictionary (Convert-PlistDictionary $saveParameters.WFFileDestinationPath).Value
@@ -173,7 +174,7 @@ $saveIndex = [Array]::IndexOf($actions, $saveActionNode)
 $moveIndex = [Array]::IndexOf($actions, $moveActionNode)
 $renameIndex = [Array]::IndexOf($actions, $renameActionNode)
 if (-not ($inboxIndex -lt $saveIndex -and $saveIndex -lt $moveIndex -and $moveIndex -lt $renameIndex)) {
-    throw 'Expected inbox resolution, staging save, inbox move, and final rename in that order.'
+    throw 'Expected inbox creation/reuse, staging save, inbox move, and final rename in that order.'
 }
 
 $controlFlowGroups = @{}

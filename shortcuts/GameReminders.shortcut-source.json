@@ -201,10 +201,11 @@
       "output": "reminderJson"
     },
     {
-      "action": "getFile",
+      "action": "createFolder",
       "folder": "Shortcuts",
-      "relativePath": "Game Reminders/inbox",
-      "output": "inboxFolder"
+      "output": "inboxFolder",
+      "path": "Game Reminders/inbox",
+      "existingBehavior": "reuse"
     },
     {
       "action": "saveFile",

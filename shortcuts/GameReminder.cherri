@@ -100,7 +100,7 @@ const reminderId = replaceText('^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', "$1-$2-$3-
 }
 
 const reminderJson = getText(@reminder)
-const inboxFolder = getFile("Game Reminders/inbox")
+const inboxFolder = createFolder("Game Reminders/inbox")
 const stagedFile = saveFile("{reminderId}.tmp", reminderJson, false)
 const inboxStagedFile = moveFile(stagedFile, inboxFolder)
 const savedReminder = rename(inboxStagedFile, "{reminderId}.json")
