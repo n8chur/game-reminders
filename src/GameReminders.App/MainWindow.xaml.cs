@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         Action<IgnoredDiscoveryItem> restoreIgnored,
         Action<IReadOnlyCollection<string>> markGamesReviewed,
         bool launchAtLogin,
+        bool launchAtLoginAvailable,
         Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin)
     {
         InitializeComponent();
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
         _markGamesReviewed = markGamesReviewed;
         _setLaunchAtLogin = setLaunchAtLogin;
         LaunchAtLoginCheckBox.IsChecked = launchAtLogin;
+        LaunchAtLoginCheckBox.IsEnabled = launchAtLoginAvailable;
         Closing += (_, args) =>
         {
             args.Cancel = ShouldHideOnClose(_allowClose);
@@ -55,6 +57,8 @@ public partial class MainWindow : Window
         };
         Deactivated += (_, _) => MarkVisibleGamesReviewed();
     }
+
+    internal static bool CanChangeLaunchAtLogin(string? statusError) => statusError is null;
 
     internal static bool ShouldHideOnClose(bool allowClose) => !allowClose;
 
