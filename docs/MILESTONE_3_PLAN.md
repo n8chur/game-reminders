@@ -10,12 +10,12 @@ Add the iPhone half of Game Reminders without introducing a server or a second r
 
 1. Accept a game name by voice or typing.
 2. Normalize the requested name, every canonical game name, and every alias by removing capitalization, punctuation, symbols, and spacing.
-3. Continue only when exactly one game matches. Unknown and ambiguous names must create no file and must explain the failure.
+3. Continue only when exactly one game matches. Unknown and ambiguous names must create no file and must explain the failure; an unknown-name error repeats the submitted name.
 4. Ask for a non-empty reminder message.
 5. Create a reminder with a new UUID, the stable game ID, the current display name, the message, and an ISO 8601 creation timestamp.
 6. Stage one new reminder with a non-JSON temporary extension in Shortcuts' private iCloud folder, move the completed file into `inbox`, then rename it to `<UUID>.json` without modifying `games.json` or overwriting another reminder.
 7. Report success only after the final rename succeeds.
-8. Import and run on a clean iPhone without inheriting device-specific file references or using macOS-only actions.
+8. Import and run on a clean iPhone without using macOS-only actions. Configure both iCloud folder bookmarks once on each device because Shortcuts does not reliably transfer them between macOS and iPhone.
 
 ## Deliverables
 

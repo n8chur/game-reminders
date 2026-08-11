@@ -161,7 +161,7 @@
       "input": "matchCount",
       "branches": {
         "zero": {
-          "show": "No game matched. Add or edit the game on Windows, then try again.",
+          "show": "No game alias found for “<requestedGameName>”.",
           "stop": true
         },
         "moreThanOne": {

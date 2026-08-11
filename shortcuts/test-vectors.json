@@ -51,7 +51,8 @@
     {
       "name": "unknown game",
       "input": "Missing",
-      "expectedStatus": "unknownGame"
+      "expectedStatus": "unknownGame",
+      "expectedError": "No game alias found for “Missing”."
     },
     {
       "name": "empty normalized name",

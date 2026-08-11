@@ -112,9 +112,11 @@ Assert-ShortcutCondition ($success.onlyAfter -eq 'savedReminder') 'Success must 
 
 $matchCounter = $source.workflow | Where-Object action -eq 'initializeNumber' | Select-Object -First 1
 $sentinels = @($source.workflow | Where-Object action -eq 'initializeText')
+$matchBranches = $source.workflow | Where-Object action -eq 'branchOnCount' | Select-Object -First 1
 Assert-ShortcutCondition ($matchCounter.value -eq 0 -and $matchCounter.output -eq 'matchCount') 'Matching must start from an explicit numeric zero.'
 Assert-ShortcutCondition ($sentinels.Count -eq 2) 'Both matched-game outputs must have explicit sentinels.'
 Assert-ShortcutCondition (@($sentinels | Where-Object value -ne 'NO_MATCH').Count -eq 0) 'Matched-game sentinels must be nonblank.'
+Assert-ShortcutCondition ($matchBranches.branches.zero.show -eq 'No game alias found for “<requestedGameName>”.') 'The unknown-game error must repeat the original submitted name.'
 
 foreach ($case in $vectors.cases) {
     $requestedKey = Normalize-GameName $case.input
@@ -146,6 +148,10 @@ foreach ($case in $vectors.cases) {
     }
 
     Assert-ShortcutCondition ($actualStatus -eq $case.expectedStatus) "Test vector '$($case.name)' expected '$($case.expectedStatus)' but got '$actualStatus'."
+    if ($actualStatus -eq 'unknownGame') {
+        $actualError = $matchBranches.branches.zero.show.Replace('<requestedGameName>', $case.input)
+        Assert-ShortcutCondition ($actualError -eq $case.expectedError) "Test vector '$($case.name)' produced the wrong unknown-game error."
+    }
     if ($actualStatus -eq 'created') {
         Assert-ShortcutCondition ($matches[0].id -eq $case.expectedGameId) "Test vector '$($case.name)' resolved the wrong stable game id."
     }

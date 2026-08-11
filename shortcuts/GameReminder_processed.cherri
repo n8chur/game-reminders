@@ -1,0 +1,782 @@
+/*
+Basic Actions and Global Types
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Stop Shortcut: Stops the shortcut.
+
+
+// [Doc]: Nothing: Clear the current output.
+
+
+// [Doc]: Comment: Add an explicit comment.
+
+
+// [Doc]: Get Type: Get the type of input.
+
+
+// [Doc]: Get Object of Class: Get the object of `class` from a variable.
+
+
+// [Doc]: [Output] Show Result: Show `input`.
+
+
+// [Doc]: [Output] Quick Look: Preview `input` in Quick Look.
+
+
+// [Doc]: [Output] Stop and Output: Stop and output `output`. Do nothing if there is nowhere to output.
+
+
+// [Doc]: [Output] Output or Copy to Clipboard: Stop and output `output`. Copy to the clipboard if there is nowhere to output.
+
+
+
+
+// [Doc]: [Output] Must Output: Stop and output `output`. Respond with response if there is nowhere to output.
+
+
+
+
+// [Doc]: [Output] Content Graph: Display input as a content graph.
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Count: Returns a count of `type` of items in `input`.
+
+
+// [Doc]: [Notifications] Alert: Shows an alert with text and optional title and an OK button to proceed.
+
+
+
+
+// [Doc]: [Notifications] Confirm: Shows an alert with text and optional title. It displays an OK button to proceed, and a cancel button that stops the Shortcut.
+
+
+
+
+// [Doc]: [Notifications] Show Notification: Shows a custom notification message.
+
+
+
+
+
+
+
+// [Doc]: [Numbers] Number: Create a number value.
+
+
+// [Doc]: [Numbers] Format Number: Format number based on decimal place.
+
+
+// [Doc]: [Numbers] Get Numbers: Get numbers from input.
+
+
+// [Doc]: [Numbers] Random Number: Returns a random number between `min` and `max`.
+
+
+
+
+// [Doc]: [Control Flow] Wait: Wait a specified number of seconds.
+
+
+// [Doc]: [Control Flow] Wait to Return: Wait for the user to return to Shortcuts.
+
+
+// [Doc]: [Search] Search/Spotlight: Get results from search on iOS or iPadOS, and Spotlight on macOS.
+
+
+// [Doc]: [Dictionaries] Get Dictionary: Get the dictionary from `input`.
+
+
+// [Doc]: [Dictionaries] Get Keys from Dictionary: Get only the keys from the `dictionary`.
+
+
+
+
+// [Doc]: [Dictionaries] Get Values from Dictionary: Get only the values from the `dictionary`.
+
+
+
+
+// [Doc]: [Dictionaries] Get Value from Dictionary: For constants only, otherwise `dictionary['key']` syntax should be used.
+
+
+
+
+// [Doc]: [Dictionaries] Set Value in Dictionary: Set the value of `key` to `value` in `dictionary`.
+
+
+// [Doc]: [Items] Get Name: Get the name of an item.
+
+
+// [Doc]: [Items] Set Name: Set the name of an item.
+
+
+// [Doc]: [Lists] Choose from List: Prompts the user to choose from a list.
+
+
+
+
+
+
+
+// [Doc]: [Lists] Get First Item: Get first item in a list.
+
+
+
+
+// [Doc]: [Lists] Get Last Item: Get the last item in a list.
+
+
+
+
+// [Doc]: [Lists] Get Random Item: Get random item from list.
+
+
+
+
+// [Doc]: [Lists] Get List Item: Get item from `list` at `index`. Keep in mind Shortcuts starts counting indexes at 1.
+
+
+
+
+// [Doc]: [Lists] Get List Items: Get items from a `list` between two indexes. Keep in mind Shortcuts starts counting indexes at 1.
+
+
+
+
+
+#define name Game Reminder
+#define color blue
+#define glyph bell
+#define version 28
+
+/*
+Calendar Actions
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Calendars] Add Calendar: Create a calendar with `name`.
+
+
+// [Doc]: [Calendars] Open Event in Calendar: Show `event` in the calendar app.
+
+
+// [Doc]: [Calendars] Edit Event: Edit a detail of an event. Provide an event, a detail to modify, and a new value for that detail.
+
+
+// [Doc]: [Calendars] Get Event Detail: Get a detail of an event.
+
+
+// [Doc]: [Calendars] Remove Events: Remove an event.
+
+
+// [Doc]: [Reminders] Open Reminders List
+
+
+// [Doc]: [Reminders] Add Quick Reminder
+
+
+// [Doc]: [Reminders] Remove Reminders
+
+
+// [Doc]: [Alarms] Get Alarms: Returns all of the alarms on the device.
+
+
+// [Doc]: [Timers] Start Timer: Creates a new timer.
+
+
+// [Doc]: [Dates] Get Dates: Get dates from input.
+
+
+// [Doc]: [Dates] Date: Create a date value from `date`. Example: October 5, 2022.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Dates] Adjust Date: Adjust a date or get the start of a time period.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Dates] Get Holiday Date: Get the date of a holiday, optionally specifically for a few past or future years.
+
+
+// [Doc]: [Dates] Current Date: Get the current date.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Formatting] Format Date: Format a date using a standard or custom format.
+
+
+
+
+// [Doc]: [Formatting] Format Time: Format a time using a standard or custom format.
+
+
+
+
+// [Doc]: [Formatting] Format Timestamp: Format a timestamp using standard formats and/or a custom date format.
+
+
+
+
+
+
+
+/*
+Cryptography Actions
+*/
+
+// [Doc]: Base 64 Encode: Base 64 encodes input.
+
+
+
+
+// [Doc]: Base 64 Decode: Base 64 decodes input.
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Hash: Generate a hash of type using input.
+
+
+/*
+Document Actions
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Archives] Make Archive: Create an archive of `files` named `name` in `format`.
+
+
+// [Doc]: [Archives] Extract Archive: Extract files from the archive `file`.
+
+
+// [Doc]: [Books] Add to Books: Add `input` to books. `input` is expected to be a PDF or epub file.
+
+
+// [Doc]: [Editing] Markup: Opens document in a markup editor.
+
+
+// [Doc]: [Files & Folders] Get File Link: Get a link for the provided file.
+
+
+// [Doc]: [Files & Folders] Append File: Append text to a file.
+
+
+
+
+// [Doc]: [Files & Folders] Prepend File: Prepend text to a file.
+
+
+
+
+// [Doc]: [Files & Folders] Create Folder: Create a folder within the Shortcuts folder or within a `#ref` to a folder.
+
+
+// [Doc]: [Files & Folders] Delete Files: Delete a file or multiple files.
+
+
+// [Doc]: [Files & Folders] Select File: Prompt the user to select one or optionally multiple files.
+
+
+// [Doc]: [Files & Folders] Select Folder: Prompt the user to select one or optionally multiple folders.
+
+
+
+
+// [Doc]: [Files & Folders] Get File: Get file from a path in the Shortcuts folder or within a `#ref` to a folder.
+
+
+// [Doc]: [Files & Folders] Open File: Open a file.
+
+
+// [Doc]: [Files & Folders] Get Parent Directory: Get the parent directory of the input directory.
+
+
+// [Doc]: [Files & Folders] File: Insert a `#ref` to a file.
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Files & Folders] Get File Detail: Get a detail about a file.
+
+
+// [Doc]: [Files & Folders] Get Selected
+
+
+// [Doc]: [Files & Folders] Get Folder Contents: Get contents of a folder.
+
+
+// [Doc]: [Files & Folders] Reveal in Finder
+
+
+// [Doc]: [Files & Folders] Rename File
+
+
+// [Doc]: [Files & Folders] Save File Prompt: Prompt the user to choose a location to save the file.
+
+
+// [Doc]: [Files & Folders] Save File: Save contents to a file at the specified path.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Files & Folders] File Size: Returns the size of a file.
+
+
+
+
+// [Doc]: [Notes] Open Note: Open note in the Notes app.
+
+
+// [Doc]: [Notes] Append Note: Append text to a note.
+
+
+// [Doc]: [Notes] Show Quick Note: Show quick note.
+
+
+// [Doc]: [Printing] Print: Print input to a printer.
+
+
+
+
+
+
+
+
+
+// [Doc]: [QR Codes] Make QR Code
+
+
+// [Doc]: Convert to USDZ
+
+
+/*
+Text Editing Actions
+*/
+
+// [Doc]: [Rich Text] Make HTML: Make HTML from Rich Text.
+
+
+// [Doc]: [Rich Text] Make Rich Text from HTML
+
+
+// [Doc]: [Rich Text] Make Markdown: Make Markdown from Rich Text.
+
+
+// [Doc]: [Rich Text] Get Rich Text from Markdown
+
+
+
+
+
+
+
+
+// [Doc]: Dictation: Transcribes user recorded audio to text, optionally in another language.
+
+
+// [Doc]: Get Text from Image
+
+
+// [Doc]: Get Name of Emoji: Detects emoji in the text and returns its name.
+
+
+// [Doc]: Get Text: Get text from input.
+
+
+// [Doc]: Make Spoken Audio: Creates custom spoken audio from text with controls for rate and pitch.
+
+
+// [Doc]: Define: Returns the definition of the word.
+
+
+// [Doc]: Speak: Speaks the provided text, optionally in another language.
+
+
+// [Doc]: Transcribe Audio: Transcribes text from the provided audio.
+
+
+// [Doc]: [Text Editing] Uppercase: Transforms the text to all uppercase.
+
+
+
+
+
+// [Doc]: [Text Editing] Lowercase: Transforms the text to all lowercase.
+
+
+
+
+
+// [Doc]: [Text Editing] Capitalize: Capitalizes the text with sentence case.
+
+
+
+
+
+// [Doc]: [Text Editing] Capitalize All: Capitalizes every word in the text.
+
+
+
+
+
+// [Doc]: [Text Editing] Title Case: Capitalizes the text with Title Case.
+
+
+
+
+
+// [Doc]: [Text Editing] Alternating Case: Capitalizes the text with alternating case.
+
+
+
+
+
+// [Doc]: [Text Editing] Correct Spelling: Corrects the spelling of the provided text.
+
+
+
+
+// [Doc]: [Text Editing] Replace Text: Replace `find` in `subject`, optionally using a regular expression or case insensitive search. Use raw text (single quotes) to match using an regular expression with braces to avoid conflicts with the regular expression syntax.
+
+
+
+
+
+
+
+
+// [Doc]: [Text Editing] Trim Whitespace: Trim any whitespace from the start and end of `text`.
+
+
+// [Doc]: [Regular Expressions] Match Text: Use regular expressions to match text. Use raw text (single quotes) to match using an regular expression with braces to avoid conflicts with the regular expression syntax.
+
+
+// [Doc]: [Regular Expressions] Get Match Group: Get match group at `index` in `matches`.
+
+
+
+
+// [Doc]: [Regular Expressions] Get Match Groups: Get all groups in `matches`.
+
+
+
+
+
+#question catalogFolder "Choose your Game Reminders folder in iCloud Drive." ""
+#question inboxBaseFolder "Choose the same Game Reminders folder again for the inbox." ""
+
+
+
+
+
+
+
+
+
+const gamesFile = getConfiguredFile("games.json", catalogFolder, true)
+const catalog = getDictionary(gamesFile)
+const schemaVersion = getValue(catalog, "schemaVersion")
+const schemaVersionNumber = getNumbers(schemaVersion)
+
+if schemaVersionNumber != 1 {
+    alert("games.json uses an unsupported format. Update Game Reminders on Windows, then try again.", "Game Reminder")
+    stop()
+}
+
+const games = getValue(catalog, "games")
+const requestedGameName = prompt("Which game?")
+const requestedLower = lowercase(requestedGameName)
+const requestedGameKey = replaceText('[^\p{L}\p{N}]', "", requestedLower, true, true)
+
+if !requestedGameKey {
+    alert("Enter a game name.", "Game Reminder")
+    stop()
+}
+
+@matchCount = 0
+@matchedGameId = "NO_MATCH"
+@matchedGameName = "NO_MATCH"
+
+for gameItem in games {
+    const game = getDictionary(@gameItem)
+    const gameName = getValue(game, "name")
+    const aliases = getValue(game, "aliases")
+    @gameMatched = false
+    const gameNameLower = lowercase("{gameName}")
+    const gameNameKey = replaceText('[^\p{L}\p{N}]', "", gameNameLower, true, true)
+    if gameNameKey == requestedGameKey {
+        @gameMatched = true
+    }
+
+    for alias in aliases {
+        if @gameMatched == false {
+            const aliasLower = lowercase(@alias)
+            const aliasKey = replaceText('[^\p{L}\p{N}]', "", aliasLower, true, true)
+            if aliasKey == requestedGameKey {
+                @gameMatched = true
+            }
+        }
+    }
+
+    if @gameMatched == true {
+        @matchCount += 1
+        const gameId = getValue(game, "id")
+        @matchedGameId = "{gameId}"
+        @matchedGameName = "{gameName}"
+    }
+}
+
+if @matchCount == 0 {
+    alert("No game alias found for “{requestedGameName}”.", "Game Reminder")
+    stop()
+}
+
+if @matchCount > 1 {
+    alert("More than one game matched. Make the aliases unique on Windows, then try again.", "Game Reminder")
+    stop()
+}
+
+const message = prompt("What should I remind you?")
+const trimmedMessage = trimWhitespace(message)
+if !trimmedMessage {
+    alert("Enter a reminder.", "Game Reminder")
+    stop()
+}
+
+const now = currentDate()
+const createdAt = formatDate(now, "ISO 8601")
+const random1 = randomNumber(0, 2147483647)
+const random2 = randomNumber(0, 2147483647)
+const random3 = randomNumber(0, 2147483647)
+const random4 = randomNumber(0, 2147483647)
+@uuidSeed = "{createdAt}-{random1}-{random2}-{random3}-{random4}"
+const uuidHash = hash(@uuidSeed, "SHA256")
+const reminderId = replaceText('^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', "$1-$2-$3-$4-$5", uuidHash, true, true)
+
+@reminder = {
+    "schemaVersion": 1,
+    "id": "{reminderId}",
+    "gameId": "{@matchedGameId}",
+    "gameNameAtCreation": "{@matchedGameName}",
+    "message": "{message}",
+    "createdAt": "{createdAt}"
+}
+
+const reminderJson = getText(@reminder)
+const inboxFolder = getFile("inbox", inboxBaseFolder, true)
+const stagedFile = saveFile("{reminderId}.tmp", reminderJson, false)
+const inboxStagedFile = moveFile(stagedFile, inboxFolder)
+const savedReminder = rename(inboxStagedFile, "{reminderId}.json")
+show("Reminder saved for {@matchedGameName}.")

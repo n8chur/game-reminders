@@ -1,7 +1,7 @@
 #define name Game Reminder
 #define color blue
 #define glyph bell
-#define version 27
+#define version 28
 
 #include 'actions/calendar'
 #include 'actions/crypto'
@@ -73,7 +73,7 @@ for gameItem in games {
 }
 
 if @matchCount == 0 {
-    alert("No game matched. Add or edit the game on Windows, then try again.", "Game Reminder")
+    alert("No game alias found for “{requestedGameName}”.", "Game Reminder")
     stop()
 }
 

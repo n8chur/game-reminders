@@ -61,6 +61,41 @@ if ($question.ActionIndex.InnerText -ne "0" -or $question.ParameterKey.InnerText
     throw "The catalog folder import question does not target the first action's WFFile parameter."
 }
 
+$unknownMessageTemplate = 'No game alias found for “' + [char]0xFFFC + '”.'
+$unknownGameAlerts = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.alert') {
+        return $false
+    }
+
+    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
+    if (-not $parameters.ContainsKey('WFAlertActionMessage') -or $parameters.WFAlertActionMessage.Name -ne 'dict') {
+        return $false
+    }
+
+    $message = Convert-PlistDictionary $parameters.WFAlertActionMessage
+    if (-not $message.ContainsKey('Value')) {
+        return $false
+    }
+
+    $value = Convert-PlistDictionary $message.Value
+    $value.ContainsKey('string') -and $value.string.InnerText -eq $unknownMessageTemplate
+})
+if ($unknownGameAlerts.Count -ne 1) {
+    throw 'The compiled Shortcut must contain one dynamic unknown-game alert that repeats the submitted name.'
+}
+
+$unknownAlert = Convert-PlistDictionary $unknownGameAlerts[0]
+$unknownParameters = Convert-PlistDictionary $unknownAlert.WFWorkflowActionParameters
+$unknownMessage = Convert-PlistDictionary $unknownParameters.WFAlertActionMessage
+$unknownValue = Convert-PlistDictionary $unknownMessage.Value
+$unknownAttachments = Convert-PlistDictionary $unknownValue.attachmentsByRange
+$unknownToken = Convert-PlistDictionary $unknownAttachments['{25, 1}']
+if ($unknownToken.Type.InnerText -ne 'ActionOutput' -or
+    $unknownToken.OutputName.InnerText -ne 'requestedGameName') {
+    throw 'The unknown-game alert must use the original Which game? output, not its normalized value.'
+}
+
 function Get-ActionByOutputName {
     param([Parameter(Mandatory)] [string] $OutputName)
 
@@ -260,4 +295,4 @@ if ($textInitializers.Count -ne 2) {
     throw 'The compiled Shortcut must initialize both matched-game text variables explicitly.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, explicit variable inputs, unique action IDs, two folder questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, submitted-name error context, explicit variable inputs, unique action IDs, two folder questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
