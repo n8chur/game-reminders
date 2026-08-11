@@ -16,7 +16,7 @@ Each reminder is an immutable JSON file with schema version 1, UUID, stable game
 
 Five seconds after a configured game launches, Windows displays all pending reminders for that game in one persistent window. Each reminder has independent controls:
 
-- **Dismiss** moves the file from `inbox` to `completed`.
+- **Dismiss** stages and validates an archive copy inside `completed`, atomically finalizes it, and only then deletes the pending file from `inbox`. This avoids relying on cross-directory moves through the sync provider. An exact legacy duplicate at the store root is removed; a conflicting root file is preserved and blocks dismissal visibly.
 - **Show on next launch** closes that reminder while leaving its file in `inbox`.
 - Closing the window, Alt+F4, shutdown, crash, or forced termination never completes a reminder.
 
