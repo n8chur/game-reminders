@@ -16,8 +16,17 @@ internal sealed class StoreRootValidator
     private readonly Func<string, string> _readAllText;
     private readonly Action<string> _verifyWritable;
 
+    private readonly Action<string> _createDirectory;
+    private readonly ICloudFolderPinService _pinService;
+
     public StoreRootValidator()
-        : this(Directory.Exists, File.Exists, File.ReadAllText, VerifyWritable)
+        : this(
+            Directory.Exists,
+            File.Exists,
+            File.ReadAllText,
+            VerifyWritable,
+            path => Directory.CreateDirectory(path),
+            new CloudFolderPinService())
     {
     }
 
@@ -25,15 +34,62 @@ internal sealed class StoreRootValidator
         Func<string, bool> directoryExists,
         Func<string, bool> fileExists,
         Func<string, string> readAllText,
-        Action<string> verifyWritable)
+        Action<string> verifyWritable,
+        Action<string>? createDirectory = null,
+        ICloudFolderPinService? pinService = null)
     {
         _directoryExists = directoryExists;
         _fileExists = fileExists;
         _readAllText = readAllText;
         _verifyWritable = verifyWritable;
+        _createDirectory = createDirectory ?? (path => Directory.CreateDirectory(path));
+        _pinService = pinService ?? new CloudFolderPinService();
     }
 
-    public StoreRootValidation ValidateSelection(string? path) => Validate(path, requireCatalog: false);
+    public StoreRootValidation ValidateShortcutsSelection(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return StoreRootValidation.Invalid("Select the Shortcuts folder in iCloud Drive.");
+        }
+
+        try
+        {
+            var shortcutsRoot = Path.GetFullPath(path.Trim());
+            if (!_directoryExists(shortcutsRoot))
+            {
+                return StoreRootValidation.Invalid(
+                    "That folder is unavailable. Wait for iCloud Drive to finish syncing, then select its Shortcuts folder.");
+            }
+
+            if (!ShortcutsFolderLocator.IsShortcutsFolder(shortcutsRoot) ||
+                !ShortcutsFolderLocator.IsInsideICloudDrive(shortcutsRoot))
+            {
+                return StoreRootValidation.Invalid(
+                    "Select the Shortcuts folder inside iCloud Drive. Game Reminders will create or use its required Game Reminders subfolder.");
+            }
+
+            var storeRoot = Path.Combine(shortcutsRoot, ShortcutsFolderLocator.StoreFolderName);
+            if (!_directoryExists(storeRoot))
+            {
+                _createDirectory(storeRoot);
+            }
+
+            var validation = Validate(storeRoot, requireCatalog: false);
+            if (!validation.IsValid || validation.Root is null)
+            {
+                return validation;
+            }
+
+            return _pinService.TryEnsurePinned(validation.Root, out var pinError)
+                ? validation
+                : StoreRootValidation.Invalid(pinError ?? "Always keep on this device could not be enabled.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException or ArgumentException)
+        {
+            return StoreRootValidation.Invalid($"Game Reminders cannot use that folder: {exception.Message}");
+        }
+    }
 
     public StoreRootValidation ValidateSavedRoot(string? path) => Validate(path, requireCatalog: true);
 
@@ -41,7 +97,7 @@ internal sealed class StoreRootValidator
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return StoreRootValidation.Invalid("Select the existing iCloud Drive/Shortcuts/Game Reminders folder.");
+            return StoreRootValidation.Invalid("Select the Shortcuts folder in iCloud Drive.");
         }
 
         try
@@ -99,6 +155,99 @@ internal sealed class StoreRootValidator
             }
         }
     }
+
+}
+
+internal static class ShortcutsFolderLocator
+{
+    public const string StoreFolderName = "Game Reminders";
+    private const string PhysicalFolderName = "iCloud~is~workflow~my~workflows";
+
+    public static string? Find(string userProfile)
+    {
+        try
+        {
+            var candidates = new[] { "iCloudDrive", "iCloud Drive" }
+                .Select(name => Path.Combine(userProfile, name))
+                .Where(Directory.Exists)
+                .SelectMany(Directory.EnumerateDirectories)
+                .Where(IsShortcutsFolder)
+                .Select(Path.GetFullPath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (candidates.Length == 1)
+            {
+                return candidates[0];
+            }
+
+            var candidatesWithStore = candidates
+                .Where(candidate => Directory.Exists(Path.Combine(candidate, StoreFolderName)))
+                .ToArray();
+            return candidatesWithStore.Length == 1 ? candidatesWithStore[0] : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return null;
+        }
+    }
+
+    public static string? FromSavedRoot(string? savedRoot)
+    {
+        if (string.IsNullOrWhiteSpace(savedRoot))
+        {
+            return null;
+        }
+
+        try
+        {
+            var root = Path.GetFullPath(savedRoot.Trim());
+            var parent = Directory.GetParent(root)?.FullName;
+            return string.Equals(Path.GetFileName(root), StoreFolderName, StringComparison.OrdinalIgnoreCase) &&
+                   parent is not null &&
+                   Directory.Exists(parent) &&
+                   IsShortcutsFolder(parent)
+                ? parent
+                : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    public static bool IsShortcutsFolder(string path)
+    {
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+        return string.Equals(name, "Shortcuts", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, PhysicalFolderName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsInsideICloudDrive(string path)
+    {
+        DirectoryInfo? directory;
+        try
+        {
+            directory = new DirectoryInfo(Path.GetFullPath(path));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException or ArgumentException)
+        {
+            return false;
+        }
+
+        for (var current = directory.Parent; current is not null; current = current.Parent)
+        {
+            if (string.Equals(current.Name, "iCloudDrive", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(current.Name, "iCloud Drive", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static string ToDisplayPath(string path) =>
+        path.Replace(PhysicalFolderName, "Shortcuts", StringComparison.OrdinalIgnoreCase);
 }
 
 internal enum SetupRequirement

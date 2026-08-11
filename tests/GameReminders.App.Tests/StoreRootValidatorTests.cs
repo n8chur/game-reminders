@@ -132,12 +132,147 @@ public sealed class StoreRootValidatorTests : IDisposable
         var validator = new StoreRootValidator();
 
         var savedResult = validator.ValidateSavedRoot(_root);
-        var deliberateSelection = validator.ValidateSelection(_root);
 
         Assert.False(savedResult.IsValid);
         Assert.Contains("games.json", savedResult.Error!);
-        Assert.True(deliberateSelection.IsValid, deliberateSelection.Error);
         Assert.False(File.Exists(Path.Combine(_root, "games.json")));
+    }
+
+    [Theory]
+    [InlineData("Shortcuts")]
+    [InlineData("iCloud~is~workflow~my~workflows")]
+    public void ShortcutsSelectionCreatesAndPinsRequiredStore(string shortcutsName)
+    {
+        var shortcutsRoot = Path.Combine(_root, "iCloudDrive", shortcutsName);
+        Directory.CreateDirectory(shortcutsRoot);
+        var pin = new FakePinService();
+        var validator = CreateSelectionValidator(pin);
+
+        var result = validator.ValidateShortcutsSelection(shortcutsRoot);
+
+        var expected = Path.Combine(shortcutsRoot, "Game Reminders");
+        Assert.True(result.IsValid, result.Error);
+        Assert.Equal(Path.GetFullPath(expected), result.Root);
+        Assert.True(Directory.Exists(expected));
+        Assert.Equal(expected, pin.PinnedPath);
+    }
+
+    [Fact]
+    public void ShortcutsSelectionAcceptsSpacedICloudDriveName()
+    {
+        var shortcutsRoot = Path.Combine(_root, "iCloud Drive", "Shortcuts");
+        Directory.CreateDirectory(shortcutsRoot);
+        var result = CreateSelectionValidator(new FakePinService())
+            .ValidateShortcutsSelection(shortcutsRoot);
+
+        Assert.True(result.IsValid, result.Error);
+        Assert.EndsWith(Path.Combine("Shortcuts", "Game Reminders"), result.Root!);
+    }
+
+    [Fact]
+    public void SelectingGameRemindersFolderDirectlyIsRejected()
+    {
+        var storeRoot = Path.Combine(_root, "iCloudDrive", "Shortcuts", "Game Reminders");
+        Directory.CreateDirectory(storeRoot);
+        var validator = CreateSelectionValidator(new FakePinService());
+
+        var result = validator.ValidateShortcutsSelection(storeRoot);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Shortcuts folder", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FolderOutsideICloudDriveIsRejected()
+    {
+        var shortcutsRoot = Path.Combine(_root, "Shortcuts");
+        Directory.CreateDirectory(shortcutsRoot);
+        var validator = CreateSelectionValidator(new FakePinService());
+
+        var result = validator.ValidateShortcutsSelection(shortcutsRoot);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("iCloud Drive", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PinFailureExplainsManualFallback()
+    {
+        var shortcutsRoot = Path.Combine(_root, "iCloudDrive", "Shortcuts");
+        Directory.CreateDirectory(shortcutsRoot);
+        var validator = CreateSelectionValidator(new FakePinService("pin blocked"));
+
+        var result = validator.ValidateShortcutsSelection(shortcutsRoot);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("pin blocked", result.Error);
+    }
+
+    [Fact]
+    public void LocatorFindsPhysicalShortcutsContainerAndUsesFriendlyDisplayName()
+    {
+        var shortcutsRoot = Path.Combine(_root, "iCloudDrive", "iCloud~is~workflow~my~workflows");
+        Directory.CreateDirectory(shortcutsRoot);
+
+        var result = ShortcutsFolderLocator.Find(_root);
+
+        Assert.Equal(Path.GetFullPath(shortcutsRoot), result);
+        Assert.EndsWith(Path.Combine("iCloudDrive", "Shortcuts"), ShortcutsFolderLocator.ToDisplayPath(result!));
+    }
+
+    [Fact]
+    public void ExistingPinnedFolderDoesNotRequestPinAgain()
+    {
+        var setCalled = false;
+        var service = new CloudFolderPinService(
+            _ => (FileAttributes)0x00080000,
+            _ =>
+            {
+                setCalled = true;
+                return 0;
+            });
+
+        Assert.True(service.TryEnsurePinned(_root, out var error));
+        Assert.Null(error);
+        Assert.False(setCalled);
+    }
+
+    [Fact]
+    public void UnpinnedFolderRequestsRecursivePin()
+    {
+        var pinnedPath = string.Empty;
+        var service = new CloudFolderPinService(
+            _ => FileAttributes.Directory,
+            path =>
+            {
+                pinnedPath = path;
+                return 0;
+            });
+
+        Assert.True(service.TryEnsurePinned(_root, out var error));
+        Assert.Null(error);
+        Assert.Equal(_root, pinnedPath);
+    }
+
+    private static StoreRootValidator CreateSelectionValidator(ICloudFolderPinService pinService) =>
+        new(
+            Directory.Exists,
+            File.Exists,
+            File.ReadAllText,
+            _ => { },
+            path => Directory.CreateDirectory(path),
+            pinService);
+
+    private sealed class FakePinService(string? error = null) : ICloudFolderPinService
+    {
+        public string? PinnedPath { get; private set; }
+
+        public bool TryEnsurePinned(string path, out string? pinError)
+        {
+            PinnedPath = path;
+            pinError = error;
+            return error is null;
+        }
     }
 
     public void Dispose()

@@ -99,8 +99,12 @@ public partial class App : System.Windows.Application
         }
 
         var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
+        var suggestedShortcutsRoot =
+            ShortcutsFolderLocator.FromSavedRoot(state.SavedRoot) ??
+            ShortcutsFolderLocator.Find(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         var setup = new SetupWindow(
             state,
+            suggestedShortcutsRoot,
             launchAtLogin,
             startupStatusError,
             (selectedRoot, desiredLaunchAtLogin) =>
@@ -109,7 +113,7 @@ public partial class App : System.Windows.Application
                     _settings,
                     selectedRoot,
                     desiredLaunchAtLogin,
-                    _storeRootValidator.ValidateSelection,
+                    _storeRootValidator.ValidateShortcutsSelection,
                     _launchAtLoginService,
                     _settingsService.TrySave);
                 if (result.Succeeded)

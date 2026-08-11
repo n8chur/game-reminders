@@ -78,9 +78,9 @@ public sealed class LaunchAtLoginServiceTests
 
         var result = SetupCommitter.Commit(
             current,
-            @"C:\iCloud Drive\Shortcuts\Game Reminders",
+            @"C:\iCloud Drive\Shortcuts",
             launchAtLogin: true,
-            path => StoreRootValidation.Valid(path!),
+            _ => StoreRootValidation.Valid(@"C:\iCloud Drive\Shortcuts\Game Reminders"),
             startup,
             settings =>
             {
@@ -169,9 +169,9 @@ public sealed class LaunchAtLoginServiceTests
 
         var result = SetupCommitter.Commit(
             current,
-            @"C:\iCloud Drive\Shortcuts\Game Reminders",
+            @"C:\iCloud Drive\Shortcuts",
             launchAtLogin: false,
-            path => StoreRootValidation.Valid(path!),
+            _ => StoreRootValidation.Valid(@"C:\iCloud Drive\Shortcuts\Game Reminders"),
             startup,
             settings =>
             {
