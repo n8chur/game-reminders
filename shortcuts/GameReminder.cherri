@@ -1,7 +1,7 @@
 #define name Game Reminder
 #define color blue
 #define glyph bell
-#define version 29
+#define version 30
 
 #include 'actions/calendar'
 #include 'actions/crypto'
@@ -10,7 +10,7 @@
 
 action 'file.move' moveFile(variable file: 'WFFile', variable folder: 'WFFolder')
 
-const gamesFile = getFileFromFolder("Shortcuts/Game Reminders", "games.json", true)
+const gamesFile = getFile("Game Reminders/games.json")
 const catalog = getDictionary(gamesFile)
 const schemaVersion = getValue(catalog, "schemaVersion")
 const schemaVersionNumber = getNumbers(schemaVersion)
@@ -100,7 +100,7 @@ const reminderId = replaceText('^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', "$1-$2-$3-
 }
 
 const reminderJson = getText(@reminder)
-const inboxFolder = getFileFromFolder("Shortcuts/Game Reminders", "inbox", true)
+const inboxFolder = getFile("Game Reminders/inbox")
 const stagedFile = saveFile("{reminderId}.tmp", reminderJson, false)
 const inboxStagedFile = moveFile(stagedFile, inboxFolder)
 const savedReminder = rename(inboxStagedFile, "{reminderId}.json")
