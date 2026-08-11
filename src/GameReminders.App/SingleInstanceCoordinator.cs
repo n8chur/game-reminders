@@ -42,19 +42,9 @@ internal sealed class SingleInstanceCoordinator : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
         ArgumentNullException.ThrowIfNull(activationRequested);
 
-        var mutex = new Mutex(initiallyOwned: false, instanceName);
-        var ownsMutex = false;
+        var mutex = new Mutex(initiallyOwned: true, instanceName, out var ownsMutex);
         try
         {
-            try
-            {
-                ownsMutex = mutex.WaitOne(0);
-            }
-            catch (AbandonedMutexException)
-            {
-                ownsMutex = true;
-            }
-
             if (!ownsMutex)
             {
                 mutex.Dispose();
