@@ -96,9 +96,14 @@ public sealed class ForegroundGameDetector : IDisposable
         }
 
         GetWindowThreadProcessId(window, out var processId);
+        return TryDetect(processId, Process.GetProcessById);
+    }
+
+    internal static PendingGameDetection? TryDetect(uint processId, Func<int, Process> getProcess)
+    {
         try
         {
-            using var process = Process.GetProcessById((int)processId);
+            using var process = getProcess((int)processId);
             if (IgnoredProcesses.Contains(process.ProcessName) || string.IsNullOrWhiteSpace(process.MainWindowTitle))
             {
                 return null;
@@ -118,7 +123,7 @@ public sealed class ForegroundGameDetector : IDisposable
                 SourceType = "detected"
             };
         }
-        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or Win32Exception or UnauthorizedAccessException)
         {
             return null;
         }
