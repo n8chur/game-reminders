@@ -407,5 +407,5 @@ internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);
 
 internal sealed record ReminderListItem(Reminder Reminder, string GameName)
 {
-    public string Details => $"{GameName} · {Reminder.CreatedAt.ToLocalTime():g}";
+    public string Details => Reminder.CreatedAt.ToLocalTime().ToString("g");
 }
