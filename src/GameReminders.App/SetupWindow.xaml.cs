@@ -35,6 +35,7 @@ public partial class SetupWindow : Window
 
         if (!string.IsNullOrWhiteSpace(startupStatusError))
         {
+            LaunchAtLoginCheckBox.IsEnabled = false;
             ErrorText.Text = string.Join(Environment.NewLine, new[] { ErrorText.Text, startupStatusError }
                 .Where(value => !string.IsNullOrWhiteSpace(value)));
         }

@@ -122,6 +122,30 @@ public sealed class LaunchAtLoginServiceTests
         Assert.Same(current, result.Settings);
     }
 
+    [Fact]
+    public void UnavailableStartupStatusDoesNotBlockFolderSetupWhenOptInIsOff()
+    {
+        var current = new AppSettings();
+        var startup = new UnreadableStartup();
+        AppSettings? saved = null;
+
+        var result = SetupCommitter.Commit(
+            current,
+            @"C:\iCloud Drive\Shortcuts\Game Reminders",
+            launchAtLogin: false,
+            path => StoreRootValidation.Valid(path!),
+            startup,
+            settings =>
+            {
+                saved = settings;
+                return true;
+            });
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(@"C:\iCloud Drive\Shortcuts\Game Reminders", saved?.ICloudRoot);
+        Assert.False(startup.SetCalled);
+    }
+
     private sealed class FakeStartup : ILaunchAtLoginService
     {
         public bool Enabled { get; private set; }
@@ -145,6 +169,25 @@ public sealed class LaunchAtLoginServiceTests
             }
 
             Enabled = enabled;
+            error = null;
+            return true;
+        }
+    }
+
+    private sealed class UnreadableStartup : ILaunchAtLoginService
+    {
+        public bool SetCalled { get; private set; }
+
+        public bool TryGetEnabled(out bool enabled, out string? error)
+        {
+            enabled = false;
+            error = "registry unavailable";
+            return false;
+        }
+
+        public bool TrySetEnabled(bool enabled, out string? error)
+        {
+            SetCalled = true;
             error = null;
             return true;
         }

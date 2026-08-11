@@ -107,12 +107,13 @@ internal static class SetupCommitter
             return new SetupCommitResult(false, current, validation.Error);
         }
 
-        if (!startup.TryGetEnabled(out var previousStartup, out var statusError))
+        var startupStatusKnown = startup.TryGetEnabled(out var previousStartup, out var statusError);
+        if (!startupStatusKnown && launchAtLogin)
         {
             return new SetupCommitResult(false, current, statusError);
         }
 
-        var changedStartup = previousStartup != launchAtLogin;
+        var changedStartup = startupStatusKnown && previousStartup != launchAtLogin;
         if (changedStartup && !startup.TrySetEnabled(launchAtLogin, out var startupError))
         {
             return new SetupCommitResult(false, current, startupError);
