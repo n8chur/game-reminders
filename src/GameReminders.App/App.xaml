@@ -101,6 +101,8 @@
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="ScrollViewer.CanContentScroll" Value="False" />
+            <Setter Property="ScrollViewer.PanningMode" Value="VerticalOnly" />
         </Style>
         <Style TargetType="ListBoxItem">
             <Setter Property="Padding" Value="10,8" />
