@@ -200,13 +200,15 @@ public sealed class ReminderStore
         Action<string, string> copyFile,
         Func<string, string> readAllText,
         Action<string, string> moveFile,
-        Action<int>? wait = null)
+        Action<int>? wait = null,
+        Action<string>? deleteFile = null)
     {
         if (string.IsNullOrWhiteSpace(reminder.SourcePath))
         {
             throw new InvalidOperationException("The reminder has no source path.");
         }
 
+        deleteFile ??= File.Delete;
         Directory.CreateDirectory(CompletedPath);
         var fileName = Path.GetFileName(reminder.SourcePath);
         var destination = Path.Combine(CompletedPath, fileName);
@@ -251,15 +253,19 @@ public sealed class ReminderStore
 
             RetrySyncProviderOperation(() =>
             {
-                File.Delete(reminder.SourcePath);
+                deleteFile(reminder.SourcePath);
                 return true;
-            });
+            }, wait);
         }
         finally
         {
             try
             {
-                File.Delete(temporaryPath);
+                RetrySyncProviderOperation(() =>
+                {
+                    deleteFile(temporaryPath);
+                    return true;
+                }, wait);
             }
             catch (IOException)
             {

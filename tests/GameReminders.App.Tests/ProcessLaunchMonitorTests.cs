@@ -79,6 +79,30 @@ public sealed class ProcessLaunchMonitorTests
     }
 
     [Fact]
+    public void ReplacementMonitorDisposesPreviousBeforeStarting()
+    {
+        using var current = Process.GetCurrentProcess();
+        var game = new GameDefinition
+        {
+            Id = "test-game",
+            Name = "Test Game",
+            Processes = [current.ProcessName]
+        };
+        using var previous = new ProcessLaunchMonitor([game], Process.GetProcesses);
+        var previousLaunches = 0;
+        previous.GameLaunched += (_, _) => previousLaunches++;
+        using var replacement = new ProcessLaunchMonitor([], () => []);
+
+        var active = App.ActivateReplacementMonitor(
+            replacement,
+            previous,
+            _ => previous.ScanOnce());
+
+        Assert.Same(replacement, active);
+        Assert.Equal(0, previousLaunches);
+    }
+
+    [Fact]
     public void FullPathDistinguishesGamesWithTheSameExecutableFilename()
     {
         using var current = Process.GetCurrentProcess();

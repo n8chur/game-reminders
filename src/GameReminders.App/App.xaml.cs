@@ -184,10 +184,7 @@ public partial class App : System.Windows.Application
             var previous = _monitor;
             var replacement = CreateReplacementMonitor(catalog.Games, previous);
             replacement.GameLaunched += OnGameLaunched;
-            replacement.Start();
-
-            _monitor = replacement;
-            previous?.Dispose();
+            _monitor = ActivateReplacementMonitor(replacement, previous);
             _actionRequiredGameIds = catalog.Games
                 .Where(game => game.Source?.RequiresExecutableReview == true)
                 .Select(game => game.Id)
@@ -212,6 +209,24 @@ public partial class App : System.Windows.Application
             games,
             getProcesses ?? Process.GetProcesses,
             previous?.SnapshotActiveGameIds());
+
+    internal static ProcessLaunchMonitor ActivateReplacementMonitor(
+        ProcessLaunchMonitor replacement,
+        ProcessLaunchMonitor? previous,
+        Action<ProcessLaunchMonitor>? start = null)
+    {
+        previous?.Dispose();
+        if (start is null)
+        {
+            replacement.Start();
+        }
+        else
+        {
+            start(replacement);
+        }
+
+        return replacement;
+    }
 
     private void StartForegroundDetection()
     {

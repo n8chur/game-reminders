@@ -58,6 +58,7 @@ public sealed class ReminderStoreTests : IDisposable
         var copyAttempts = 0;
         var readAttempts = 0;
         var moveAttempts = 0;
+        var sourceDeleteAttempts = 0;
         var waits = new List<int>();
 
         store.Complete(
@@ -90,14 +91,61 @@ public sealed class ReminderStoreTests : IDisposable
 
                 File.Move(moveSource, moveDestination, overwrite: false);
             },
-            waits.Add);
+            waits.Add,
+            path =>
+            {
+                if (string.Equals(path, source, StringComparison.OrdinalIgnoreCase) &&
+                    ++sourceDeleteAttempts == 1)
+                {
+                    throw new IOException("Inbox delete temporarily locked.");
+                }
+
+                File.Delete(path);
+            });
 
         Assert.Equal(2, copyAttempts);
         Assert.Equal(2, readAttempts);
         Assert.Equal(2, moveAttempts);
-        Assert.Equal([1, 1, 1], waits);
+        Assert.Equal(2, sourceDeleteAttempts);
+        Assert.Equal([1, 1, 1, 1], waits);
         Assert.False(File.Exists(source));
         Assert.True(File.Exists(Path.Combine(store.CompletedPath, Path.GetFileName(source))));
+        Assert.Empty(Directory.EnumerateFiles(store.CompletedPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void CompleteRetriesTransientTemporaryFileCleanup()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var source = Path.Combine(store.InboxPath, $"{reminder.Id}.json");
+        File.WriteAllText(source, JsonProtocol.WriteReminder(reminder));
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+        var temporaryDeleteAttempts = 0;
+        var waits = new List<int>();
+
+        Assert.Throws<IOException>(() => store.Complete(
+            pending,
+            (copySource, copyDestination) => File.Copy(copySource, copyDestination, overwrite: true),
+            _ => throw new IOException("Archive validation remained locked."),
+            (moveSource, moveDestination) => File.Move(moveSource, moveDestination, overwrite: false),
+            waits.Add,
+            path =>
+            {
+                if (!string.Equals(path, source, StringComparison.OrdinalIgnoreCase) &&
+                    ++temporaryDeleteAttempts == 1)
+                {
+                    throw new UnauthorizedAccessException("Temporary archive cleanup was locked.");
+                }
+
+                File.Delete(path);
+            }));
+
+        Assert.Equal(2, temporaryDeleteAttempts);
+        Assert.Equal([1, 2, 3, 1], waits);
+        Assert.True(File.Exists(source));
+        Assert.False(File.Exists(Path.Combine(store.CompletedPath, Path.GetFileName(source))));
         Assert.Empty(Directory.EnumerateFiles(store.CompletedPath, ".*.tmp"));
     }
 
