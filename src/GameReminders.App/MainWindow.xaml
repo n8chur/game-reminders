@@ -47,16 +47,11 @@
                         <TabItem x:Name="PendingRemindersTab" Header="Pending (0)">
                             <Grid Margin="12">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <DockPanel Margin="0,0,0,14">
-                                    <Button DockPanel.Dock="Right" Content="New reminder" Click="NewReminder_Click"
-                                            Height="34" MinHeight="34" IsDefault="True" />
-                                </DockPanel>
-
-                                <Grid Grid.Row="1">
+                                <Grid>
                                     <ListBox x:Name="PendingRemindersList"
                                              Style="{StaticResource ReminderListBoxStyle}"
                                              KeyDown="ReminderList_KeyDown"
@@ -72,7 +67,7 @@
                                                 <GroupStyle.HeaderTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                                   Margin="2,12,0,6"
+                                                                   Margin="12,12,12,6"
                                                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                                                     </DataTemplate>
                                                 </GroupStyle.HeaderTemplate>
@@ -98,23 +93,23 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </Grid>
+
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,14,0,0">
+                                    <Button Content="New reminder" Click="NewReminder_Click"
+                                            IsDefault="True" MinWidth="120" />
+                                </StackPanel>
                             </Grid>
                         </TabItem>
 
                         <TabItem x:Name="CompletedRemindersTab" Header="Completed (0)">
                             <Grid Margin="12">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <DockPanel Margin="0,0,0,14">
-                                    <Button x:Name="ClearCompletedButton" DockPanel.Dock="Right"
-                                            Content="Clear all" Click="ClearCompleted_Click"
-                                            MinWidth="78" Padding="10,5" />
-                                </DockPanel>
-
-                                <Grid Grid.Row="1">
+                                <Grid>
                                     <ListBox x:Name="CompletedRemindersList"
                                              Style="{StaticResource ReminderListBoxStyle}"
                                              KeyDown="ReminderList_KeyDown"
@@ -130,7 +125,7 @@
                                             <GroupStyle.HeaderTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                               Margin="2,12,0,6"
+                                                               Margin="12,12,12,6"
                                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                                 </DataTemplate>
                                             </GroupStyle.HeaderTemplate>
@@ -155,6 +150,12 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </Grid>
+
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,14,0,0">
+                                    <Button x:Name="ClearCompletedButton" Content="Clear all" Click="ClearCompleted_Click"
+                                            MinWidth="100" />
+                                </StackPanel>
                             </Grid>
                         </TabItem>
                     </TabControl>
