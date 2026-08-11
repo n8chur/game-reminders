@@ -90,7 +90,8 @@
             <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel" IsCancel="True" />
                 <Button x:Name="SaveButton" Click="Save_Click" IsDefault="True">
-                    <TextBlock x:Name="SaveButtonText" Text="Save" Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <TextBlock x:Name="SaveButtonText" Text="Save"
+                               Foreground="{Binding Foreground, ElementName=SaveButton}" />
                 </Button>
             </StackPanel>
         </Grid>
