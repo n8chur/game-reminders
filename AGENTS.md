@@ -33,7 +33,8 @@ Add regression tests for protocol validation, filesystem state transitions, proc
 ## Pull requests
 
 - Before beginning any work that will upload source code or other repository content, confirm that the user has explicitly authorized the target repository, branch or PR, and the intended file/change scope. If that context is not sufficient for Auto-review, stop before editing or publishing and give the user one copy-ready message that supplies the missing authorization. Do not attempt the upload until they send it.
-- Write commit messages and PR titles as concise, descriptive imperative subjects that state the user-visible intent; avoid generic subjects such as "Update files."
+- Write PR titles as imperative squash-commit subjects.
+- Write individual commit messages as concise, descriptive imperative subjects that state the user-visible intent; avoid generic subjects such as "Update files."
 - Attribute AI-authored changes in every PR description with this disclosure immediately below the issue reference: `> Implemented by OpenAI Codex under <user name>'s direction.`
 - Write the description as a durable squash-commit body, including motivation and completed validation.
 - Every PR description must include current, concrete instructions for manually validating the user-visible changes. Update those instructions whenever the implementation changes what reviewers should test.
