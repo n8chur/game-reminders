@@ -120,9 +120,17 @@ internal static class SetupCommitter
         }
 
         var updated = current with { ICloudRoot = validation.Root };
-        if (saveSettings(updated))
+        string? saveError = null;
+        try
         {
-            return new SetupCommitResult(true, updated, null);
+            if (saveSettings(updated))
+            {
+                return new SetupCommitResult(true, updated, null);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            saveError = $" {exception.Message}";
         }
 
         var rollbackError = changedStartup && !startup.TrySetEnabled(previousStartup, out var error)
@@ -131,6 +139,6 @@ internal static class SetupCommitter
         return new SetupCommitResult(
             false,
             current,
-            $"The selected folder could not be saved; the previous configuration was preserved.{rollbackError}");
+            $"The selected folder could not be saved; the previous configuration was preserved.{saveError}{rollbackError}");
     }
 }
