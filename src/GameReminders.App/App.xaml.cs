@@ -14,6 +14,7 @@ public partial class App : System.Windows.Application
     private SettingsService? _settingsService;
     private StoreRootValidator? _storeRootValidator;
     private ILaunchAtLoginService? _launchAtLoginService;
+    private SingleInstanceCoordinator? _singleInstance;
     private AppSettings _settings = new();
     private ThemeManager? _themeManager;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -27,10 +28,19 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _themeManager = new ThemeManager(this);
 
         try
         {
+            _singleInstance = SingleInstanceCoordinator.TryStart(
+                ShouldShowMainWindow(e.Args),
+                RequestExistingInstanceWindow);
+            if (_singleInstance is null)
+            {
+                Shutdown();
+                return;
+            }
+
+            _themeManager = new ThemeManager(this);
             _settingsService = new SettingsService();
             _settings = _settingsService.Load();
             _storeRootValidator = new StoreRootValidator();
@@ -235,8 +245,53 @@ public partial class App : System.Windows.Application
 
     private void ShowMainWindow()
     {
-        _mainWindow?.Show();
-        _mainWindow?.Activate();
+        if (_mainWindow is null)
+        {
+            return;
+        }
+
+        ShowAndActivate(_mainWindow);
+    }
+
+    private void RequestExistingInstanceWindow()
+    {
+        if (!TrayDispatcher.ShouldDispatch(Dispatcher.HasShutdownStarted, Dispatcher.HasShutdownFinished))
+        {
+            return;
+        }
+
+        try
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_mainWindow is not null)
+                {
+                    ShowMainWindow();
+                    return;
+                }
+
+                var visibleWindow = Windows.OfType<Window>().FirstOrDefault(window => window.IsVisible);
+                if (visibleWindow is not null)
+                {
+                    ShowAndActivate(visibleWindow);
+                }
+            });
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            // Ignore an activation request delivered while WPF is shutting down.
+        }
+    }
+
+    private static void ShowAndActivate(Window window)
+    {
+        window.Show();
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Activate();
     }
 
     private void OpenICloudFolder()
@@ -856,6 +911,7 @@ public partial class App : System.Windows.Application
         _normalTrayIcon?.Dispose();
         _attentionTrayIcon?.Dispose();
         _themeManager?.Dispose();
+        _singleInstance?.Dispose();
         base.OnExit(e);
     }
 }
