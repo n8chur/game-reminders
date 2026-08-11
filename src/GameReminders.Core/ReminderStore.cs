@@ -194,23 +194,102 @@ public sealed class ReminderStore
         }
 
         Directory.CreateDirectory(CompletedPath);
-        var destination = Path.Combine(CompletedPath, Path.GetFileName(reminder.SourcePath));
+        var fileName = Path.GetFileName(reminder.SourcePath);
+        var destination = Path.Combine(CompletedPath, fileName);
+        RemoveMatchingRootDuplicate(reminder, fileName);
+
+        if (File.Exists(destination))
+        {
+            CompleteFromExistingArchive(reminder, destination);
+            return;
+        }
+
+        var temporaryPath = Path.Combine(CompletedPath, $".{fileName}.{Guid.NewGuid():N}.tmp");
         try
         {
-            File.Move(reminder.SourcePath, destination, overwrite: false);
-        }
-        catch (IOException) when (File.Exists(destination))
-        {
-            var archived = JsonProtocol.ReadReminder(File.ReadAllText(destination), destination);
-            if (!HasSamePayload(archived, reminder))
+            File.Copy(reminder.SourcePath, temporaryPath, overwrite: false);
+            var staged = JsonProtocol.ReadReminder(File.ReadAllText(temporaryPath), temporaryPath);
+            if (!HasSamePayload(staged, reminder))
             {
                 throw new InvalidDataException(
-                    $"Completed reminder '{Path.GetFileName(destination)}' conflicts with the pending reminder.");
+                    $"Completed reminder '{fileName}' did not match the pending reminder after it was copied.");
             }
 
-            // The archive already contains this reminder, usually because another
-            // dismissal or a sync operation completed the move first.
+            try
+            {
+                File.Move(temporaryPath, destination, overwrite: false);
+            }
+            catch (IOException) when (File.Exists(destination))
+            {
+                EnsureSameArchive(destination, reminder);
+            }
+
+            RetrySyncProviderOperation(() =>
+            {
+                File.Delete(reminder.SourcePath);
+                return true;
+            });
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (IOException)
+            {
+                // Preserve the archive failure; cleanup is best-effort.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A provider lock may briefly prevent cleanup.
+            }
+        }
+    }
+
+    private void RemoveMatchingRootDuplicate(Reminder reminder, string fileName)
+    {
+        var rootDuplicate = Path.Combine(_root, fileName);
+        if (!File.Exists(rootDuplicate))
+        {
+            return;
+        }
+
+        var duplicate = JsonProtocol.ReadReminder(
+            RetrySyncProviderOperation(() => File.ReadAllText(rootDuplicate)),
+            rootDuplicate);
+        if (!HasSamePayload(duplicate, reminder))
+        {
+            throw new InvalidDataException(
+                $"Root reminder '{fileName}' conflicts with the pending reminder and was preserved.");
+        }
+
+        RetrySyncProviderOperation(() =>
+        {
+            File.Delete(rootDuplicate);
+            return true;
+        });
+    }
+
+    private void CompleteFromExistingArchive(Reminder reminder, string destination)
+    {
+        EnsureSameArchive(destination, reminder);
+        RetrySyncProviderOperation(() =>
+        {
             File.Delete(reminder.SourcePath);
+            return true;
+        });
+    }
+
+    private static void EnsureSameArchive(string destination, Reminder reminder)
+    {
+        var archived = JsonProtocol.ReadReminder(
+            RetrySyncProviderOperation(() => File.ReadAllText(destination)),
+            destination);
+        if (!HasSamePayload(archived, reminder))
+        {
+            throw new InvalidDataException(
+                $"Completed reminder '{Path.GetFileName(destination)}' conflicts with the pending reminder.");
         }
     }
 
