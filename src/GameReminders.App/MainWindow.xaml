@@ -39,24 +39,65 @@
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBox x:Name="SearchText" Grid.Row="0" Height="36" Padding="10,7" Margin="0,0,0,14"
-                             TextChanged="SearchText_Changed" ToolTip="Filter configured and detected games"
+                             TextChanged="SearchText_Changed" ToolTip="Filter games and action-required items"
                              AutomationProperties.Name="Search games" />
 
-                    <Grid Grid.Row="1">
+                    <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
+                            Background="{DynamicResource SurfaceMutedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <DockPanel Margin="0,0,0,3">
+                                <TextBlock x:Name="DetectedCountText" DockPanel.Dock="Right"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <TextBlock Text="Action required" FontSize="15" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource IssueTextBrush}" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Text="Configure this detection as a game, or ignore it."
+                                       Margin="0,0,0,8" FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                            <ListBox x:Name="PendingList" Grid.Row="2" MouseDoubleClick="ConfigureDetection_Click"
+                                     SelectionChanged="PendingList_SelectionChanged" MaxHeight="170">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="Detected application" FontSize="12" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                        Margin="0,10,0,0">
+                                <Button x:Name="ConfigureDetectionButton" Content="Configure"
+                                        Click="ConfigureDetection_Click" IsEnabled="False" />
+                                <Button x:Name="IgnoreDetectionButton" Content="Ignore"
+                                        Click="IgnoreDetection_Click" IsEnabled="False" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <DockPanel Margin="0,0,0,7">
                             <TextBlock x:Name="ConfiguredCountText" DockPanel.Dock="Right"
                                        Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <TextBlock Text="Configured" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="Games" FontSize="15" FontWeight="SemiBold" />
                         </DockPanel>
                         <Grid Grid.Row="1">
                             <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
@@ -80,53 +121,32 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <TextBlock x:Name="GamesEmptyText" Text="No configured games match this search."
+                            <TextBlock x:Name="GamesEmptyText" Text="No games match this search."
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed" />
                         </Grid>
-                    </Grid>
-
-                    <Grid x:Name="DetectedSection" Grid.Row="2" Margin="0,18,0,0">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <DockPanel Margin="0,0,0,7">
-                            <TextBlock x:Name="DetectedCountText" DockPanel.Dock="Right"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <TextBlock Text="Needs review" FontSize="15" FontWeight="SemiBold" />
-                        </DockPanel>
-                        <ListBox x:Name="PendingList" Grid.Row="1" MouseDoubleClick="ConfigureDetection_Click"
-                                 MaxHeight="170">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                        <TextBlock Text="Detected application" FontSize="12" Margin="0,2,0,0"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-
-                    <DockPanel Grid.Row="3" Margin="0,14,0,0">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                                    Margin="0,14,0,0">
                             <Button Content="Add game" Click="AddGame_Click" />
-                            <Button Content="Edit" Click="EditGame_Click" />
-                            <Button Content="Remove" Click="RemoveGame_Click" />
+                            <Button x:Name="EditGameButton" Content="Edit" Click="EditGame_Click"
+                                    IsEnabled="False" />
+                            <Button x:Name="RemoveGameButton" Content="Remove" Click="RemoveGame_Click"
+                                    IsEnabled="False" />
                         </StackPanel>
-                        <StackPanel x:Name="DetectionActions" Orientation="Horizontal">
-                            <Button Content="Configure" Click="ConfigureDetection_Click" />
-                            <Button Content="Ignore" Click="IgnoreDetection_Click" />
-                        </StackPanel>
-                    </DockPanel>
+                    </Grid>
                 </Grid>
             </TabItem>
 
             <TabItem x:Name="IgnoredTab" Header="Ignored">
                 <Grid Margin="16">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <TextBlock Text="Ignored discoveries" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4" />
                     <Grid Grid.Row="1" Margin="0,8,0,0">
-                        <ListBox x:Name="IgnoredList">
+                        <ListBox x:Name="IgnoredList" SelectionChanged="IgnoredList_SelectionChanged">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel>
@@ -141,8 +161,9 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                     </Grid>
-                    <Button Grid.Row="2" Content="Restore" HorizontalAlignment="Right" Margin="0,14,0,0"
-                            Click="RestoreIgnored_Click" />
+                    <Button x:Name="RestoreIgnoredButton" Grid.Row="2" Content="Restore"
+                            HorizontalAlignment="Right" Margin="0,14,0,0"
+                            Click="RestoreIgnored_Click" IsEnabled="False" />
                 </Grid>
             </TabItem>
         </TabControl>
