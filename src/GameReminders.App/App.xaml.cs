@@ -47,6 +47,7 @@ public partial class App : System.Windows.Application
             _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
 
+            var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
             _mainWindow = new MainWindow(
                 AddManualGame,
                 EditGame,
@@ -56,7 +57,8 @@ public partial class App : System.Windows.Application
                 IgnoreDetection,
                 RestoreIgnored,
                 MarkGamesReviewed,
-                GetLaunchAtLoginState(out var startupStatusError),
+                launchAtLogin,
+                MainWindow.CanChangeLaunchAtLogin(startupStatusError),
                 SetLaunchAtLogin);
             MainWindow = _mainWindow;
             if (startupStatusError is not null)
