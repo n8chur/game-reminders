@@ -200,7 +200,7 @@ public sealed class ReminderStore
 
         if (File.Exists(destination))
         {
-            CompleteFromExistingArchive(reminder, destination);
+            CompleteFromExistingArchive(reminder, destination, reminder.SourcePath);
             return;
         }
 
@@ -271,12 +271,12 @@ public sealed class ReminderStore
         });
     }
 
-    private void CompleteFromExistingArchive(Reminder reminder, string destination)
+    private void CompleteFromExistingArchive(Reminder reminder, string destination, string sourcePath)
     {
         EnsureSameArchive(destination, reminder);
         RetrySyncProviderOperation(() =>
         {
-            File.Delete(reminder.SourcePath);
+            File.Delete(sourcePath);
             return true;
         });
     }
