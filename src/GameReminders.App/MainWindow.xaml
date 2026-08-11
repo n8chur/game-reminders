@@ -97,6 +97,7 @@
                                 <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
                                             Margin="0,14,0,0">
                                     <Button Content="New reminder" Click="NewReminder_Click"
+                                            Style="{StaticResource PrimaryActionButtonStyle}"
                                             IsDefault="True" MinWidth="120" />
                                 </StackPanel>
                             </Grid>
@@ -154,7 +155,7 @@
                                 <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
                                             Margin="0,14,0,0">
                                     <Button x:Name="ClearCompletedButton" Content="Clear all" Click="ClearCompleted_Click"
-                                            MinWidth="100" />
+                                            Style="{StaticResource PrimaryActionButtonStyle}" MinWidth="100" />
                                 </StackPanel>
                             </Grid>
                         </TabItem>
