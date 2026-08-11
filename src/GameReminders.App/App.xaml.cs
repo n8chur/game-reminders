@@ -181,11 +181,11 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
-            var replacement = new ProcessLaunchMonitor(catalog.Games);
+            var previous = _monitor;
+            var replacement = CreateReplacementMonitor(catalog.Games, previous);
             replacement.GameLaunched += OnGameLaunched;
             replacement.Start();
 
-            var previous = _monitor;
             _monitor = replacement;
             previous?.Dispose();
             _actionRequiredGameIds = catalog.Games
@@ -203,6 +203,15 @@ public partial class App : System.Windows.Application
             MessageBox.Show(status, "Could not reload games.json", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
+
+    internal static ProcessLaunchMonitor CreateReplacementMonitor(
+        IReadOnlyList<GameDefinition> games,
+        ProcessLaunchMonitor? previous,
+        Func<Process[]>? getProcesses = null) =>
+        new(
+            games,
+            getProcesses ?? Process.GetProcesses,
+            previous?.SnapshotActiveGameIds());
 
     private void StartForegroundDetection()
     {
@@ -415,13 +424,7 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
-            var detectionProcesses = detection.Processes
-                .Select(NameNormalizer.NormalizeExecutableIdentity)
-                .Where(process => !string.IsNullOrWhiteSpace(process))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (catalog.Games.Any(game =>
-                    (detection.AppId is not null && string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
-                    game.Processes.Any(process => detectionProcesses.Contains(NameNormalizer.NormalizeExecutableIdentity(process)))))
+            if (IsConfiguredDetection(catalog, detection))
             {
                 return false;
             }
@@ -441,6 +444,14 @@ public partial class App : System.Windows.Application
         RefreshPending();
         return true;
     }
+
+    internal static bool IsConfiguredDetection(GameCatalog catalog, PendingGameDetection detection) =>
+        catalog.Games.Any(game =>
+            (!string.IsNullOrWhiteSpace(detection.AppId) &&
+                string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
+            game.Processes.Any(configured =>
+                detection.Processes.Any(observed =>
+                    NameNormalizer.ExecutableMatches(configured, observed))));
 
     private void ShowReviewNotification(int count, bool trustedSteamGames)
     {
@@ -594,23 +605,14 @@ public partial class App : System.Windows.Application
     {
         if (item.SteamAppId is null)
         {
-            var updatedDetectionSettings = _settings with
-            {
-                IgnoredDetections = _settings.IgnoredDetections
-                    .Where(detection => !string.Equals(detection.Key, item.Key, StringComparison.OrdinalIgnoreCase))
-                    .ToArray(),
-                IgnoredDetectionKeys = _settings.IgnoredDetectionKeys
-                    .Where(key => !string.Equals(key, item.Key, StringComparison.OrdinalIgnoreCase))
-                    .ToArray()
-            };
+            var updatedDetectionSettings = RestoreIgnoredDetection(_settings, item.Key);
             if (_settingsService?.TrySave(updatedDetectionSettings) != true)
             {
                 MessageBox.Show("The restore choice could not be saved.", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             _settings = updatedDetectionSettings;
-            RefreshIgnored();
-            UpdateTrayAttention();
+            RefreshPending();
             return;
         }
 
@@ -630,6 +632,30 @@ public partial class App : System.Windows.Application
         RefreshIgnored();
         UpdateTrayAttention();
         _ = ScanSteamAsync(showCompletion: true);
+    }
+
+    internal static AppSettings RestoreIgnoredDetection(AppSettings settings, string key)
+    {
+        var restored = settings.IgnoredDetections.FirstOrDefault(
+            detection => string.Equals(detection.Key, key, StringComparison.OrdinalIgnoreCase));
+        var pending = restored is null
+            ? settings.PendingDetections
+            : settings.PendingDetections
+                .Append(restored)
+                .GroupBy(detection => detection.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+
+        return settings with
+        {
+            PendingDetections = pending,
+            IgnoredDetections = settings.IgnoredDetections
+                .Where(detection => !string.Equals(detection.Key, key, StringComparison.OrdinalIgnoreCase))
+                .ToArray(),
+            IgnoredDetectionKeys = settings.IgnoredDetectionKeys
+                .Where(ignoredKey => !string.Equals(ignoredKey, key, StringComparison.OrdinalIgnoreCase))
+                .ToArray()
+        };
     }
 
     private void MarkGamesReviewed(IReadOnlyCollection<string> gameIds)
