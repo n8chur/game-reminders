@@ -1,25 +1,16 @@
 #define name Game Reminder
 #define color blue
 #define glyph bell
-#define version 28
+#define version 29
 
 #include 'actions/calendar'
 #include 'actions/crypto'
 #include 'actions/documents'
 #include 'actions/text'
 
-#question catalogFolder "Choose your Game Reminders folder in iCloud Drive." ""
-#question inboxBaseFolder "Choose the same Game Reminders folder again for the inbox." ""
-
-action 'documentpicker.open' getConfiguredFile(
-    text path: 'WFGetFilePath',
-    text folder: 'WFFile',
-    bool ?errorIfNotFound: 'WFFileErrorIfNotFound' = true
-)
-
 action 'file.move' moveFile(variable file: 'WFFile', variable folder: 'WFFolder')
 
-const gamesFile = getConfiguredFile("games.json", catalogFolder, true)
+const gamesFile = getFileFromFolder("Shortcuts/Game Reminders", "games.json", true)
 const catalog = getDictionary(gamesFile)
 const schemaVersion = getValue(catalog, "schemaVersion")
 const schemaVersionNumber = getNumbers(schemaVersion)
@@ -109,7 +100,7 @@ const reminderId = replaceText('^(.{8})(.{4})(.{4})(.{4})(.{12}).*$', "$1-$2-$3-
 }
 
 const reminderJson = getText(@reminder)
-const inboxFolder = getFile("inbox", inboxBaseFolder, true)
+const inboxFolder = getFileFromFolder("Shortcuts/Game Reminders", "inbox", true)
 const stagedFile = saveFile("{reminderId}.tmp", reminderJson, false)
 const inboxStagedFile = moveFile(stagedFile, inboxFolder)
 const savedReminder = rename(inboxStagedFile, "{reminderId}.json")
