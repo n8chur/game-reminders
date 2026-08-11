@@ -145,8 +145,8 @@ public partial class MainWindow : Window
     {
         PendingRemindersList.ItemsSource = GroupReminders(pending);
         CompletedRemindersList.ItemsSource = GroupReminders(completed);
-        PendingRemindersHeader.Text = $"Pending ({pending.Count})";
-        CompletedRemindersHeader.Text = $"Completed ({completed.Count})";
+        PendingRemindersTab.Header = $"Pending ({pending.Count})";
+        CompletedRemindersTab.Header = $"Completed ({completed.Count})";
         PendingRemindersEmpty.Visibility = pending.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         CompletedRemindersEmpty.Visibility = completed.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PendingRemindersList.Visibility = pending.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
