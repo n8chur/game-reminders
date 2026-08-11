@@ -14,16 +14,16 @@ public sealed class LaunchAtLoginServiceTests
 
         Assert.True(service.TrySetEnabled(true, out var error));
         Assert.Null(error);
-        Assert.Equal("\"C:\\Apps\\GameReminders.exe\"", registered);
+        Assert.Equal("\"C:\\Apps\\GameReminders.exe\" --hidden-at-login", registered);
         Assert.True(service.TryGetEnabled(out var enabled, out error));
         Assert.True(enabled);
         Assert.Null(error);
     }
 
     [Theory]
-    [InlineData("\"C:\\Apps\\GameReminders.exe\"")]
-    [InlineData(@"C:\Apps\GameReminders.exe")]
-    public void EquivalentQuotedOrUnquotedRegistrationIsEnabled(string registered)
+    [InlineData("\"C:\\Apps\\GameReminders.exe\" --hidden-at-login")]
+    [InlineData(@"C:\Apps\GameReminders.exe --hidden-at-login")]
+    public void EquivalentHiddenRegistrationIsEnabled(string registered)
     {
         var service = new LaunchAtLoginService(
             @"C:\Apps\GameReminders.exe",
@@ -35,6 +35,41 @@ public sealed class LaunchAtLoginServiceTests
 
         Assert.True(enabled);
         Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("\"C:\\Apps\\GameReminders.exe\"")]
+    [InlineData(@"C:\Apps\GameReminders.exe")]
+    public void LegacyRegistrationIsUpgradedToStartHidden(string registered)
+    {
+        string? updated = null;
+        var service = new LaunchAtLoginService(
+            @"C:\Apps\GameReminders.exe",
+            () => registered,
+            value => updated = value,
+            () => { });
+
+        Assert.True(service.TryGetEnabled(out var enabled, out var error));
+
+        Assert.True(enabled);
+        Assert.Null(error);
+        Assert.Equal("\"C:\\Apps\\GameReminders.exe\" --hidden-at-login", updated);
+    }
+
+    [Fact]
+    public void LegacyRegistrationUpgradeFailureIsVisible()
+    {
+        var service = new LaunchAtLoginService(
+            @"C:\Apps\GameReminders.exe",
+            () => @"C:\Apps\GameReminders.exe",
+            _ => throw new UnauthorizedAccessException("blocked"),
+            () => { });
+
+        Assert.False(service.TryGetEnabled(out var enabled, out var error));
+
+        Assert.False(enabled);
+        Assert.Contains("start hidden", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("blocked", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -229,5 +264,23 @@ public sealed class LaunchAtLoginServiceTests
             error = null;
             return true;
         }
+    }
+}
+
+public sealed class AppStartupTests
+{
+    [Fact]
+    public void ManualLaunchShowsMainWindow()
+    {
+        Assert.True(App.ShouldShowMainWindow([]));
+        Assert.True(App.ShouldShowMainWindow(["--other"]));
+    }
+
+    [Theory]
+    [InlineData("--hidden-at-login")]
+    [InlineData("--HIDDEN-AT-LOGIN")]
+    public void LoginStartupHidesMainWindow(string argument)
+    {
+        Assert.False(App.ShouldShowMainWindow([argument]));
     }
 }
