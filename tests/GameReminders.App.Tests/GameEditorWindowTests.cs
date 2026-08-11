@@ -5,6 +5,42 @@ namespace GameReminders.App.Tests;
 public sealed class GameEditorWindowTests
 {
     [Fact]
+    public void SaveButtonTextIsWhiteInTheLightTheme()
+    {
+        System.Exception? failure = null;
+        var thread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                var application = new App();
+                application.InitializeComponent();
+                var editor = new GameEditorWindow(
+                    new GameDefinition { Id = "test", Name = "Test" },
+                    _ => null);
+
+                var foreground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
+                    editor.SaveButtonText.Foreground);
+                Assert.Equal(System.Windows.Media.Colors.White, foreground.Color);
+
+                editor.Close();
+                application.Shutdown();
+            }
+            catch (System.Exception exception)
+            {
+                failure = exception;
+            }
+        });
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
+    [Fact]
     public void EditorStaysOpenWhenCatalogSaveFails()
     {
         Assert.False(GameEditorWindow.SaveSucceeded("iCloud file is locked"));
