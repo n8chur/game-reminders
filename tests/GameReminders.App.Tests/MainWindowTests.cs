@@ -69,6 +69,14 @@ public sealed class MainWindowTests
     }
 
     [Theory]
+    [InlineData(null, false)]
+    [InlineData("selected", true)]
+    public void RowActionsRequireSelection(object? selectedItem, bool expected)
+    {
+        Assert.Equal(expected, MainWindow.HasSelection(selectedItem));
+    }
+
+    [Theory]
     [InlineData("Farever", "fare", true)]
     [InlineData("Farever", "EVER", true)]
     [InlineData("Farever", "monster", false)]
