@@ -23,9 +23,9 @@
   "workflow": [
     {
       "action": "getFile",
-      "folder": "Shortcuts/Game Reminders",
-      "relativePath": "games.json",
-      "error": "Game Reminders could not read games.json from the selected folder."
+      "folder": "Shortcuts",
+      "relativePath": "Game Reminders/games.json",
+      "error": "Game Reminders could not read Shortcuts/Game Reminders/games.json."
     },
     {
       "action": "parseDictionary",
@@ -202,8 +202,8 @@
     },
     {
       "action": "getFile",
-      "folder": "Shortcuts/Game Reminders",
-      "relativePath": "inbox",
+      "folder": "Shortcuts",
+      "relativePath": "Game Reminders/inbox",
       "output": "inboxFolder"
     },
     {
