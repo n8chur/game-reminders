@@ -66,7 +66,10 @@ public partial class App : System.Windows.Application
                 _mainWindow.SetStatus(startupStatusError, isIssue: true);
             }
             CreateTrayIcon();
-            _mainWindow.Show();
+            if (ShouldShowMainWindow(e.Args))
+            {
+                _mainWindow.Show();
+            }
 
             StartMonitoring();
             RefreshPending();
@@ -83,6 +86,12 @@ public partial class App : System.Windows.Application
             Shutdown(1);
         }
     }
+
+    internal static bool ShouldShowMainWindow(IReadOnlyList<string> arguments) =>
+        !arguments.Any(argument => string.Equals(
+            argument,
+            LaunchAtLoginService.HiddenAtLoginArgument,
+            StringComparison.OrdinalIgnoreCase));
 
     private string? ResolveRoot()
     {
