@@ -43,91 +43,82 @@
         <TabControl x:Name="ManagementTabs" Grid.Row="2">
             <TabItem x:Name="RemindersTab" Header="Reminders">
                 <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                    <TabControl x:Name="ReminderTabs">
+                        <TabItem x:Name="PendingRemindersTab" Header="Pending (0)">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
 
-                    <Button Grid.Row="0" Content="New reminder" Click="NewReminder_Click"
-                            Height="34" MinHeight="34" IsDefault="True"
-                            HorizontalAlignment="Right" Margin="0,0,0,14" />
+                                <DockPanel Margin="0,0,0,14">
+                                    <Button DockPanel.Dock="Right" Content="New reminder" Click="NewReminder_Click"
+                                            Height="34" MinHeight="34" IsDefault="True" />
+                                </DockPanel>
 
-                    <Grid Grid.Row="1">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="18" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Grid Grid.Column="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <TextBlock x:Name="PendingRemindersHeader" Text="Pending (0)"
-                                       FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
-                            <Grid Grid.Row="1">
-                                <ListBox x:Name="PendingRemindersList"
-                                         Style="{StaticResource ReminderListBoxStyle}"
-                                         KeyDown="ReminderList_KeyDown"
-                                         PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
-                                    <ListBox.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Complete" Click="CompleteSelectedReminder_Click" />
-                                            <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
-                                        </ContextMenu>
-                                    </ListBox.ContextMenu>
-                                    <ListBox.GroupStyle>
-                                        <GroupStyle>
-                                            <GroupStyle.HeaderTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                               Margin="2,12,0,6"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                </DataTemplate>
-                                            </GroupStyle.HeaderTemplate>
-                                        </GroupStyle>
-                                    </ListBox.GroupStyle>
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <DockPanel LastChildFill="True">
-                                                <Button DockPanel.Dock="Right" Content="Complete" Tag="{Binding Reminder}"
-                                                        Click="CompleteReminder_Click" Margin="14,0,0,0"
-                                                        VerticalAlignment="Center" />
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
-                                                               FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                </StackPanel>
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <TextBlock x:Name="PendingRemindersEmpty" Text="No pending reminders."
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <Grid Grid.Row="1">
+                                    <ListBox x:Name="PendingRemindersList"
+                                             Style="{StaticResource ReminderListBoxStyle}"
+                                             KeyDown="ReminderList_KeyDown"
+                                             PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Complete" Click="CompleteSelectedReminder_Click" />
+                                                <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
+                                        <ListBox.GroupStyle>
+                                            <GroupStyle>
+                                                <GroupStyle.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                   Margin="2,12,0,6"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </DataTemplate>
+                                                </GroupStyle.HeaderTemplate>
+                                            </GroupStyle>
+                                        </ListBox.GroupStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel LastChildFill="True">
+                                                    <Button DockPanel.Dock="Right" Content="Complete" Tag="{Binding Reminder}"
+                                                            Click="CompleteReminder_Click" Margin="14,0,0,0"
+                                                            VerticalAlignment="Center" />
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                                   FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="PendingRemindersEmpty" Text="No pending reminders."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
                             </Grid>
-                        </Grid>
+                        </TabItem>
 
-                        <Grid Grid.Column="2">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <DockPanel Margin="0,0,0,8">
-                                <Button x:Name="ClearCompletedButton" DockPanel.Dock="Right"
-                                        Content="Clear all" Click="ClearCompleted_Click"
-                                        MinWidth="78" Padding="10,5" />
-                                <TextBlock x:Name="CompletedRemindersHeader" Text="Completed (0)"
-                                           FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            </DockPanel>
-                            <Grid Grid.Row="1">
-                                <ListBox x:Name="CompletedRemindersList"
-                                         Style="{StaticResource ReminderListBoxStyle}"
-                                         KeyDown="ReminderList_KeyDown"
-                                         PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
+                        <TabItem x:Name="CompletedRemindersTab" Header="Completed (0)">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Margin="0,0,0,14">
+                                    <Button x:Name="ClearCompletedButton" DockPanel.Dock="Right"
+                                            Content="Clear all" Click="ClearCompleted_Click"
+                                            MinWidth="78" Padding="10,5" />
+                                </DockPanel>
+
+                                <Grid Grid.Row="1">
+                                    <ListBox x:Name="CompletedRemindersList"
+                                             Style="{StaticResource ReminderListBoxStyle}"
+                                             KeyDown="ReminderList_KeyDown"
+                                             PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Mark as pending" Click="UncompleteSelectedReminder_Click" />
@@ -159,13 +150,14 @@
                                             </DockPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
-                                </ListBox>
-                                <TextBlock x:Name="CompletedRemindersEmpty" Text="Completed reminders will appear here."
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    </ListBox>
+                                    <TextBlock x:Name="CompletedRemindersEmpty" Text="Completed reminders will appear here."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
                             </Grid>
-                        </Grid>
-                    </Grid>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
             </TabItem>
 
