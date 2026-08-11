@@ -10,7 +10,7 @@ Apple will not import the unsigned artifact directly. The final `GameReminder.sh
 
 ## Configuration
 
-The distributed Shortcut asks for the existing `Game Reminders` folder during import. That folder must contain:
+The distributed Shortcut asks for the existing `Game Reminders` folder twice during import: once for the `games.json` lookup and again for the `inbox` lookup. Select the same folder both times. This explicit per-action configuration avoids device-specific Mac file references and the macOS-only **Get Parent Directory** action. The folder must contain:
 
 ```text
 Game Reminders/
@@ -20,11 +20,11 @@ Game Reminders/
 └── invalid/
 ```
 
-The selected folder is the only configurable path. No server URL, account, token, or duplicate database is used.
+The same selected folder is the only configurable path, even though Shortcuts requires two setup bindings. No server URL, account, token, or duplicate database is used.
 
 ## Human-readable workflow
 
-1. Get `games.json` from the configured Game Reminders folder. If it cannot be read, show an error and stop.
+1. Get `games.json` from the catalog action's configured Game Reminders folder. If it cannot be read, show an error and stop.
 2. Parse the file as a dictionary. Require `schemaVersion` to equal `1` and `games` to be a list; otherwise show an error and stop.
 3. Ask **Which game?** for text. This prompt also accepts dictated text when the Shortcut is run through Siri.
 4. Normalize the answer by converting it to lowercase and removing every character that is not a Unicode letter or number. If nothing remains, show an error and stop.
@@ -46,7 +46,7 @@ The selected folder is the only configurable path. No server URL, account, token
    | `message` | Reminder text |
    | `createdAt` | ISO 8601 current date |
 
-10. Serialize the dictionary as JSON. Resolve `inbox` beneath the configured Game Reminders folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
+10. Serialize the dictionary as JSON. Resolve `inbox` beneath the inbox action's separately configured Game Reminders folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into the resolved `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
 11. Only after the final rename succeeds, show **Reminder saved for <game name>.**
 
 The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The staging filename intentionally has no leading dot so macOS does not preserve the finalized reminder as hidden. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
@@ -55,9 +55,9 @@ The temporary extension prevents the Windows scanner from treating an incomplete
 
 1. Download `GameReminder-unsigned.shortcut` from the repository.
 2. Run `shortcuts sign --mode anyone --input GameReminder-unsigned.shortcut --output GameReminder.shortcut`.
-3. Open `GameReminder.shortcut` and choose the existing Game Reminders iCloud folder when asked.
+3. Open `GameReminder.shortcut` and choose the same existing Game Reminders iCloud folder for both setup questions.
 4. Test every case in `test-vectors.json` using a temporary catalog where destructive or collision behavior is involved.
-5. Inspect the signed Shortcut after importing it. Confirm that the folder import question appears and that no personal path or reminder text is embedded.
+5. Inspect the signed Shortcut after importing it. Confirm that both folder import questions appear, **Get Parent Directory** is absent, and no personal path or reminder text is embedded.
 
 Do not commit a privately shared export or a file containing Apple contact information. The distributable must be signed with the **Anyone** option.
 
@@ -72,3 +72,4 @@ Do not commit a privately shared export or a file containing Apple contact infor
 - An existing destination is not overwritten.
 - If iCloud is unavailable or the save/rename fails, no success message appears.
 - After iCloud sync, launching the matched game on Windows displays the reminder.
+- A clean iPhone import asks for both folder bindings and runs without any unavailable-action warning.
