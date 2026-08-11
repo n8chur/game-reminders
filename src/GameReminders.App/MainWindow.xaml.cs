@@ -126,7 +126,7 @@ public partial class MainWindow : Window
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
 
-    public void SetReminders(
+    internal void SetReminders(
         IReadOnlyList<ReminderListItem> pending,
         IReadOnlyList<ReminderListItem> nextLaunch,
         IReadOnlyList<ReminderListItem> completed)
