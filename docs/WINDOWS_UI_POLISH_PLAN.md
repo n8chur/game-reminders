@@ -6,7 +6,7 @@ Tracking: #7
 
 The management window becomes a focused two-view shell:
 
-- **Games** contains configured games plus pending discoveries, with distinct section headers, counts, search, and context-specific actions.
+- **Games** contains a visually distinct **Action required** section above the configured **Games** section. Each section keeps its row actions directly beside its own list, and selection-dependent actions remain disabled until a row is selected.
 - **Ignored** contains launcher-neutral ignored discoveries, including suppressed Steam games and foreground discoveries retained with enough metadata to restore them.
 
 The window follows the Windows app-theme preference. Closing hides it to the tray; full exit and opening the authoritative iCloud folder live in the tray menu.
