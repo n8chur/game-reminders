@@ -100,8 +100,8 @@ Assert-PortableCondition ($portableActions.Count -eq $canonicalActions.Count) 'P
 
 $portableQuestions = $portableRoot.SelectSingleNode("key[text()='WFWorkflowImportQuestions']/following-sibling::*[1][self::array]")
 $canonicalQuestions = $canonicalRoot.SelectSingleNode("key[text()='WFWorkflowImportQuestions']/following-sibling::*[1][self::array]")
-Assert-PortableCondition ($null -ne $portableQuestions -and @($portableQuestions.dict).Count -eq 0) 'Portable Shortcut must not contain import questions.'
-Assert-PortableCondition ($null -ne $canonicalQuestions -and @($canonicalQuestions.dict).Count -eq 2) 'Canonical comparison artifact must retain two folder questions.'
+Assert-PortableCondition ($null -ne $portableQuestions -and @($portableQuestions.SelectNodes('dict')).Count -eq 0) 'Portable Shortcut must not contain import questions.'
+Assert-PortableCondition ($null -ne $canonicalQuestions -and @($canonicalQuestions.SelectNodes('dict')).Count -eq 2) 'Canonical comparison artifact must retain two folder questions.'
 
 $firstAction = Convert-PlistDictionary $portableActions[0]
 $firstParameters = Convert-PlistDictionary $firstAction.WFWorkflowActionParameters
