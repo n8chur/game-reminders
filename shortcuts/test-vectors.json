@@ -51,7 +51,8 @@
     {
       "name": "unknown game",
       "input": "Missing",
-      "expectedStatus": "unknownGame"
+      "expectedStatus": "unknownGame",
+      "expectedError": "No game alias found for “Missing”."
     },
     {
       "name": "empty normalized name",
@@ -66,7 +67,8 @@
     {
       "name": "missing diacritic",
       "input": "Pokemon",
-      "expectedStatus": "unknownGame"
+      "expectedStatus": "unknownGame",
+      "expectedError": "No game alias found for “Pokemon”."
     },
     {
       "name": "preserved diacritic",

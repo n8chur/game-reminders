@@ -10,9 +10,16 @@
     "sharingMode": "anyone"
   },
   "configuration": {
-    "variable": "gameRemindersFolder",
-    "type": "folder",
-    "importQuestion": "Choose your Game Reminders folder in iCloud Drive."
+    "catalogFolder": {
+      "variable": "catalogFolder",
+      "type": "folder",
+      "importQuestion": "Choose your Game Reminders folder in iCloud Drive."
+    },
+    "inboxFolder": {
+      "variable": "inboxBaseFolder",
+      "type": "folder",
+      "importQuestion": "Choose the same Game Reminders folder again for the inbox."
+    }
   },
   "normalization": {
     "case": "lowercase",
@@ -23,7 +30,7 @@
   "workflow": [
     {
       "action": "getFile",
-      "folder": "gameRemindersFolder",
+      "folder": "catalogFolder",
       "relativePath": "games.json",
       "error": "Game Reminders could not read games.json from the selected folder."
     },
@@ -154,7 +161,7 @@
       "input": "matchCount",
       "branches": {
         "zero": {
-          "show": "No game matched. Add or edit the game on Windows, then try again.",
+          "show": "No game alias found for “<requestedGameName>”.",
           "stop": true
         },
         "moreThanOne": {
@@ -202,7 +209,7 @@
     },
     {
       "action": "getFile",
-      "folder": "gameRemindersFolder",
+      "folder": "inboxBaseFolder",
       "relativePath": "inbox",
       "output": "inboxFolder"
     },

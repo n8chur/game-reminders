@@ -19,8 +19,8 @@ if ($null -eq $actionsArray -or $null -eq $questionsArray) {
 }
 
 $actions = @($actionsArray.dict)
-if ($actions.Count -ne 108) {
-    throw "Expected 108 Shortcut actions, found $($actions.Count)."
+if ($actions.Count -ne 107) {
+    throw "Expected 107 Shortcut actions, found $($actions.Count)."
 }
 
 function Convert-PlistDictionary {
@@ -43,14 +43,61 @@ if ($firstAction.WFWorkflowActionIdentifier.InnerText -ne "is.workflow.actions.d
     throw "The first action is not configured for the Game Reminders folder import question."
 }
 
+$unsupportedActions = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    $action.WFWorkflowActionIdentifier.InnerText -eq 'is.workflow.actions.getparentdirectory'
+})
+if ($unsupportedActions.Count -ne 0) {
+    throw 'The generated iPhone Shortcut contains the macOS-only Get Parent Directory action.'
+}
+
 $questions = @($questionsArray.dict)
-if ($questions.Count -ne 1) {
-    throw "Expected exactly one folder import question, found $($questions.Count)."
+if ($questions.Count -ne 2) {
+    throw "Expected exactly two folder import questions, found $($questions.Count)."
 }
 
 $question = Convert-PlistDictionary $questions[0]
 if ($question.ActionIndex.InnerText -ne "0" -or $question.ParameterKey.InnerText -ne "WFFile") {
-    throw "The folder import question does not target the first action's WFFile parameter."
+    throw "The catalog folder import question does not target the first action's WFFile parameter."
+}
+
+$unknownMessageTemplate = 'No game alias found for “' + [char]0xFFFC + '”.'
+$unknownGameAlerts = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.alert') {
+        return $false
+    }
+
+    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
+    if (-not $parameters.ContainsKey('WFAlertActionMessage') -or $parameters.WFAlertActionMessage.Name -ne 'dict') {
+        return $false
+    }
+
+    $message = Convert-PlistDictionary $parameters.WFAlertActionMessage
+    if (-not $message.ContainsKey('Value')) {
+        return $false
+    }
+
+    $value = Convert-PlistDictionary $message.Value
+    $value.ContainsKey('string') -and $value.string.InnerText -eq $unknownMessageTemplate
+})
+if ($unknownGameAlerts.Count -ne 1) {
+    throw 'The compiled Shortcut must contain one dynamic unknown-game alert that repeats the submitted name.'
+}
+
+$unknownAlert = Convert-PlistDictionary $unknownGameAlerts[0]
+$unknownParameters = Convert-PlistDictionary $unknownAlert.WFWorkflowActionParameters
+$unknownMessage = Convert-PlistDictionary $unknownParameters.WFAlertActionMessage
+$unknownValue = Convert-PlistDictionary $unknownMessage.Value
+$unknownAttachments = Convert-PlistDictionary $unknownValue.attachmentsByRange
+$requestedGameNameTokens = @($unknownAttachments.Values | ForEach-Object {
+    Convert-PlistDictionary $_
+} | Where-Object {
+    $_.Type.InnerText -eq 'ActionOutput' -and
+    $_.OutputName.InnerText -eq 'requestedGameName'
+})
+if ($requestedGameNameTokens.Count -ne 1) {
+    throw 'The unknown-game alert must use the original Which game? output exactly once, not its normalized value.'
 }
 
 function Get-ActionByOutputName {
@@ -90,8 +137,10 @@ $renameParameters = Convert-PlistDictionary $renameAction.WFWorkflowActionParame
 
 if ($inboxAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.documentpicker.open' -or
     $inboxParameters.WFGetFilePath.InnerText -ne 'inbox' -or
-    (Get-ReferencedOutputName $inboxParameters.WFFile) -ne 'gameRemindersFolder') {
-    throw 'The inbox folder must be resolved beneath the configured Game Reminders folder.'
+    -not $inboxParameters.ContainsKey('WFFile') -or
+    $inboxParameters.WFFile.Name -ne 'string' -or
+    $inboxParameters.WFFile.InnerText.Length -ne 0) {
+    throw 'The inbox lookup must expose an empty folder parameter for its own import question.'
 }
 
 $stagingPath = Convert-PlistDictionary (Convert-PlistDictionary $saveParameters.WFFileDestinationPath).Value
@@ -121,6 +170,11 @@ if ($finalFilename.string.InnerText -notmatch '^\uFFFC\.json$' -or
 }
 
 $inboxIndex = [Array]::IndexOf($actions, $inboxActionNode)
+$inboxQuestion = Convert-PlistDictionary $questions[1]
+if ($inboxQuestion.ActionIndex.InnerText -ne "$inboxIndex" -or $inboxQuestion.ParameterKey.InnerText -ne 'WFFile') {
+    throw "The inbox folder import question does not target action $inboxIndex's WFFile parameter."
+}
+
 $saveIndex = [Array]::IndexOf($actions, $saveActionNode)
 $moveIndex = [Array]::IndexOf($actions, $moveActionNode)
 $renameIndex = [Array]::IndexOf($actions, $renameActionNode)
@@ -245,4 +299,4 @@ if ($textInitializers.Count -ne 2) {
     throw 'The compiled Shortcut must initialize both matched-game text variables explicitly.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 108 actions, exact normalization, explicit variable inputs, unique action IDs, one folder question, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, submitted-name error context, explicit variable inputs, unique action IDs, two folder questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
