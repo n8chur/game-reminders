@@ -12,13 +12,10 @@ public sealed class SingleInstanceCoordinatorTests
             activateExisting: true,
             activationRequested.Set);
 
-        using var duplicate = SingleInstanceCoordinator.TryStart(
-            instanceName,
-            activateExisting: true,
-            () => { });
+        var duplicateStarted = TryStartDuplicate(instanceName, activateExisting: true);
 
         Assert.NotNull(owner);
-        Assert.Null(duplicate);
+        Assert.False(duplicateStarted);
         Assert.True(activationRequested.Wait(TimeSpan.FromSeconds(5)));
     }
 
@@ -32,13 +29,10 @@ public sealed class SingleInstanceCoordinatorTests
             activateExisting: true,
             activationRequested.Set);
 
-        using var duplicate = SingleInstanceCoordinator.TryStart(
-            instanceName,
-            activateExisting: false,
-            () => { });
+        var duplicateStarted = TryStartDuplicate(instanceName, activateExisting: false);
 
         Assert.NotNull(owner);
-        Assert.Null(duplicate);
+        Assert.False(duplicateStarted);
         Assert.False(activationRequested.Wait(TimeSpan.FromMilliseconds(200)));
     }
 
@@ -59,4 +53,14 @@ public sealed class SingleInstanceCoordinatorTests
 
     private static string UniqueInstanceName() =>
         $@"Local\GameReminders.Tests.{Guid.NewGuid():N}";
+
+    private static bool TryStartDuplicate(string instanceName, bool activateExisting) =>
+        Task.Run(() =>
+        {
+            using var duplicate = SingleInstanceCoordinator.TryStart(
+                instanceName,
+                activateExisting,
+                () => { });
+            return duplicate is not null;
+        }).GetAwaiter().GetResult();
 }
