@@ -67,7 +67,7 @@ internal sealed class StoreRootValidator
             _verifyWritable(root);
             return StoreRootValidation.Valid(root);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or NotSupportedException or ArgumentException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidDataException or JsonException or NotSupportedException or ArgumentException)
         {
             return StoreRootValidation.Invalid(
                 $"Game Reminders cannot use that folder: {exception.Message}");
