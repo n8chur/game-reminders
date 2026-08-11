@@ -1,11 +1,14 @@
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace GameReminders.App;
 
 internal sealed class ThemeManager : IDisposable
 {
+    private const int DwmwaUseImmersiveDarkMode = 20;
     private readonly System.Windows.Application _application;
 
     public ThemeManager(System.Windows.Application application)
@@ -27,6 +30,11 @@ internal sealed class ThemeManager : IDisposable
         return personalize?.GetValue("AppsUseLightTheme") is int value && value == 0;
     }
 
+    internal static void PrepareWindow(Window window)
+    {
+        window.SourceInitialized += (_, _) => ApplyNativeTheme(window, IsDarkMode());
+    }
+
     private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e) =>
         _application.Dispatcher.BeginInvoke(Apply);
 
@@ -41,15 +49,54 @@ internal sealed class ThemeManager : IDisposable
         Set("BorderBrush", dark ? "#414650" : "#D8DCE3");
         Set("PrimaryBrush", dark ? "#73AAEB" : "#2563B8");
         Set("PrimaryHoverBrush", dark ? "#93BEF0" : "#1E529A");
+        Set("PrimaryTextBrush", dark ? "#101820" : "#FFFFFF");
+        Set("ControlBackgroundBrush", dark ? "#2C3037" : "#FFFFFF");
+        Set("ControlHoverBrush", dark ? "#383D46" : "#E8EDF4");
+        Set("ControlPressedBrush", dark ? "#454B56" : "#DCE4EE");
+        Set("DisabledSurfaceBrush", dark ? "#25282E" : "#F1F3F5");
+        Set("DisabledTextBrush", dark ? "#777F8B" : "#9198A3");
         Set("SelectionBrush", dark ? "#273E5A" : "#E5EFFC");
         Set("IssueBackgroundBrush", dark ? "#4A2425" : "#FDECEC");
         Set("IssueTextBrush", dark ? "#FFB4AB" : "#A62A22");
         Set("NoticeBackgroundBrush", dark ? "#203852" : "#E9F2FD");
         Set("NoticeTextBrush", dark ? "#B8D8FF" : "#174F8F");
+
+        foreach (Window window in _application.Windows)
+        {
+            ApplyNativeTheme(window, dark);
+        }
+    }
+
+    private static void ApplyNativeTheme(Window window, bool dark)
+    {
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var enabled = dark ? 1 : 0;
+        _ = NativeMethods.DwmSetWindowAttribute(
+            handle,
+            DwmwaUseImmersiveDarkMode,
+            ref enabled,
+            sizeof(int));
     }
 
     private void Set(string key, string color) =>
         _application.Resources[key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
 
     public void Dispose() => SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+
+    private static class NativeMethods
+    {
+#pragma warning disable SYSLIB1054
+        [DllImport("dwmapi.dll")]
+        internal static extern int DwmSetWindowAttribute(
+            IntPtr windowHandle,
+            int attribute,
+            ref int attributeValue,
+            int attributeSize);
+#pragma warning restore SYSLIB1054
+    }
 }
