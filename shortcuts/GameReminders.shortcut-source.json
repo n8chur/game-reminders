@@ -25,7 +25,7 @@
       "action": "getFile",
       "folder": "Shortcuts",
       "relativePath": "Game Reminders/games.json",
-      "error": "Game Reminders could not read Shortcuts/Game Reminders/games.json."
+      "error": "Game Reminders could not read iCloud Drive/Shortcuts/Game Reminders/games.json."
     },
     {
       "action": "parseDictionary",
