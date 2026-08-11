@@ -8,12 +8,12 @@ The repository is currently implementing **Milestone 3 (iPhone Shortcut)**. It c
 
 1. Download the `game-reminders-win-x64` artifact from the latest successful GitHub Actions run and extract it.
 2. Run `GameReminders.App.exe`.
-3. When the Windows app prompts, select the `Game Reminders` folder in iCloud Drive.
+3. When the Windows app prompts, select `iCloud Drive/Shortcuts/Game Reminders`.
 4. Mark that folder **Always keep on this device** in File Explorer.
 5. Use **Add game** or **Scan Steam** to populate the catalog, then review any **NEW** or **ACTION REQUIRED** entries and edit optional alternate speech aliases or executable paths as needed. The canonical game name already works for speech matching.
 6. Import the signed Shortcut as described in [`shortcuts`](shortcuts/), then create a reminder and launch the configured executable.
 
-The Shortcut separately asks for the same **Game Reminders** folder twice: once for `games.json` and once for `inbox`. Configure both folder actions once on every Mac or iPhone where you use it; iCloud does not reliably transfer those folder bookmarks between devices.
+The Shortcut resolves `games.json` beneath the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders` and creates `inbox` there if it is missing. It uses the built-in iCloud Shortcuts container rather than device-specific folder bookmarks, so the same synced Shortcut can run on Mac and iPhone without repairing file actions.
 
 Closing the main window leaves Game Reminders running in the notification area. **Reload games.json** reloads the existing iCloud catalog, while **Scan Steam** discovers installed Steam games and may update that catalog. Steam games are added automatically and summarized with a non-blocking notification. Discovery stores the complete Steam-library-relative executable path when one candidate can be identified confidently; an exact root executable is preferred over a similarly named nested binary. The editor identifies Steam entries and explains that their executable paths are relative to `steamapps\common`.
 

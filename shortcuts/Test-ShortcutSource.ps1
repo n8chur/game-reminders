@@ -57,12 +57,9 @@ Assert-ShortcutCondition ($source.distribution.status -eq 'requires-apple-signin
 Assert-ShortcutCondition ($source.distribution.unsignedArtifact -eq 'GameReminder-unsigned.shortcut') 'Unexpected unsigned Shortcut artifact name.'
 Assert-ShortcutCondition ($source.distribution.signedArtifact -eq 'GameReminder.shortcut') 'Unexpected signed Shortcut artifact name.'
 Assert-ShortcutCondition ($source.distribution.sharingMode -eq 'anyone') 'The exported Shortcut must use Anyone sharing.'
-Assert-ShortcutCondition ($source.configuration.catalogFolder.type -eq 'folder') 'The Shortcut must configure the catalog folder.'
-Assert-ShortcutCondition ($source.configuration.catalogFolder.variable -eq 'catalogFolder') 'The catalog lookup must use its own import-time folder binding.'
-Assert-ShortcutCondition ($source.configuration.inboxFolder.type -eq 'folder') 'The Shortcut must configure the inbox base folder.'
-Assert-ShortcutCondition ($source.configuration.inboxFolder.variable -eq 'inboxBaseFolder') 'The inbox lookup must use its own import-time folder binding.'
-Assert-ShortcutCondition ($source.configuration.catalogFolder.importQuestion.Length -gt 0) 'The catalog folder import question is required.'
-Assert-ShortcutCondition ($source.configuration.inboxFolder.importQuestion.Length -gt 0) 'The inbox folder import question is required.'
+Assert-ShortcutCondition ($source.configuration.iCloudContainer -eq 'Shortcuts') 'The Shortcut must use the built-in iCloud Shortcuts container.'
+Assert-ShortcutCondition ($source.configuration.relativeFolder -eq 'Game Reminders') 'The Shortcut must use the fixed nested Game Reminders folder.'
+Assert-ShortcutCondition ($source.configuration.importQuestions -eq $false) 'The cross-device Shortcut must not use device-specific folder import questions.'
 
 $actions = @(Get-WorkflowActionNames $source.workflow)
 Assert-ShortcutCondition ($actions -notcontains 'getParentDirectory') 'The iPhone Shortcut must not contain the macOS-only Get Parent Directory action.'
@@ -92,16 +89,16 @@ Assert-ShortcutCondition (($expectedKeys | Where-Object { $_ -notin $actualKeys 
 Assert-ShortcutCondition (($actualKeys | Where-Object { $_ -notin $expectedKeys }).Count -eq 0) 'Reminder dictionary contains an unexpected field.'
 
 $save = $source.workflow | Where-Object action -eq 'saveFile' | Select-Object -First 1
-$inbox = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'inbox' } | Select-Object -First 1
+$inbox = $source.workflow | Where-Object { $_.action -eq 'createFolder' -and $_.path -eq 'Game Reminders/inbox' } | Select-Object -First 1
 $move = $source.workflow | Where-Object action -eq 'moveFile' | Select-Object -First 1
 $rename = $source.workflow | Where-Object action -eq 'renameFile' | Select-Object -First 1
 $success = $source.workflow | Where-Object action -eq 'showResult' | Select-Object -First 1
-$catalog = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'games.json' } | Select-Object -First 1
-Assert-ShortcutCondition ($catalog.folder -eq 'catalogFolder') 'Catalog resolution must use the configured catalog folder.'
+$catalog = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'Game Reminders/games.json' } | Select-Object -First 1
+Assert-ShortcutCondition ($catalog.folder -eq 'Shortcuts') 'Catalog resolution must use the built-in Shortcuts container with the nested path in relativePath.'
 Assert-ShortcutCondition ($save.folder -eq 'Shortcuts') 'Reminder must first be staged in the private Shortcuts folder.'
 Assert-ShortcutCondition ($save.name -eq '<reminderId>.tmp') 'Reminder must use a visible UUID name with a non-JSON staging extension.'
 Assert-ShortcutCondition ($save.overwrite -eq $false) 'Staging must not overwrite an existing file.'
-Assert-ShortcutCondition ($inbox.folder -eq 'inboxBaseFolder') 'Inbox resolution must use its own configured Game Reminders folder binding.'
+Assert-ShortcutCondition ($inbox.folder -eq 'Shortcuts' -and $inbox.existingBehavior -eq 'reuse') 'The Shortcut must create or reuse Game Reminders/inbox in the built-in Shortcuts container.'
 Assert-ShortcutCondition ($move.input -eq 'stagedFile' -and $move.folder -eq 'inboxFolder') 'The completed staging file must be moved to the resolved inbox folder.'
 Assert-ShortcutCondition ($move.overwrite -eq $false) 'Moving the staging file must not overwrite an existing file.'
 Assert-ShortcutCondition ($rename.input -eq 'inboxStagedFile') 'Finalization must rename the temporary file only after it reaches inbox.'

@@ -13,12 +13,10 @@
 					<string>gamesFile</string>
 					<key>UUID</key>
 					<string>0d484cb4-a759-444e-a611-542b39a027c6</string>
-					<key>WFFile</key>
-					<string/>
 					<key>WFFileErrorIfNotFound</key>
 					<true/>
 					<key>WFGetFilePath</key>
-					<string>games.json</string>
+					<string>Game Reminders/games.json</string>
 				</dict>
 			</dict>
 			<dict>
@@ -2212,19 +2210,15 @@
 			</dict>
 			<dict>
 				<key>WFWorkflowActionIdentifier</key>
-				<string>is.workflow.actions.documentpicker.open</string>
+				<string>is.workflow.actions.file.createfolder</string>
 				<key>WFWorkflowActionParameters</key>
 				<dict>
 					<key>CustomOutputName</key>
 					<string>inboxFolder</string>
 					<key>UUID</key>
 					<string>ede333a6-2f56-440a-b655-fb03f8a62cfa</string>
-					<key>WFFile</key>
-					<string/>
-					<key>WFFileErrorIfNotFound</key>
-					<true/>
-					<key>WFGetFilePath</key>
-					<string>inbox</string>
+					<key>WFFilePath</key>
+					<string>Game Reminders/inbox</string>
 				</dict>
 			</dict>
 			<dict>
@@ -2402,32 +2396,7 @@
 			<integer>463140863</integer>
 		</dict>
 		<key>WFWorkflowImportQuestions</key>
-		<array>
-			<dict>
-				<key>ActionIndex</key>
-				<integer>0</integer>
-				<key>Category</key>
-				<string>Parameter</string>
-				<key>DefaultValue</key>
-				<string/>
-				<key>ParameterKey</key>
-				<string>WFFile</string>
-				<key>Text</key>
-				<string>Choose your Game Reminders folder in iCloud Drive.</string>
-			</dict>
-			<dict>
-				<key>ActionIndex</key>
-				<integer>102</integer>
-				<key>Category</key>
-				<string>Parameter</string>
-				<key>DefaultValue</key>
-				<string/>
-				<key>ParameterKey</key>
-				<string>WFFile</string>
-				<key>Text</key>
-				<string>Choose the same Game Reminders folder again for the inbox.</string>
-			</dict>
-		</array>
+		<array/>
 		<key>WFWorkflowInputContentItemClasses</key>
 		<array>
 			<string>WFiTunesProductContentItem</string>
