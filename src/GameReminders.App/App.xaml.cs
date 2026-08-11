@@ -73,7 +73,11 @@ public partial class App : System.Windows.Application
                 SetLaunchAtLogin,
                 RefreshReminders,
                 ShowNewReminder,
-                CompleteReminder);
+                CompleteReminder,
+                DeleteReminder,
+                UncompleteReminder,
+                ClearCompletedReminders,
+                OpenICloudFolder);
             MainWindow = _mainWindow;
             if (startupStatusError is not null)
             {
@@ -923,7 +927,7 @@ public partial class App : System.Windows.Application
             var pending = _store.LoadAllPending();
             var completed = _store.LoadCompleted();
             var lists = _reminderSession.Partition(pending, completed, names);
-            _mainWindow.SetReminders(lists.Pending, lists.NextLaunch, lists.Completed);
+            _mainWindow.SetReminders(lists.Pending, lists.Completed);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
         {
@@ -1001,6 +1005,77 @@ public partial class App : System.Windows.Application
             _mainWindow?.SetStatus(
                 $"The reminder is still pending because it could not be completed. {exception.Message}",
                 isIssue: true);
+        }
+    }
+
+    private void DeleteReminder(Reminder reminder)
+    {
+        if (_store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Delete(reminder);
+            _reminderSession.Complete(reminder);
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder was preserved because it could not be deleted. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void UncompleteReminder(Reminder reminder)
+    {
+        if (_store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Uncomplete(reminder);
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder stayed completed because it could not be marked pending. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void ClearCompletedReminders()
+    {
+        if (_store is null ||
+            MessageBox.Show(
+                "Clear all completed reminders? Pending reminders will not be affected.",
+                "Clear completed reminders",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var reminder in _store.LoadCompleted())
+            {
+                _store.Delete(reminder);
+            }
+
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or JsonException)
+        {
+            _mainWindow?.SetStatus(
+                $"Could not clear all completed reminders. Any remaining reminders were preserved. {exception.Message}",
+                isIssue: true);
+            RefreshReminders();
         }
     }
 

@@ -112,3 +112,4 @@ public sealed class MainWindowTests
         Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
     }
 }
+

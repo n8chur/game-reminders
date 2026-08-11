@@ -288,6 +288,59 @@ public sealed class ReminderStore
             (source, destination) => File.Move(source, destination, overwrite: false));
     }
 
+    public void Delete(Reminder reminder)
+    {
+        if (string.IsNullOrWhiteSpace(reminder.SourcePath))
+        {
+            throw new InvalidOperationException("The reminder has no source path.");
+        }
+
+        RetrySyncProviderOperation(() =>
+        {
+            var stored = JsonProtocol.ReadReminder(File.ReadAllText(reminder.SourcePath), reminder.SourcePath);
+            if (!HasSamePayload(stored, reminder))
+            {
+                throw new InvalidDataException(
+                    $"Reminder '{Path.GetFileName(reminder.SourcePath)}' changed and was preserved.");
+            }
+
+            File.Delete(reminder.SourcePath);
+            return true;
+        });
+    }
+
+    public void Uncomplete(Reminder reminder)
+    {
+        if (string.IsNullOrWhiteSpace(reminder.SourcePath))
+        {
+            throw new InvalidOperationException("The reminder has no source path.");
+        }
+
+        Directory.CreateDirectory(InboxPath);
+        var fileName = Path.GetFileName(reminder.SourcePath);
+        var destination = Path.Combine(InboxPath, fileName);
+
+        RetrySyncProviderOperation(() =>
+        {
+            var stored = JsonProtocol.ReadReminder(File.ReadAllText(reminder.SourcePath), reminder.SourcePath);
+            if (!HasSamePayload(stored, reminder))
+            {
+                throw new InvalidDataException(
+                    $"Completed reminder '{fileName}' changed and was preserved.");
+            }
+
+            if (File.Exists(destination))
+            {
+                EnsureSameArchive(destination, reminder);
+                File.Delete(reminder.SourcePath);
+                return true;
+            }
+
+            File.Move(reminder.SourcePath, destination, overwrite: false);
+            return true;
+        });
+    }
+
     internal void Complete(
         Reminder reminder,
         Action<string, string> copyFile,

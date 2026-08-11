@@ -22,7 +22,7 @@ Five seconds after a configured game launches, Windows displays all pending remi
 - **Show on next launch** closes that reminder while leaving its file in `inbox`.
 - Closing the window, Alt+F4, shutdown, crash, or forced termination never completes a reminder.
 
-The main window opens to a **Reminders** view with counted **Pending**, **Next launch**, and **Completed** categories. Pending and session-deferred reminders are ordered oldest first; completed reminders are ordered newest first. **Next launch** is process-memory state only and never modifies the pending file. The view can explicitly complete a pending reminder through the same archive operation as **Dismiss**. Unknown game IDs remain visible using the display name stored in their reminder file. A refresh failure preserves the last successfully loaded list and reports the failure visibly.
+The main window opens to a **Reminders** view with counted **Pending** and **Completed** sections grouped by game. Pending reminders, including reminders deferred from a popup until the next launch, remain pending in the management UI and are ordered oldest first within their game group. Completed reminders are ordered newest first within their game group. The view can create a new reminder, explicitly complete a pending reminder through the same archive operation as **Dismiss**, mark a completed reminder pending again, delete an individual reminder, or clear all completed reminders after confirmation. Unknown game IDs remain visible using the display name stored in their reminder file. A refresh failure preserves the last successfully loaded list and reports the failure visibly.
 
 The dependable display target is borderless fullscreen. The application will not inject into games or interact with anti-cheat systems. A normal Windows notification may be used if the popup cannot be displayed.
 
@@ -38,7 +38,7 @@ An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED*
 
 Newly imported games and games needing executable review are indicated on the Games list and by a persistent tray-icon badge. Informational balloon notifications are optional. Selecting a new game's row acknowledges it immediately without clearing the row selection. Otherwise, **NEW** is acknowledged only for rows that are actually visible in the Games list when the management window is hidden or deactivated; merely opening the tab does not clear off-screen items. An executable-review badge remains until a valid executable mapping is saved.
 
-The main window defaults to Reminders. Its Games view supports search and uses **Scan Steam** for discovering installed Steam titles and updating the catalog. Closing the window hides it to the notification area. Opening the authoritative iCloud folder and fully exiting are notification-area commands rather than window actions.
+The main window defaults to Reminders and uses top-level **Reminders**, **Games**, and **Settings** tabs. The Games tab has searchable **My Games** and **Ignored** subtabs. Settings contains **Scan Steam**, **Open iCloud folder**, and **Launch at login**. Closing the window hides it to the notification area, where opening the authoritative iCloud folder and fully exiting remain available.
 
 ## File layout
 
@@ -52,7 +52,7 @@ iCloud Drive/
         └── invalid/
 ```
 
-The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility. Windows setup asks for the enclosing iCloud Drive `Shortcuts` folder, creates or opens the required `Game Reminders` child, and stores that resolved child as the single authoritative root. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until manually cleared.
+The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility. Windows setup asks for the enclosing iCloud Drive `Shortcuts` folder, creates or opens the required `Game Reminders` child, and stores that resolved child as the single authoritative root. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until individually deleted, marked pending again, or cleared from the completed section.
 
 Only the Windows client writes `games.json`, using a temporary file followed by atomic replacement. IDs remain stable when display names and aliases change. A blank file or empty JSON object is treated as a new empty catalog and rewritten in canonical schema-versioned form; other malformed content still fails visibly.
 

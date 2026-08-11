@@ -22,21 +22,17 @@ internal sealed class ReminderSessionState
         IEnumerable<Reminder> pending,
         IEnumerable<Reminder> completed,
         IReadOnlyDictionary<string, string> catalogNames)
-    {
-        var pendingItems = pending
+    =>
+        new(
+            pending
             .OrderBy(reminder => reminder.CreatedAt)
             .Select(reminder => App.ToListItem(reminder, catalogNames))
-            .ToArray();
-        return new ReminderLists(
-            pendingItems.Where(item => !_deferredIds.Contains(item.Reminder.Id)).ToArray(),
-            pendingItems.Where(item => _deferredIds.Contains(item.Reminder.Id)).ToArray(),
+            .ToArray(),
             completed.OrderByDescending(reminder => reminder.CreatedAt)
                 .Select(reminder => App.ToListItem(reminder, catalogNames))
                 .ToArray());
-    }
 }
 
 internal sealed record ReminderLists(
     IReadOnlyList<ReminderListItem> Pending,
-    IReadOnlyList<ReminderListItem> NextLaunch,
     IReadOnlyList<ReminderListItem> Completed);

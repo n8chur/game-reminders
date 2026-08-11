@@ -1,5 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using GameReminders.Core;
 
 namespace GameReminders.App;
@@ -19,9 +22,14 @@ public partial class MainWindow : Window
     private readonly Action _refreshReminders;
     private readonly Action _newReminder;
     private readonly Action<Reminder> _completeReminder;
+    private readonly Action<Reminder> _deleteReminder;
+    private readonly Action<Reminder> _uncompleteReminder;
+    private readonly Action _clearCompletedReminders;
+    private readonly Action _openICloudFolder;
     private bool _updatingLaunchAtLogin;
     private IReadOnlyList<GameListItem> _games = [];
     private IReadOnlyList<PendingGameDetection> _pending = [];
+    private IReadOnlyList<IgnoredDiscoveryItem> _ignored = [];
 
     internal MainWindow(
         Action addGame,
@@ -37,7 +45,11 @@ public partial class MainWindow : Window
         Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin,
         Action refreshReminders,
         Action newReminder,
-        Action<Reminder> completeReminder)
+        Action<Reminder> completeReminder,
+        Action<Reminder> deleteReminder,
+        Action<Reminder> uncompleteReminder,
+        Action clearCompletedReminders,
+        Action openICloudFolder)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
@@ -53,6 +65,10 @@ public partial class MainWindow : Window
         _refreshReminders = refreshReminders;
         _newReminder = newReminder;
         _completeReminder = completeReminder;
+        _deleteReminder = deleteReminder;
+        _uncompleteReminder = uncompleteReminder;
+        _clearCompletedReminders = clearCompletedReminders;
+        _openICloudFolder = openICloudFolder;
         LaunchAtLoginCheckBox.IsChecked = launchAtLogin;
         LaunchAtLoginCheckBox.IsEnabled = launchAtLoginAvailable;
         Closing += (_, args) =>
@@ -99,9 +115,9 @@ public partial class MainWindow : Window
             unreviewedGameIds.Contains(game.Id),
             game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
                 unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
-        ApplyFilter(selectedGameId);
+        ApplyGameFilter(selectedGameId);
         var newCount = _games.Count(item => item.IsUnreviewed);
-        GamesTab.Header = newCount > 0 ? $"Games ({newCount} new)" : "Games";
+        MyGamesTab.Header = newCount > 0 ? $"My Games ({newCount} new)" : "My Games";
     }
 
     internal static GameListItem? FindItemByGameId(IEnumerable<GameListItem> items, string? gameId) =>
@@ -112,40 +128,40 @@ public partial class MainWindow : Window
     public void SetPending(IReadOnlyList<PendingGameDetection> pending)
     {
         _pending = pending;
-        ApplyFilter();
+        ApplyGameFilter();
     }
 
     internal void SetIgnored(IReadOnlyList<IgnoredDiscoveryItem> ignored)
     {
-        IgnoredList.ItemsSource = ignored;
-        IgnoredList.Visibility = ignored.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        IgnoredEmptyText.Visibility = ignored.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        IgnoredTab.Header = ignored.Count > 0 ? $"Ignored ({ignored.Count})" : "Ignored";
-        UpdateSelectionStates();
+        _ignored = ignored;
+        ApplyIgnoredFilter();
     }
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
 
     internal void SetReminders(
         IReadOnlyList<ReminderListItem> pending,
-        IReadOnlyList<ReminderListItem> nextLaunch,
         IReadOnlyList<ReminderListItem> completed)
     {
-        PendingRemindersList.ItemsSource = pending;
-        NextLaunchRemindersList.ItemsSource = nextLaunch;
-        CompletedRemindersList.ItemsSource = completed;
-        PendingRemindersTab.Header = $"Pending ({pending.Count})";
-        NextLaunchRemindersTab.Header = $"Next launch ({nextLaunch.Count})";
-        CompletedRemindersTab.Header = $"Completed ({completed.Count})";
+        PendingRemindersList.ItemsSource = GroupReminders(pending);
+        CompletedRemindersList.ItemsSource = GroupReminders(completed);
+        PendingRemindersHeader.Text = $"Pending ({pending.Count})";
+        CompletedRemindersHeader.Text = $"Completed ({completed.Count})";
         PendingRemindersEmpty.Visibility = pending.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        NextLaunchRemindersEmpty.Visibility = nextLaunch.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         CompletedRemindersEmpty.Visibility = completed.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PendingRemindersList.Visibility = pending.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        NextLaunchRemindersList.Visibility = nextLaunch.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         CompletedRemindersList.Visibility = completed.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ClearCompletedButton.IsEnabled = completed.Count > 0;
     }
 
-    private void ApplyFilter(string? selectedGameId = null)
+    private static ListCollectionView GroupReminders(IReadOnlyList<ReminderListItem> reminders)
+    {
+        var view = new ListCollectionView(reminders.ToList());
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ReminderListItem.GameName)));
+        return view;
+    }
+
+    private void ApplyGameFilter(string? selectedGameId = null)
     {
         if (GamesList is null || PendingList is null)
         {
@@ -153,18 +169,35 @@ public partial class MainWindow : Window
         }
 
         selectedGameId ??= (GamesList.SelectedItem as GameListItem)?.Game.Id;
-        var query = SearchText?.Text?.Trim() ?? string.Empty;
+        var query = GamesSearchText?.Text?.Trim() ?? string.Empty;
         var games = _games.Where(item => Matches(item.Game.Name, query)).ToArray();
         var pending = _pending.Where(item => Matches(item.Name, query)).ToArray();
 
         GamesList.ItemsSource = games;
         GamesList.SelectedItem = FindItemByGameId(games, selectedGameId);
         PendingList.ItemsSource = pending;
-        ConfiguredCountText.Text = CountLabel(games.Length, "game");
         DetectedCountText.Text = CountLabel(pending.Length, "item");
         GamesList.Visibility = games.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         GamesEmptyText.Visibility = games.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         DetectedSection.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        GamesSearchPlaceholder.Visibility = string.IsNullOrWhiteSpace(GamesSearchText?.Text) ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSelectionStates();
+    }
+
+    private void ApplyIgnoredFilter()
+    {
+        if (IgnoredList is null)
+        {
+            return;
+        }
+
+        var query = IgnoredSearchText?.Text?.Trim() ?? string.Empty;
+        var ignored = _ignored.Where(item => Matches(item.Name, query)).ToArray();
+        IgnoredList.ItemsSource = ignored;
+        IgnoredList.Visibility = ignored.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        IgnoredEmptyText.Visibility = ignored.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        IgnoredGamesTab.Header = _ignored.Count > 0 ? $"Ignored ({_ignored.Count})" : "Ignored";
+        IgnoredSearchPlaceholder.Visibility = string.IsNullOrWhiteSpace(IgnoredSearchText?.Text) ? Visibility.Visible : Visibility.Collapsed;
         UpdateSelectionStates();
     }
 
@@ -184,7 +217,8 @@ public partial class MainWindow : Window
 
     internal static string CountLabel(int count, string singular) => $"{count} {(count == 1 ? singular : singular + "s")}";
 
-    private void SearchText_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
+    private void GamesSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyGameFilter();
+    private void IgnoredSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyIgnoredFilter();
     private void DismissStatus_Click(object sender, RoutedEventArgs e) => SetStatus(null);
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
     private void EditGame_Click(object sender, RoutedEventArgs e)
@@ -197,11 +231,51 @@ public partial class MainWindow : Window
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
     private void NewReminder_Click(object sender, RoutedEventArgs e) => _newReminder();
+    private void OpenICloudFolder_Click(object sender, RoutedEventArgs e) => _openICloudFolder();
     private void CompleteReminder_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: Reminder reminder })
         {
             _completeReminder(reminder);
+        }
+    }
+    private void CompleteSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (PendingRemindersList.SelectedItem is ReminderListItem item)
+        {
+            _completeReminder(item.Reminder);
+        }
+    }
+    private void DeleteSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReminderFromContext(sender) is { } item)
+        {
+            _deleteReminder(item.Reminder);
+        }
+    }
+    private void UncompleteSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (CompletedRemindersList.SelectedItem is ReminderListItem item)
+        {
+            _uncompleteReminder(item.Reminder);
+        }
+    }
+    private void ClearCompleted_Click(object sender, RoutedEventArgs e) => _clearCompletedReminders();
+    private void ReminderList_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete || sender is not ListBox { SelectedItem: ReminderListItem item })
+        {
+            return;
+        }
+
+        _deleteReminder(item.Reminder);
+        e.Handled = true;
+    }
+    private void ReminderList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is { } item)
+        {
+            item.IsSelected = true;
         }
     }
     private void LaunchAtLogin_Click(object sender, RoutedEventArgs e)
@@ -287,6 +361,32 @@ public partial class MainWindow : Window
 
     internal static bool IsFullyWithinViewport(Rect itemBounds, Rect viewport) =>
         !itemBounds.IsEmpty && viewport.Contains(itemBounds);
+
+    private static ReminderListItem? SelectedReminderFromContext(object sender)
+    {
+        if (sender is MenuItem { Parent: ContextMenu { PlacementTarget: ListBox list } } &&
+            list.SelectedItem is ReminderListItem item)
+        {
+            return item;
+        }
+
+        return null;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
 }
 
 internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, string Badge)

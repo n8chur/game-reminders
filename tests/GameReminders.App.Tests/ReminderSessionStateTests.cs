@@ -5,7 +5,7 @@ namespace GameReminders.App.Tests;
 public sealed class ReminderSessionStateTests
 {
     [Fact]
-    public void PartitionsDeferredReminderAndResetsItAtNextLaunch()
+    public void DeferredRemindersStayInPendingManagementList()
     {
         var state = new ReminderSessionState();
         var earlier = Reminder("configured", "Stored name", 1);
@@ -14,16 +14,14 @@ public sealed class ReminderSessionStateTests
 
         var deferred = state.Partition([later, earlier], [], Names());
 
-        Assert.Equal([earlier.Id], deferred.Pending.Select(item => item.Reminder.Id));
-        Assert.Equal([later.Id], deferred.NextLaunch.Select(item => item.Reminder.Id));
+        Assert.Equal([earlier.Id, later.Id], deferred.Pending.Select(item => item.Reminder.Id));
         Assert.Equal("Current Name", deferred.Pending[0].GameName);
-        Assert.Equal("Unknown Game", deferred.NextLaunch[0].GameName);
+        Assert.Equal("Unknown Game", deferred.Pending[1].GameName);
 
         state.BeginNextLaunch([later]);
         var nextLaunch = state.Partition([later, earlier], [], Names());
 
         Assert.Equal([earlier.Id, later.Id], nextLaunch.Pending.Select(item => item.Reminder.Id));
-        Assert.Empty(nextLaunch.NextLaunch);
     }
 
     [Fact]
@@ -37,7 +35,6 @@ public sealed class ReminderSessionStateTests
 
         var lists = state.Partition([], [earlier, later], Names());
 
-        Assert.Empty(lists.NextLaunch);
         Assert.Equal([later.Id, earlier.Id], lists.Completed.Select(item => item.Reminder.Id));
     }
 

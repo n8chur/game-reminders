@@ -18,6 +18,7 @@
         <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="#F1F3F5" />
         <SolidColorBrush x:Key="DisabledTextBrush" Color="#9198A3" />
         <SolidColorBrush x:Key="SelectionBrush" Color="#E5EFFC" />
+        <SolidColorBrush x:Key="SelectionBorderBrush" Color="#9CC4F5" />
         <SolidColorBrush x:Key="IssueBackgroundBrush" Color="#FDECEC" />
         <SolidColorBrush x:Key="IssueTextBrush" Color="#A62A22" />
         <SolidColorBrush x:Key="NoticeBackgroundBrush" Color="#E9F2FD" />
@@ -114,8 +115,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="ItemBackground" Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                                Padding="{TemplateBinding Padding}" CornerRadius="4"
+                                BorderBrush="Transparent" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              TextElement.Foreground="{DynamicResource TextBrush}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -123,6 +126,8 @@
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="ItemBackground" Property="Background" Value="{DynamicResource SelectionBrush}" />
+                                <Setter TargetName="ItemBackground" Property="BorderBrush" Value="{DynamicResource SelectionBorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

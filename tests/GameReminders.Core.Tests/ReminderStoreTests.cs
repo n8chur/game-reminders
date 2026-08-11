@@ -257,6 +257,73 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void DeleteRemovesOnlyMatchingReminderFile()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var source = Path.Combine(store.CompletedPath, $"{reminder.Id}.json");
+        File.WriteAllText(source, JsonProtocol.WriteReminder(reminder));
+
+        store.Delete(reminder with { SourcePath = source });
+
+        Assert.False(File.Exists(source));
+    }
+
+    [Fact]
+    public void DeletePreservesChangedReminderFile()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var source = Path.Combine(store.CompletedPath, $"{reminder.Id}.json");
+        var changedJson = JsonProtocol.WriteReminder(reminder with { Message = "Changed elsewhere" });
+        File.WriteAllText(source, changedJson);
+
+        var exception = Assert.Throws<InvalidDataException>(() => store.Delete(reminder with { SourcePath = source }));
+
+        Assert.Contains("changed", exception.Message);
+        Assert.Equal(changedJson, File.ReadAllText(source));
+    }
+
+    [Fact]
+    public void UncompleteMovesCompletedReminderBackToInbox()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var source = Path.Combine(store.CompletedPath, $"{reminder.Id}.json");
+        File.WriteAllText(source, JsonProtocol.WriteReminder(reminder));
+
+        store.Uncomplete(reminder with { SourcePath = source });
+
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(Path.Combine(store.InboxPath, $"{reminder.Id}.json")));
+        Assert.Equal(reminder.Id, Assert.Single(store.LoadAllPending()).Id);
+    }
+
+    [Fact]
+    public void UncompletePreservesConflictingInboxAndCompletedFiles()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var filename = $"{reminder.Id}.json";
+        var source = Path.Combine(store.CompletedPath, filename);
+        var destination = Path.Combine(store.InboxPath, filename);
+        var sourceJson = JsonProtocol.WriteReminder(reminder);
+        var destinationJson = JsonProtocol.WriteReminder(reminder with { Message = "Conflicting inbox message" });
+        File.WriteAllText(source, sourceJson);
+        File.WriteAllText(destination, destinationJson);
+
+        var exception = Assert.Throws<InvalidDataException>(() => store.Uncomplete(reminder with { SourcePath = source }));
+
+        Assert.Contains("conflicts", exception.Message);
+        Assert.Equal(sourceJson, File.ReadAllText(source));
+        Assert.Equal(destinationJson, File.ReadAllText(destination));
+    }
+
+    [Fact]
     public void LoadPendingFiltersByGameIdAndSortsByCreationTime()
     {
         var store = new ReminderStore(_root);
