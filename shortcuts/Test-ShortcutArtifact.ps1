@@ -90,10 +90,14 @@ $unknownParameters = Convert-PlistDictionary $unknownAlert.WFWorkflowActionParam
 $unknownMessage = Convert-PlistDictionary $unknownParameters.WFAlertActionMessage
 $unknownValue = Convert-PlistDictionary $unknownMessage.Value
 $unknownAttachments = Convert-PlistDictionary $unknownValue.attachmentsByRange
-$unknownToken = Convert-PlistDictionary $unknownAttachments['{25, 1}']
-if ($unknownToken.Type.InnerText -ne 'ActionOutput' -or
-    $unknownToken.OutputName.InnerText -ne 'requestedGameName') {
-    throw 'The unknown-game alert must use the original Which game? output, not its normalized value.'
+$requestedGameNameTokens = @($unknownAttachments.Values | ForEach-Object {
+    Convert-PlistDictionary $_
+} | Where-Object {
+    $_.Type.InnerText -eq 'ActionOutput' -and
+    $_.OutputName.InnerText -eq 'requestedGameName'
+})
+if ($requestedGameNameTokens.Count -ne 1) {
+    throw 'The unknown-game alert must use the original Which game? output exactly once, not its normalized value.'
 }
 
 function Get-ActionByOutputName {
