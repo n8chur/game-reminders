@@ -123,6 +123,27 @@ public sealed class LaunchAtLoginServiceTests
     }
 
     [Fact]
+    public void SettingsExceptionRollsBackStartupRegistration()
+    {
+        var current = new AppSettings { ICloudRoot = @"C:\old" };
+        var startup = new FakeStartup();
+
+        var result = SetupCommitter.Commit(
+            current,
+            @"C:\new",
+            launchAtLogin: true,
+            path => StoreRootValidation.Valid(path!),
+            startup,
+            _ => throw new System.Security.SecurityException("settings blocked"));
+
+        Assert.False(result.Succeeded);
+        Assert.False(startup.Enabled);
+        Assert.Equal([true, false], startup.SetRequests);
+        Assert.Same(current, result.Settings);
+        Assert.Contains("settings blocked", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void UnavailableStartupStatusDoesNotBlockFolderSetupWhenOptInIsOff()
     {
         var current = new AppSettings();
