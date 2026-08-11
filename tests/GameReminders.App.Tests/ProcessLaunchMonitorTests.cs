@@ -66,10 +66,10 @@ public sealed class ProcessLaunchMonitorTests
         using var original = new ProcessLaunchMonitor([game], Process.GetProcesses);
         original.ScanOnce();
 
-        using var replacement = new ProcessLaunchMonitor(
+        using var replacement = App.CreateReplacementMonitor(
             [game],
-            Process.GetProcesses,
-            original.SnapshotActiveGameIds());
+            original,
+            Process.GetProcesses);
         var replacementLaunches = 0;
         replacement.GameLaunched += (_, _) => replacementLaunches++;
 
@@ -103,5 +103,66 @@ public sealed class ProcessLaunchMonitorTests
         monitor.ScanOnce();
 
         Assert.Equal("expected", launched?.Id);
+    }
+
+    [Fact]
+    public void ConfiguredSteamRelativePathSuppressesMatchingAbsoluteForegroundDetection()
+    {
+        var catalog = new GameCatalog
+        {
+            Games =
+            [
+                new GameDefinition
+                {
+                    Id = "steam-123",
+                    Name = "Test Game",
+                    Processes = [@"Test Game\Binaries\Win64\TestGame.exe"],
+                    Source = new GameSource { Type = "steam", AppId = "123" }
+                }
+            ]
+        };
+        var detection = new PendingGameDetection
+        {
+            Key = "process:testgame",
+            Name = "Test Game",
+            Processes = [@"D:\SteamLibrary\steamapps\common\Test Game\Binaries\Win64\TestGame.exe"],
+            SourceType = "detected"
+        };
+
+        Assert.True(App.IsConfiguredDetection(catalog, detection));
+    }
+
+    [Fact]
+    public void RestoringIgnoredDetectionReturnsRetainedMetadataToPending()
+    {
+        var retained = new PendingGameDetection
+        {
+            Key = "process:testgame",
+            Name = "Test Game",
+            Processes = [@"D:\Games\TestGame.exe"],
+            SourceType = "detected"
+        };
+        var settings = new AppSettings
+        {
+            PendingDetections =
+            [
+                new PendingGameDetection
+                {
+                    Key = "process:other",
+                    Name = "Other",
+                    Processes = ["Other.exe"],
+                    SourceType = "detected"
+                }
+            ],
+            IgnoredDetections = [retained],
+            IgnoredDetectionKeys = ["PROCESS:TESTGAME"]
+        };
+
+        var restored = App.RestoreIgnoredDetection(settings, "process:testgame");
+
+        Assert.Equal(2, restored.PendingDetections.Count);
+        Assert.Contains(retained, restored.PendingDetections);
+        Assert.Empty(restored.IgnoredDetections);
+        Assert.Empty(restored.IgnoredDetectionKeys);
     }
 }
