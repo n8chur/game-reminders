@@ -122,7 +122,9 @@ public partial class App : System.Windows.Application
 
     private bool GetLaunchAtLoginState(out string? error)
     {
-        if (_launchAtLoginService?.TryGetEnabled(out var enabled, out error) == true)
+        error = null;
+        if (_launchAtLoginService is not null &&
+            _launchAtLoginService.TryGetEnabled(out var enabled, out error))
         {
             return enabled;
         }
