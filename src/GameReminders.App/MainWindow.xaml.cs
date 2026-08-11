@@ -18,7 +18,7 @@ public partial class MainWindow : Window
     private IReadOnlyList<GameListItem> _games = [];
     private IReadOnlyList<PendingGameDetection> _pending = [];
 
-    public MainWindow(
+    internal MainWindow(
         Action addGame,
         Action<GameDefinition> editGame,
         Action<GameDefinition> removeGame,
@@ -87,7 +87,7 @@ public partial class MainWindow : Window
         ApplyFilter();
     }
 
-    public void SetIgnored(IReadOnlyList<IgnoredDiscoveryItem> ignored)
+    internal void SetIgnored(IReadOnlyList<IgnoredDiscoveryItem> ignored)
     {
         IgnoredList.ItemsSource = ignored;
         IgnoredList.Visibility = ignored.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
