@@ -20,6 +20,23 @@ public sealed class LaunchAtLoginServiceTests
         Assert.Null(error);
     }
 
+    [Theory]
+    [InlineData("\"C:\\Apps\\GameReminders.exe\"")]
+    [InlineData(@"C:\Apps\GameReminders.exe")]
+    public void EquivalentQuotedOrUnquotedRegistrationIsEnabled(string registered)
+    {
+        var service = new LaunchAtLoginService(
+            @"C:\Apps\GameReminders.exe",
+            () => registered,
+            _ => { },
+            () => { });
+
+        Assert.True(service.TryGetEnabled(out var enabled, out var error));
+
+        Assert.True(enabled);
+        Assert.Null(error);
+    }
+
     [Fact]
     public void DisableRemovesRegistration()
     {
