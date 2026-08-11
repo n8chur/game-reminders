@@ -29,6 +29,7 @@ public partial class MainWindow : Window
         Action<IReadOnlyCollection<string>> markGamesReviewed)
     {
         InitializeComponent();
+        ThemeManager.PrepareWindow(this);
         _addGame = addGame;
         _editGame = editGame;
         _removeGame = removeGame;
