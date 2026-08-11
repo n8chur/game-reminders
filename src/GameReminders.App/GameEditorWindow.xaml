@@ -89,7 +89,9 @@
 
             <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel" IsCancel="True" />
-                <Button x:Name="SaveButton" Content="Save" Click="Save_Click" IsDefault="True" />
+                <Button x:Name="SaveButton" Click="Save_Click" IsDefault="True">
+                    <TextBlock x:Name="SaveButtonText" Text="Save" Foreground="{DynamicResource PrimaryTextBrush}" />
+                </Button>
             </StackPanel>
         </Grid>
     </ScrollViewer>
