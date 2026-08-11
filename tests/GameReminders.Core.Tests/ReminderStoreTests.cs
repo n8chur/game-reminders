@@ -47,6 +47,61 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void CompleteRetriesTransientArchiveStagingFailures()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var reminder = CreateReminder();
+        var source = Path.Combine(store.InboxPath, $"{reminder.Id}.json");
+        File.WriteAllText(source, JsonProtocol.WriteReminder(reminder));
+        var pending = Assert.Single(store.LoadPending(reminder.GameId));
+        var copyAttempts = 0;
+        var readAttempts = 0;
+        var moveAttempts = 0;
+        var waits = new List<int>();
+
+        store.Complete(
+            pending,
+            (copySource, copyDestination) =>
+            {
+                if (++copyAttempts == 1)
+                {
+                    File.WriteAllText(copyDestination, "partial archive");
+                    throw new IOException("Copy temporarily locked.");
+                }
+
+                File.Copy(copySource, copyDestination, overwrite: true);
+            },
+            path =>
+            {
+                if (++readAttempts == 1)
+                {
+                    throw new UnauthorizedAccessException("Read temporarily locked.");
+                }
+
+                return File.ReadAllText(path);
+            },
+            (moveSource, moveDestination) =>
+            {
+                if (++moveAttempts == 1)
+                {
+                    throw new IOException("Move temporarily locked.");
+                }
+
+                File.Move(moveSource, moveDestination, overwrite: false);
+            },
+            waits.Add);
+
+        Assert.Equal(2, copyAttempts);
+        Assert.Equal(2, readAttempts);
+        Assert.Equal(2, moveAttempts);
+        Assert.Equal([1, 1, 1], waits);
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(Path.Combine(store.CompletedPath, Path.GetFileName(source))));
+        Assert.Empty(Directory.EnumerateFiles(store.CompletedPath, ".*.tmp"));
+    }
+
+    [Fact]
     public void CompleteRemovesMatchingLegacyRootDuplicate()
     {
         var store = new ReminderStore(_root);

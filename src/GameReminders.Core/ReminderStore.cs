@@ -188,6 +188,20 @@ public sealed class ReminderStore
 
     public void Complete(Reminder reminder)
     {
+        Complete(
+            reminder,
+            (source, destination) => File.Copy(source, destination, overwrite: true),
+            File.ReadAllText,
+            (source, destination) => File.Move(source, destination, overwrite: false));
+    }
+
+    internal void Complete(
+        Reminder reminder,
+        Action<string, string> copyFile,
+        Func<string, string> readAllText,
+        Action<string, string> moveFile,
+        Action<int>? wait = null)
+    {
         if (string.IsNullOrWhiteSpace(reminder.SourcePath))
         {
             throw new InvalidOperationException("The reminder has no source path.");
@@ -207,22 +221,33 @@ public sealed class ReminderStore
         var temporaryPath = Path.Combine(CompletedPath, $".{fileName}.{Guid.NewGuid():N}.tmp");
         try
         {
-            File.Copy(reminder.SourcePath, temporaryPath, overwrite: false);
-            var staged = JsonProtocol.ReadReminder(File.ReadAllText(temporaryPath), temporaryPath);
+            RetrySyncProviderOperation(() =>
+            {
+                copyFile(reminder.SourcePath, temporaryPath);
+                return true;
+            }, wait);
+            var staged = JsonProtocol.ReadReminder(
+                RetrySyncProviderOperation(() => readAllText(temporaryPath), wait),
+                temporaryPath);
             if (!HasSamePayload(staged, reminder))
             {
                 throw new InvalidDataException(
                     $"Completed reminder '{fileName}' did not match the pending reminder after it was copied.");
             }
 
-            try
+            RetrySyncProviderOperation(() =>
             {
-                File.Move(temporaryPath, destination, overwrite: false);
-            }
-            catch (IOException) when (File.Exists(destination))
-            {
-                EnsureSameArchive(destination, reminder);
-            }
+                try
+                {
+                    moveFile(temporaryPath, destination);
+                }
+                catch (IOException) when (File.Exists(destination))
+                {
+                    EnsureSameArchive(destination, reminder);
+                }
+
+                return true;
+            }, wait);
 
             RetrySyncProviderOperation(() =>
             {
