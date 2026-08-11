@@ -29,6 +29,21 @@ public sealed class StoreRootValidatorTests : IDisposable
     }
 
     [Fact]
+    public void ValidatedRootReplacesUnnormalizedRuntimeSetting()
+    {
+        var settings = new AppSettings { ICloudRoot = @" C:\iCloud Drive\Shortcuts\Game Reminders " };
+        var normalized = @"C:\iCloud Drive\Shortcuts\Game Reminders";
+        var state = SetupStateResolver.Resolve(
+            settings,
+            _ => StoreRootValidation.Valid(normalized));
+
+        var updated = App.ApplyValidatedRoot(settings, state);
+
+        Assert.Equal(normalized, updated.ICloudRoot);
+        Assert.Equal(@" C:\iCloud Drive\Shortcuts\Game Reminders ", settings.ICloudRoot);
+    }
+
+    [Fact]
     public void InvalidSavedFolderRequiresRecoveryWithoutChangingSavedValue()
     {
         var settings = new AppSettings { ICloudRoot = @"C:\missing\Game Reminders" };
@@ -93,6 +108,21 @@ public sealed class StoreRootValidatorTests : IDisposable
 
         Assert.False(result.IsValid);
         Assert.False(probed);
+    }
+
+    [Fact]
+    public void SecurityFailureIsReportedAsInvalid()
+    {
+        var validator = new StoreRootValidator(
+            _ => throw new System.Security.SecurityException("blocked"),
+            _ => false,
+            _ => throw new InvalidOperationException(),
+            _ => { });
+
+        var result = validator.ValidateSavedRoot(_root);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("blocked", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
