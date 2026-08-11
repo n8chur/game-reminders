@@ -14,16 +14,20 @@
 
         <DockPanel Grid.Row="0" Margin="0,0,0,18">
             <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
-                <Button Content="Scan Steam" Click="ScanSteam_Click"
-                        Height="34" MinHeight="34" HorizontalAlignment="Right"
-                        ToolTip="Discover installed Steam games" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Scan Steam" Click="ScanSteam_Click"
+                            Height="34" MinHeight="34"
+                            ToolTip="Discover installed Steam games" />
+                    <Button Content="New reminder" Click="NewReminder_Click"
+                            Height="34" MinHeight="34" IsDefault="True" />
+                </StackPanel>
                 <CheckBox x:Name="LaunchAtLoginCheckBox"
                           Content="Launch at login" Margin="0,9,0,0"
                           HorizontalAlignment="Right" Click="LaunchAtLogin_Click" />
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="Game Reminders" FontSize="27" FontWeight="SemiBold" />
-                <TextBlock Text="Choose which games should show your reminders"
+                <TextBlock Text="Remember what matters the next time you play"
                            Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}" />
             </StackPanel>
         </DockPanel>
@@ -40,6 +44,83 @@
         </Border>
 
         <TabControl x:Name="ManagementTabs" Grid.Row="2">
+            <TabItem x:Name="RemindersTab" Header="Reminders">
+                <Grid Margin="16">
+                    <TabControl x:Name="ReminderCategories">
+                        <TabItem x:Name="PendingRemindersTab" Header="Pending (0)">
+                            <Grid Margin="12">
+                                <ListBox x:Name="PendingRemindersList">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="Complete" Tag="{Binding Reminder}"
+                                                        Click="CompleteReminder_Click" Margin="14,0,0,0"
+                                                        VerticalAlignment="Center" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                               FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="PendingRemindersEmpty" Text="No pending reminders. Create one for your next game session."
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </Grid>
+                        </TabItem>
+                        <TabItem x:Name="NextLaunchRemindersTab" Header="Next launch (0)">
+                            <Grid Margin="12">
+                                <ListBox x:Name="NextLaunchRemindersList">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="Complete" Tag="{Binding Reminder}"
+                                                        Click="CompleteReminder_Click" Margin="14,0,0,0"
+                                                        VerticalAlignment="Center" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                               FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="NextLaunchRemindersEmpty" Text="Nothing is deferred to the next launch."
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </Grid>
+                        </TabItem>
+                        <TabItem x:Name="CompletedRemindersTab" Header="Completed (0)">
+                            <Grid Margin="12">
+                                <ListBox x:Name="CompletedRemindersList">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True" Opacity="0.72">
+                                                <TextBlock DockPanel.Dock="Left" Text="✓" FontSize="18" Margin="0,0,10,0"
+                                                           Foreground="{DynamicResource PrimaryBrush}" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                               TextDecorations="Strikethrough" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="CompletedRemindersEmpty" Text="Completed reminders will appear here."
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </TabItem>
             <TabItem x:Name="GamesTab" Header="Games">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>

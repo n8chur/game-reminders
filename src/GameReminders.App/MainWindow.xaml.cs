@@ -16,6 +16,9 @@ public partial class MainWindow : Window
     private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
     private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
     private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
+    private readonly Action _refreshReminders;
+    private readonly Action _newReminder;
+    private readonly Action<Reminder> _completeReminder;
     private bool _updatingLaunchAtLogin;
     private IReadOnlyList<GameListItem> _games = [];
     private IReadOnlyList<PendingGameDetection> _pending = [];
@@ -31,7 +34,10 @@ public partial class MainWindow : Window
         Action<IReadOnlyCollection<string>> markGamesReviewed,
         bool launchAtLogin,
         bool launchAtLoginAvailable,
-        Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin)
+        Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin,
+        Action refreshReminders,
+        Action newReminder,
+        Action<Reminder> completeReminder)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
@@ -44,6 +50,9 @@ public partial class MainWindow : Window
         _restoreIgnored = restoreIgnored;
         _markGamesReviewed = markGamesReviewed;
         _setLaunchAtLogin = setLaunchAtLogin;
+        _refreshReminders = refreshReminders;
+        _newReminder = newReminder;
+        _completeReminder = completeReminder;
         LaunchAtLoginCheckBox.IsChecked = launchAtLogin;
         LaunchAtLoginCheckBox.IsEnabled = launchAtLoginAvailable;
         Closing += (_, args) =>
@@ -56,6 +65,14 @@ public partial class MainWindow : Window
             }
         };
         Deactivated += (_, _) => MarkVisibleGamesReviewed();
+        Activated += (_, _) => _refreshReminders();
+        ManagementTabs.SelectionChanged += (_, args) =>
+        {
+            if (ReferenceEquals(args.OriginalSource, ManagementTabs) && ManagementTabs.SelectedItem == RemindersTab)
+            {
+                _refreshReminders();
+            }
+        };
     }
 
     internal static bool CanChangeLaunchAtLogin(string? statusError) => statusError is null;
@@ -109,6 +126,25 @@ public partial class MainWindow : Window
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
 
+    public void SetReminders(
+        IReadOnlyList<ReminderListItem> pending,
+        IReadOnlyList<ReminderListItem> nextLaunch,
+        IReadOnlyList<ReminderListItem> completed)
+    {
+        PendingRemindersList.ItemsSource = pending;
+        NextLaunchRemindersList.ItemsSource = nextLaunch;
+        CompletedRemindersList.ItemsSource = completed;
+        PendingRemindersTab.Header = $"Pending ({pending.Count})";
+        NextLaunchRemindersTab.Header = $"Next launch ({nextLaunch.Count})";
+        CompletedRemindersTab.Header = $"Completed ({completed.Count})";
+        PendingRemindersEmpty.Visibility = pending.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        NextLaunchRemindersEmpty.Visibility = nextLaunch.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        CompletedRemindersEmpty.Visibility = completed.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PendingRemindersList.Visibility = pending.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        NextLaunchRemindersList.Visibility = nextLaunch.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        CompletedRemindersList.Visibility = completed.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     private void ApplyFilter(string? selectedGameId = null)
     {
         if (GamesList is null || PendingList is null)
@@ -160,6 +196,14 @@ public partial class MainWindow : Window
         if (GamesList.SelectedItem is GameListItem item) _removeGame(item.Game);
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
+    private void NewReminder_Click(object sender, RoutedEventArgs e) => _newReminder();
+    private void CompleteReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: Reminder reminder })
+        {
+            _completeReminder(reminder);
+        }
+    }
     private void LaunchAtLogin_Click(object sender, RoutedEventArgs e)
     {
         if (_updatingLaunchAtLogin)
@@ -260,3 +304,8 @@ internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, stri
 internal sealed record IgnoredDiscoveryItem(string Key, string Name, string SourceLabel, string? SteamAppId = null);
 
 internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);
+
+internal sealed record ReminderListItem(Reminder Reminder, string GameName)
+{
+    public string Details => $"{GameName} · {Reminder.CreatedAt.ToLocalTime():g}";
+}

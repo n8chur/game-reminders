@@ -275,6 +275,74 @@ public sealed class ReminderStoreTests : IDisposable
     }
 
     [Fact]
+    public void EnumeratesAllPendingOldestFirstAndCompletedNewestFirst()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var earlier = CreateReminder(createdAt: DateTimeOffset.Parse("2026-08-10T20:00:00Z"));
+        var later = CreateReminder(gameId: "another-game", createdAt: DateTimeOffset.Parse("2026-08-10T21:00:00Z"));
+        Write(store, later);
+        Write(store, earlier);
+        var archivedEarlier = earlier with { Id = Guid.NewGuid() };
+        var archivedLater = later with { Id = Guid.NewGuid() };
+        File.WriteAllText(Path.Combine(store.CompletedPath, $"{archivedEarlier.Id}.json"), JsonProtocol.WriteReminder(archivedEarlier));
+        File.WriteAllText(Path.Combine(store.CompletedPath, $"{archivedLater.Id}.json"), JsonProtocol.WriteReminder(archivedLater));
+
+        Assert.Equal([earlier.Id, later.Id], store.LoadAllPending().Select(reminder => reminder.Id));
+        Assert.Equal([archivedLater.Id, archivedEarlier.Id], store.LoadCompleted().Select(reminder => reminder.Id));
+    }
+
+    [Fact]
+    public void CreatePendingWritesCompatibleImmutableProtocolFile()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var game = new GameDefinition { Id = "custom-test", Name = "Test Game" };
+        var id = Guid.NewGuid();
+        var createdAt = DateTimeOffset.Parse("2026-08-11T20:00:00Z");
+
+        var reminder = store.CreatePending(game, "  Check my build  ", id, createdAt);
+
+        Assert.Equal("Check my build", reminder.Message);
+        Assert.Equal(game.Id, reminder.GameId);
+        Assert.Equal(game.Name, reminder.GameNameAtCreation);
+        Assert.Equal(Path.Combine(store.InboxPath, $"{id:D}.json"), reminder.SourcePath);
+        Assert.Equal(reminder, Assert.Single(store.LoadPending(game.Id)));
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void CreatePendingPreservesExistingReminderOnIdCollision()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var game = new GameDefinition { Id = "custom-test", Name = "Test Game" };
+        var id = Guid.NewGuid();
+        var destination = Path.Combine(store.InboxPath, $"{id:D}.json");
+        File.WriteAllText(destination, "existing reminder");
+
+        Assert.Throws<IOException>(() => store.CreatePending(
+            game, "New reminder", id, DateTimeOffset.UtcNow,
+            File.WriteAllText,
+            (source, target) => File.Move(source, target, overwrite: false),
+            File.Delete));
+
+        Assert.Equal("existing reminder", File.ReadAllText(destination));
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void EnumerationSurfacesMalformedFileInsteadOfReturningPartialList()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        Write(store, CreateReminder());
+        File.WriteAllText(Path.Combine(store.InboxPath, "malformed.json"), "{ nope }");
+
+        Assert.ThrowsAny<Exception>(() => store.LoadAllPending());
+    }
+
+    [Fact]
     public void RepeatedInvalidReminderIsMovedToInvalidAndReported()
     {
         var store = new ReminderStore(_root);

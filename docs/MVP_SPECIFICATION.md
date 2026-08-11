@@ -12,6 +12,8 @@ The Shortcut resolves both its catalog and inbox beneath the fixed nested folder
 
 Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
 
+The Windows client can also create the same immutable protocol file by selecting a configured game and entering a non-empty message. It stages and validates the file inside `inbox` before finalizing it without overwrite.
+
 ## Reminder display
 
 Five seconds after a configured game launches, Windows displays all pending reminders for that game in one persistent window. Each reminder has independent controls:
@@ -19,6 +21,8 @@ Five seconds after a configured game launches, Windows displays all pending remi
 - **Dismiss** stages and validates an archive copy inside `completed`, atomically finalizes it, and only then deletes the pending file from `inbox`. This avoids relying on cross-directory moves through the sync provider. An exact legacy duplicate at the store root is removed; a conflicting root file is preserved and blocks dismissal visibly.
 - **Show on next launch** closes that reminder while leaving its file in `inbox`.
 - Closing the window, Alt+F4, shutdown, crash, or forced termination never completes a reminder.
+
+The main window opens to a **Reminders** view with counted **Pending**, **Next launch**, and **Completed** categories. Pending and session-deferred reminders are ordered oldest first; completed reminders are ordered newest first. **Next launch** is process-memory state only and never modifies the pending file. The view can explicitly complete a pending reminder through the same archive operation as **Dismiss**. Unknown game IDs remain visible using the display name stored in their reminder file. A refresh failure preserves the last successfully loaded list and reports the failure visibly.
 
 The dependable display target is borderless fullscreen. The application will not inject into games or interact with anti-cheat systems. A normal Windows notification may be used if the popup cannot be displayed.
 
@@ -34,7 +38,7 @@ An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED*
 
 Newly imported games and games needing executable review are indicated on the Games list and by a persistent tray-icon badge. Informational balloon notifications are optional. Selecting a new game's row acknowledges it immediately without clearing the row selection. Otherwise, **NEW** is acknowledged only for rows that are actually visible in the Games list when the management window is hidden or deactivated; merely opening the tab does not clear off-screen items. An executable-review badge remains until a valid executable mapping is saved.
 
-The management window supports search and uses **Scan Steam** for discovering installed Steam titles and updating the catalog. Closing the window hides it to the notification area. Opening the authoritative iCloud folder and fully exiting are notification-area commands rather than window actions.
+The main window defaults to Reminders. Its Games view supports search and uses **Scan Steam** for discovering installed Steam titles and updating the catalog. Closing the window hides it to the notification area. Opening the authoritative iCloud folder and fully exiting are notification-area commands rather than window actions.
 
 ## File layout
 
