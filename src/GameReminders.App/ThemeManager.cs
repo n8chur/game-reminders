@@ -47,9 +47,9 @@ internal sealed class ThemeManager : IDisposable
         Set("TextBrush", dark ? "#F2F4F7" : "#171A1F");
         Set("SecondaryTextBrush", dark ? "#B6BDC8" : "#5F6672");
         Set("BorderBrush", dark ? "#414650" : "#D8DCE3");
-        Set("PrimaryBrush", dark ? "#73AAEB" : "#2563B8");
-        Set("PrimaryHoverBrush", dark ? "#93BEF0" : "#1E529A");
-        Set("PrimaryTextBrush", dark ? "#101820" : "#FFFFFF");
+        Set("PrimaryBrush", "#2563B8");
+        Set("PrimaryHoverBrush", dark ? "#3178C6" : "#1E529A");
+        Set("PrimaryTextBrush", "#FFFFFF");
         Set("ControlBackgroundBrush", dark ? "#2C3037" : "#FFFFFF");
         Set("ControlHoverBrush", dark ? "#383D46" : "#E8EDF4");
         Set("ControlPressedBrush", dark ? "#454B56" : "#DCE4EE");
