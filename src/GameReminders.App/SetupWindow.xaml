@@ -49,7 +49,7 @@
                    Foreground="{DynamicResource IssueTextBrush}" />
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Exit" Click="Exit_Click" />
+            <Button Content="Exit" Click="Exit_Click" IsCancel="True" />
             <Button Content="Continue" Click="Continue_Click" IsDefault="True" />
         </StackPanel>
     </Grid>

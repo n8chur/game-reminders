@@ -108,6 +108,8 @@ public sealed class StoreRootValidatorTests : IDisposable
 
         Assert.False(result.IsValid);
         Assert.False(probed);
+        Assert.Contains("Shortcuts folder", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("select the existing Game Reminders folder", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -135,6 +137,8 @@ public sealed class StoreRootValidatorTests : IDisposable
 
         Assert.False(savedResult.IsValid);
         Assert.Contains("games.json", savedResult.Error!);
+        Assert.Contains("Shortcuts folder", savedResult.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("select the authoritative Game Reminders folder", savedResult.Error, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(Path.Combine(_root, "games.json")));
     }
 

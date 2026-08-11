@@ -106,7 +106,7 @@ internal sealed class StoreRootValidator
             if (!_directoryExists(root))
             {
                 return StoreRootValidation.Invalid(
-                    "That folder is unavailable. Wait for iCloud Drive to finish syncing, or select the existing Game Reminders folder.");
+                    "That folder is unavailable. Wait for iCloud Drive to finish syncing, or select its Shortcuts folder.");
             }
 
             var catalogPath = Path.Combine(root, "games.json");
@@ -117,7 +117,7 @@ internal sealed class StoreRootValidator
             else if (requireCatalog)
             {
                 return StoreRootValidation.Invalid(
-                    "The saved folder no longer contains games.json. Select the authoritative Game Reminders folder to avoid creating a second store.");
+                    "The saved Game Reminders folder no longer contains games.json. Select its Shortcuts folder in iCloud Drive to avoid creating a second store.");
             }
 
             _verifyWritable(root);
