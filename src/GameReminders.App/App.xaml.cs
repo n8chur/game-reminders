@@ -58,7 +58,7 @@ public partial class App : System.Windows.Application
                 RestoreIgnored,
                 MarkGamesReviewed,
                 launchAtLogin,
-                MainWindow.CanChangeLaunchAtLogin(startupStatusError),
+                GameReminders.App.MainWindow.CanChangeLaunchAtLogin(startupStatusError),
                 SetLaunchAtLogin);
             MainWindow = _mainWindow;
             if (startupStatusError is not null)
