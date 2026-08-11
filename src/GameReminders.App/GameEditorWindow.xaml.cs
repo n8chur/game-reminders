@@ -14,6 +14,7 @@ public partial class GameEditorWindow : Window
     public GameEditorWindow(GameDefinition game, Func<GameDefinition, string?> save)
     {
         InitializeComponent();
+        ThemeManager.PrepareWindow(this);
         _original = game;
         _save = save;
         NameText.Text = game.Name;
@@ -88,10 +89,12 @@ public partial class GameEditorWindow : Window
 
         var canSave = CanSave(_original?.Source, SplitLines(ProcessesText.Text));
         SaveButton.IsEnabled = canSave;
-        var normalText = (Brush)FindResource("TextBrush");
-        var secondaryText = (Brush)FindResource("SecondaryTextBrush");
-        ProcessesLabel.Foreground = canSave ? normalText : Brushes.Firebrick;
-        ProcessesHelp.Foreground = canSave ? secondaryText : Brushes.Firebrick;
+        ProcessesLabel.SetResourceReference(
+            TextBlock.ForegroundProperty,
+            canSave ? "TextBrush" : "IssueTextBrush");
+        ProcessesHelp.SetResourceReference(
+            TextBlock.ForegroundProperty,
+            canSave ? "SecondaryTextBrush" : "IssueTextBrush");
         ProcessesHelp.Text = canSave
             ? "Add every executable that should count as launching this game."
             : "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.";
