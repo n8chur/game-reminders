@@ -6,7 +6,8 @@
         MinWidth="520" MaxWidth="760" MaxHeight="700"
         WindowStartupLocation="CenterScreen"
         Topmost="True" ShowActivated="False"
-        Background="{DynamicResource WindowBackground}">
+        Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource TextBrush}">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
