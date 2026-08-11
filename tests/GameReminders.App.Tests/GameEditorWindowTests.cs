@@ -5,7 +5,7 @@ namespace GameReminders.App.Tests;
 public sealed class GameEditorWindowTests
 {
     [Fact]
-    public void SaveButtonTextIsWhiteInTheLightTheme()
+    public void SaveButtonTextFollowsEnabledAndDisabledForegroundsInTheLightTheme()
     {
         System.Exception? failure = null;
         var thread = new System.Threading.Thread(() =>
@@ -18,9 +18,21 @@ public sealed class GameEditorWindowTests
                     new GameDefinition { Id = "test", Name = "Test" },
                     _ => null);
 
-                var foreground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
+                var enabledButtonForeground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
+                    editor.SaveButton.Foreground);
+                var enabledTextForeground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
                     editor.SaveButtonText.Foreground);
-                Assert.Equal(System.Windows.Media.Colors.White, foreground.Color);
+                Assert.Equal(System.Windows.Media.Colors.White, enabledButtonForeground.Color);
+                Assert.Equal(enabledButtonForeground.Color, enabledTextForeground.Color);
+
+                editor.SaveButton.IsEnabled = false;
+
+                var disabledButtonForeground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
+                    editor.SaveButton.Foreground);
+                var disabledTextForeground = Assert.IsType<System.Windows.Media.SolidColorBrush>(
+                    editor.SaveButtonText.Foreground);
+                Assert.NotEqual(System.Windows.Media.Colors.White, disabledButtonForeground.Color);
+                Assert.Equal(disabledButtonForeground.Color, disabledTextForeground.Color);
 
                 editor.Close();
                 application.Shutdown();
