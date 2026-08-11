@@ -7,7 +7,7 @@ The repository is currently implementing **Milestone 3 (iPhone Shortcut)**. It c
 ## Development-build setup
 
 1. Download the `game-reminders-win-x64` artifact from the latest successful GitHub Actions run and extract it.
-2. Run `GameReminders.App.exe`.
+2. Run `GameReminders.exe`.
 3. Select the `Game Reminders` folder in iCloud Drive for both Shortcut prompts. Configure both folder actions once on each Mac or iPhone where you use the Shortcut; iCloud does not reliably transfer those folder bookmarks between devices.
 4. Mark that folder **Always keep on this device** in File Explorer.
 5. Use **Add game** or **Scan Steam** to populate the catalog, then review any **NEW** or **ACTION REQUIRED** entries and edit optional alternate speech aliases or executable paths as needed. The canonical game name already works for speech matching.
