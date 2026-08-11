@@ -6,7 +6,7 @@ This directory contains the auditable source definition for the Milestone 3 iPho
 
 `GameReminders.shortcut-source.json` is a platform-neutral, ordered definition of the workflow. `GameReminder.cherri` is the auditable native source, and `GameReminder-unsigned.shortcut` is the generated unsigned property-list artifact validated by CI.
 
-Apple will not import the unsigned artifact directly. `GameReminder.shortcut` is the currently signed distribution; whenever the unsigned payload changes, that signed file remains intentionally unchanged until the replacement passes cross-device testing and is signed with **Anyone** sharing on a Mac. Apple documents [file export from iPhone and iPad](https://support.apple.com/guide/shortcuts/share-shortcuts-apdf01f8c054/ios) and [validation/signing of shared files](https://support.apple.com/guide/shortcuts-mac/run-shortcuts-from-the-command-line-apd455c82f02/mac).
+Apple will not import the unsigned artifact directly. `Game Reminder.shortcut` is the currently signed distribution; whenever the unsigned payload changes, that signed file remains intentionally unchanged until the replacement passes cross-device testing and is signed with **Anyone** sharing on a Mac. Apple documents [file export from iPhone and iPad](https://support.apple.com/guide/shortcuts/share-shortcuts-apdf01f8c054/ios) and [validation/signing of shared files](https://support.apple.com/guide/shortcuts-mac/run-shortcuts-from-the-command-line-apd455c82f02/mac).
 
 ## Configuration
 
@@ -59,7 +59,7 @@ The temporary extension prevents the Windows scanner from treating an incomplete
 
 1. Move the single authoritative `Game Reminders` directory to `iCloud Drive/Shortcuts/Game Reminders` and point the Windows app at that location.
 2. Download `GameReminder-unsigned.shortcut` from the repository.
-3. Run `shortcuts sign --mode anyone --input GameReminder-unsigned.shortcut --output GameReminder.shortcut`.
+3. Run `shortcuts sign --mode anyone --input GameReminder-unsigned.shortcut --output "Game Reminder.shortcut"`.
 4. Import the signed Shortcut on Mac. It must ask for no folders.
 5. Let the same Shortcut sync to iPhone and run it there without editing either file action.
 6. Test every case in `test-vectors.json` using a temporary catalog where destructive or collision behavior is involved.
