@@ -10,9 +10,11 @@ internal interface ILaunchAtLoginService
 
 internal sealed class LaunchAtLoginService : ILaunchAtLoginService
 {
+    internal const string HiddenAtLoginArgument = "--hidden-at-login";
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "GameReminders";
     private readonly string _command;
+    private readonly string _legacyCommand;
     private readonly Func<string?> _readValue;
     private readonly Action<string> _writeValue;
     private readonly Action _deleteValue;
@@ -41,7 +43,8 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
         Action<string> writeValue,
         Action deleteValue)
     {
-        _command = QuoteExecutable(executablePath);
+        _legacyCommand = QuoteExecutable(executablePath);
+        _command = $"{_legacyCommand} {HiddenAtLoginArgument}";
         _readValue = readValue;
         _writeValue = writeValue;
         _deleteValue = deleteValue;
@@ -49,11 +52,10 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
 
     public bool TryGetEnabled(out bool enabled, out string? error)
     {
+        string? registeredCommand;
         try
         {
-            enabled = CommandsMatch(_readValue(), _command);
-            error = null;
-            return true;
+            registeredCommand = _readValue();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -61,6 +63,34 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
             error = $"Windows launch-at-login status could not be read: {exception.Message}";
             return false;
         }
+
+        if (CommandsMatch(registeredCommand, _command))
+        {
+            enabled = true;
+            error = null;
+            return true;
+        }
+
+        if (CommandsMatch(registeredCommand, _legacyCommand))
+        {
+            try
+            {
+                _writeValue(_command);
+                enabled = true;
+                error = null;
+                return true;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                enabled = false;
+                error = $"Windows launch-at-login could not be updated to start hidden: {exception.Message}";
+                return false;
+            }
+        }
+
+        enabled = false;
+        error = null;
+        return true;
     }
 
     public bool TrySetEnabled(bool enabled, out string? error)
@@ -93,18 +123,28 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
             return false;
         }
 
-        return string.Equals(
-            UnquoteCommand(registeredCommand),
-            UnquoteCommand(expectedCommand),
-            StringComparison.OrdinalIgnoreCase);
+        var registered = SplitCommand(registeredCommand);
+        var expected = SplitCommand(expectedCommand);
+        return string.Equals(registered.Executable, expected.Executable, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(registered.Arguments, expected.Arguments, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string UnquoteCommand(string command)
+    private static (string Executable, string Arguments) SplitCommand(string command)
     {
         var trimmed = command.Trim();
-        return trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[^1] == '"'
-            ? trimmed[1..^1]
-            : trimmed;
+        if (trimmed.StartsWith('"'))
+        {
+            var closingQuote = trimmed.IndexOf('"', 1);
+            if (closingQuote >= 0)
+            {
+                return (trimmed[1..closingQuote], trimmed[(closingQuote + 1)..].Trim());
+            }
+        }
+
+        var separator = trimmed.IndexOfAny([' ', '\t']);
+        return separator < 0
+            ? (trimmed, string.Empty)
+            : (trimmed[..separator], trimmed[separator..].Trim());
     }
 
     internal static string QuoteExecutable(string executablePath) => $"\"{Path.GetFullPath(executablePath)}\"";
