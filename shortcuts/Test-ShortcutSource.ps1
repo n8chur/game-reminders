@@ -89,16 +89,16 @@ Assert-ShortcutCondition (($expectedKeys | Where-Object { $_ -notin $actualKeys 
 Assert-ShortcutCondition (($actualKeys | Where-Object { $_ -notin $expectedKeys }).Count -eq 0) 'Reminder dictionary contains an unexpected field.'
 
 $save = $source.workflow | Where-Object action -eq 'saveFile' | Select-Object -First 1
-$inbox = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'inbox' } | Select-Object -First 1
+$inbox = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'Game Reminders/inbox' } | Select-Object -First 1
 $move = $source.workflow | Where-Object action -eq 'moveFile' | Select-Object -First 1
 $rename = $source.workflow | Where-Object action -eq 'renameFile' | Select-Object -First 1
 $success = $source.workflow | Where-Object action -eq 'showResult' | Select-Object -First 1
-$catalog = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'games.json' } | Select-Object -First 1
-Assert-ShortcutCondition ($catalog.folder -eq 'Shortcuts/Game Reminders') 'Catalog resolution must use the fixed nested Shortcuts/Game Reminders folder.'
+$catalog = $source.workflow | Where-Object { $_.action -eq 'getFile' -and $_.relativePath -eq 'Game Reminders/games.json' } | Select-Object -First 1
+Assert-ShortcutCondition ($catalog.folder -eq 'Shortcuts') 'Catalog resolution must use the built-in Shortcuts container with the nested path in relativePath.'
 Assert-ShortcutCondition ($save.folder -eq 'Shortcuts') 'Reminder must first be staged in the private Shortcuts folder.'
 Assert-ShortcutCondition ($save.name -eq '<reminderId>.tmp') 'Reminder must use a visible UUID name with a non-JSON staging extension.'
 Assert-ShortcutCondition ($save.overwrite -eq $false) 'Staging must not overwrite an existing file.'
-Assert-ShortcutCondition ($inbox.folder -eq 'Shortcuts/Game Reminders') 'Inbox resolution must use the fixed nested Shortcuts/Game Reminders folder.'
+Assert-ShortcutCondition ($inbox.folder -eq 'Shortcuts') 'Inbox resolution must use the built-in Shortcuts container with the nested path in relativePath.'
 Assert-ShortcutCondition ($move.input -eq 'stagedFile' -and $move.folder -eq 'inboxFolder') 'The completed staging file must be moved to the resolved inbox folder.'
 Assert-ShortcutCondition ($move.overwrite -eq $false) 'Moving the staging file must not overwrite an existing file.'
 Assert-ShortcutCondition ($rename.input -eq 'inboxStagedFile') 'Finalization must rename the temporary file only after it reaches inbox.'
