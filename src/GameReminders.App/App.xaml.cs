@@ -92,7 +92,8 @@ public partial class App : System.Windows.Application
         var state = SetupStateResolver.Resolve(_settings, _storeRootValidator.ValidateSavedRoot);
         if (state.Requirement == SetupRequirement.None)
         {
-            return state.Root;
+            _settings = ApplyValidatedRoot(_settings, state);
+            return _settings.ICloudRoot;
         }
 
         var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
@@ -119,6 +120,11 @@ public partial class App : System.Windows.Application
 
         return setup.ShowDialog() == true ? _settings.ICloudRoot : null;
     }
+
+    internal static AppSettings ApplyValidatedRoot(AppSettings settings, SetupState state) =>
+        state.Requirement == SetupRequirement.None && state.Root is not null
+            ? settings with { ICloudRoot = state.Root }
+            : settings;
 
     private bool GetLaunchAtLoginState(out string? error)
     {
