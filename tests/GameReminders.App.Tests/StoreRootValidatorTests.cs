@@ -196,6 +196,19 @@ public sealed class StoreRootValidatorTests : IDisposable
     }
 
     [Fact]
+    public void NestedShortcutsFolderInsideICloudDriveIsRejected()
+    {
+        var shortcutsRoot = Path.Combine(_root, "iCloudDrive", "Other", "Shortcuts");
+        Directory.CreateDirectory(shortcutsRoot);
+
+        var result = CreateSelectionValidator(new FakePinService())
+            .ValidateShortcutsSelection(shortcutsRoot);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("iCloud Drive", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void PinFailureExplainsManualFallback()
     {
         var shortcutsRoot = Path.Combine(_root, "iCloudDrive", "Shortcuts");

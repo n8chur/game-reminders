@@ -63,7 +63,7 @@ internal sealed class StoreRootValidator
             }
 
             if (!ShortcutsFolderLocator.IsShortcutsFolder(shortcutsRoot) ||
-                !ShortcutsFolderLocator.IsInsideICloudDrive(shortcutsRoot))
+                !ShortcutsFolderLocator.IsDirectlyInsideICloudDrive(shortcutsRoot))
             {
                 return StoreRootValidation.Invalid(
                     "Select the Shortcuts folder inside iCloud Drive. Game Reminders will create or use its required Game Reminders subfolder.");
@@ -222,28 +222,18 @@ internal static class ShortcutsFolderLocator
                string.Equals(name, PhysicalFolderName, StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsInsideICloudDrive(string path)
+    public static bool IsDirectlyInsideICloudDrive(string path)
     {
-        DirectoryInfo? directory;
         try
         {
-            directory = new DirectoryInfo(Path.GetFullPath(path));
+            var parentName = Directory.GetParent(Path.GetFullPath(path))?.Name;
+            return string.Equals(parentName, "iCloudDrive", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(parentName, "iCloud Drive", StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException or ArgumentException)
         {
             return false;
         }
-
-        for (var current = directory.Parent; current is not null; current = current.Parent)
-        {
-            if (string.Equals(current.Name, "iCloudDrive", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(current.Name, "iCloud Drive", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public static string ToDisplayPath(string path) =>
