@@ -40,39 +40,13 @@ function Convert-PlistDictionary {
     return $result
 }
 
-function Assert-FixedGameRemindersFolder {
-    param(
-        [Parameter(Mandatory)] [System.Xml.XmlElement] $Folder,
-        [Parameter(Mandatory)] [string] $Label
-    )
-
-    if ($Folder.Name -ne 'dict') {
-        throw "$Label must use a built-in relative folder dictionary."
-    }
-
-    $folderValue = Convert-PlistDictionary $Folder
-    if ($folderValue.displayName.InnerText -ne 'Game Reminders' -or
-        $folderValue.filename.InnerText -ne 'Game Reminders' -or
-        $folderValue.fileLocation.Name -ne 'dict') {
-        throw "$Label must target the nested Game Reminders folder."
-    }
-
-    $location = Convert-PlistDictionary $folderValue.fileLocation
-    if ($location.relativeSubpath.InnerText -ne 'Game Reminders' -or
-        $location.ContainsKey('WFFileLocationType') -or
-        $folderValue.ContainsKey('bookmarkData')) {
-        throw "$Label must resolve Game Reminders relative to the built-in iCloud Shortcuts folder without a bookmark."
-    }
-}
-
 $firstAction = Convert-PlistDictionary $actions[0]
 $firstParameters = Convert-PlistDictionary $firstAction.WFWorkflowActionParameters
 if ($firstAction.WFWorkflowActionIdentifier.InnerText -ne "is.workflow.actions.documentpicker.open" -or
-    $firstParameters.WFGetFilePath.InnerText -ne "games.json" -or
-    -not $firstParameters.ContainsKey("WFFile")) {
-    throw "The first action is not configured for the fixed Game Reminders catalog path."
+    $firstParameters.WFGetFilePath.InnerText -ne "Game Reminders/games.json" -or
+    $firstParameters.ContainsKey("WFFile")) {
+    throw "The first action must read Game Reminders/games.json directly from the built-in Shortcuts container."
 }
-Assert-FixedGameRemindersFolder $firstParameters.WFFile 'Catalog folder'
 
 $unsupportedActions = @($actions | Where-Object {
     $action = Convert-PlistDictionary $_
@@ -162,11 +136,10 @@ $moveParameters = Convert-PlistDictionary $moveAction.WFWorkflowActionParameters
 $renameParameters = Convert-PlistDictionary $renameAction.WFWorkflowActionParameters
 
 if ($inboxAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.documentpicker.open' -or
-    $inboxParameters.WFGetFilePath.InnerText -ne 'inbox' -or
-    -not $inboxParameters.ContainsKey('WFFile')) {
-    throw 'The inbox lookup must target inbox beneath the fixed Game Reminders folder.'
+    $inboxParameters.WFGetFilePath.InnerText -ne 'Game Reminders/inbox' -or
+    $inboxParameters.ContainsKey('WFFile')) {
+    throw 'The inbox lookup must read Game Reminders/inbox directly from the built-in Shortcuts container.'
 }
-Assert-FixedGameRemindersFolder $inboxParameters.WFFile 'Inbox folder'
 
 $stagingPath = Convert-PlistDictionary (Convert-PlistDictionary $saveParameters.WFFileDestinationPath).Value
 if ($saveAction.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.documentpicker.save' -or
@@ -320,4 +293,4 @@ if ($textInitializers.Count -ne 2) {
     throw 'The compiled Shortcut must initialize both matched-game text variables explicitly.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, submitted-name error context, explicit variable inputs, unique action IDs, fixed nested Shortcuts/Game Reminders paths without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, submitted-name error context, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
