@@ -51,17 +51,21 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right" Content="+" Tag="{Binding}" Margin="8,0,0,0"
-                                    Width="28" MinWidth="28" Height="28" MinHeight="28" Padding="0" FontSize="16" FontWeight="Bold"
+                            <Button DockPanel.Dock="Right" Tag="{Binding}" Margin="8,0,0,0"
+                                    Width="28" MinWidth="28" Height="28" MinHeight="28" Padding="0"
                                     Background="{DynamicResource SurfaceMutedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    ToolTip="Add this path" Click="AddCandidate_Click">
+                                    ToolTip="Add this path" Click="AddCandidate_Click"
+                                    AutomationProperties.Name="Add this path">
                                 <Button.Template>
                                     <ControlTemplate TargetType="{x:Type Button}">
                                         <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}"
                                                 CornerRadius="14">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Path Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Data="M 5,0 L 5,10 M 0,5 L 10,5"
+                                                  Stroke="{TemplateBinding Foreground}" StrokeThickness="1.5"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
