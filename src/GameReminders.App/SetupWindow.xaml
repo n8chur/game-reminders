@@ -1,0 +1,59 @@
+<Window x:Class="GameReminders.App.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Set up Game Reminders" Height="470" Width="650"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource TextBrush}">
+    <Grid Margin="30,26,30,26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="HeadingText" FontSize="25" FontWeight="SemiBold"
+                   Text="Set up Game Reminders" />
+        <TextBlock x:Name="IntroductionText" Grid.Row="1" Margin="0,10,0,0"
+                   TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+
+        <Border Grid.Row="2" Margin="0,20,0,0" Padding="14" CornerRadius="7"
+                Background="{DynamicResource NoticeBackgroundBrush}">
+            <StackPanel>
+                <TextBlock Text="Use your existing iCloud folder" FontWeight="SemiBold"
+                           Foreground="{DynamicResource NoticeTextBrush}" />
+                <TextBlock Margin="0,5,0,0" TextWrapping="Wrap"
+                           Foreground="{DynamicResource NoticeTextBrush}"
+                           Text="Select iCloud Drive/Shortcuts/Game Reminders. Keep this single folder as the authoritative store; Game Reminders will not copy or merge reminder folders." />
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
+                           Foreground="{DynamicResource NoticeTextBrush}"
+                           Text="In File Explorer, right-click the folder and choose Always keep on this device." />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="FolderPathText" Height="36" Padding="9,7" IsReadOnly="True"
+                     ToolTip="Selected authoritative Game Reminders folder" />
+            <Button Grid.Column="1" Content="Browse…" Margin="10,0,0,0" Click="Browse_Click" />
+        </Grid>
+
+        <CheckBox x:Name="LaunchAtLoginCheckBox" Grid.Row="4" Margin="0,18,0,0"
+                  Content="Launch Game Reminders when I sign in to Windows" />
+
+        <TextBlock x:Name="ErrorText" Grid.Row="5" Margin="0,14,0,0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource IssueTextBrush}" />
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Exit" Click="Exit_Click" />
+            <Button Content="Continue" Click="Continue_Click" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

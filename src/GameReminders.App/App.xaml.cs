@@ -12,6 +12,8 @@ public partial class App : System.Windows.Application
     private MainWindow? _mainWindow;
     private ReminderStore? _store;
     private SettingsService? _settingsService;
+    private StoreRootValidator? _storeRootValidator;
+    private ILaunchAtLoginService? _launchAtLoginService;
     private AppSettings _settings = new();
     private ThemeManager? _themeManager;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -31,15 +33,16 @@ public partial class App : System.Windows.Application
         {
             _settingsService = new SettingsService();
             _settings = _settingsService.Load();
-            var root = ResolveRoot(_settings);
+            _storeRootValidator = new StoreRootValidator();
+            _launchAtLoginService = new LaunchAtLoginService(
+                Environment.ProcessPath ?? throw new InvalidOperationException("The current executable path is unavailable."));
+            var root = ResolveRoot();
             if (root is null)
             {
                 Shutdown();
                 return;
             }
 
-            _settings = _settings with { ICloudRoot = root };
-            SaveSettings();
             _store = new ReminderStore(root);
             _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
@@ -52,8 +55,14 @@ public partial class App : System.Windows.Application
                 ConfigureDetection,
                 IgnoreDetection,
                 RestoreIgnored,
-                MarkGamesReviewed);
+                MarkGamesReviewed,
+                GetLaunchAtLoginState(out var startupStatusError),
+                SetLaunchAtLogin);
             MainWindow = _mainWindow;
+            if (startupStatusError is not null)
+            {
+                _mainWindow.SetStatus(startupStatusError, isIssue: true);
+            }
             CreateTrayIcon();
             _mainWindow.Show();
 
@@ -73,21 +82,77 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private static string? ResolveRoot(AppSettings settings)
+    private string? ResolveRoot()
     {
-        if (!string.IsNullOrWhiteSpace(settings.ICloudRoot) && Directory.Exists(settings.ICloudRoot))
+        if (_storeRootValidator is null || _launchAtLoginService is null || _settingsService is null)
         {
-            return settings.ICloudRoot;
+            return null;
         }
 
-        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        var state = SetupStateResolver.Resolve(_settings, _storeRootValidator.ValidateSavedRoot);
+        if (state.Requirement == SetupRequirement.None)
         {
-            Description = "Select your iCloud Drive 'Game Reminders' folder",
-            UseDescriptionForTitle = true,
-            ShowNewFolderButton = true
-        };
+            return state.Root;
+        }
 
-        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dialog.SelectedPath : null;
+        var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
+        var setup = new SetupWindow(
+            state,
+            launchAtLogin,
+            startupStatusError,
+            (selectedRoot, desiredLaunchAtLogin) =>
+            {
+                var result = SetupCommitter.Commit(
+                    _settings,
+                    selectedRoot,
+                    desiredLaunchAtLogin,
+                    _storeRootValidator.ValidateSelection,
+                    _launchAtLoginService,
+                    _settingsService.TrySave);
+                if (result.Succeeded)
+                {
+                    _settings = result.Settings;
+                }
+
+                return result.Error;
+            });
+
+        return setup.ShowDialog() == true ? _settings.ICloudRoot : null;
+    }
+
+    private bool GetLaunchAtLoginState(out string? error)
+    {
+        if (_launchAtLoginService?.TryGetEnabled(out var enabled, out error) == true)
+        {
+            return enabled;
+        }
+
+        error ??= "Windows launch-at-login status is unavailable.";
+        return false;
+    }
+
+    private LaunchAtLoginChangeResult SetLaunchAtLogin(bool enabled)
+    {
+        if (_launchAtLoginService is null)
+        {
+            return new LaunchAtLoginChangeResult(false, "Windows launch-at-login is unavailable.");
+        }
+
+        if (!_launchAtLoginService.TrySetEnabled(enabled, out var changeError))
+        {
+            var actualAfterFailure = GetLaunchAtLoginState(out _);
+            return new LaunchAtLoginChangeResult(actualAfterFailure, changeError);
+        }
+
+        var actual = GetLaunchAtLoginState(out var statusError);
+        if (statusError is not null || actual != enabled)
+        {
+            return new LaunchAtLoginChangeResult(
+                actual,
+                statusError ?? "Windows did not retain the requested launch-at-login setting.");
+        }
+
+        return new LaunchAtLoginChangeResult(actual, null);
     }
 
     private void CreateTrayIcon()
