@@ -10,15 +10,18 @@ public partial class NewReminderWindow : Window
 
     internal NewReminderWindow(
         IReadOnlyList<GameDefinition> games,
+        IReadOnlyList<Reminder> reminders,
         Func<GameDefinition, string, string?> create)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
         _create = create;
-        GamePicker.ItemsSource = games.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
-        if (games.Count > 0)
+        var sortedGames = games.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        GamePicker.ItemsSource = sortedGames;
+        var defaultGame = ChooseDefaultGame(sortedGames, reminders);
+        if (defaultGame is not null)
         {
-            GamePicker.SelectedIndex = 0;
+            GamePicker.SelectedItem = defaultGame;
         }
         MessageText.Focus();
         UpdateCreateState();
@@ -36,6 +39,22 @@ public partial class NewReminderWindow : Window
 
     internal static bool CanCreate(GameDefinition? game, string? message) =>
         game is not null && !string.IsNullOrWhiteSpace(message);
+
+    internal static GameDefinition? ChooseDefaultGame(
+        IReadOnlyList<GameDefinition> games,
+        IReadOnlyList<Reminder> reminders)
+    {
+        var gamesById = games.ToDictionary(game => game.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var reminder in reminders.OrderByDescending(reminder => reminder.CreatedAt))
+        {
+            if (gamesById.TryGetValue(reminder.GameId, out var game))
+            {
+                return game;
+            }
+        }
+
+        return games.FirstOrDefault();
+    }
 
     private void Create_Click(object sender, RoutedEventArgs e)
     {
