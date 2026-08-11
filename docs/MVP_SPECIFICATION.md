@@ -8,15 +8,15 @@ The MVP consists of an iPhone Shortcut, a Windows 11 tray application, and an iC
 
 ## Reminder creation
 
-The Shortcut resolves both its catalog and inbox beneath the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders`, then reads `games.json`, accepts a dictated or typed game name, and matches it against canonical names and aliases after ignoring capitalization, punctuation, and spacing. It uses Shortcuts' built-in iCloud container and contains no device-specific folder bookmarks or import questions, allowing the same synced workflow to run on Mac and iPhone. The workflow uses only iPhone-supported actions, creates a reminder only when exactly one game resolves, and fails safely without creating a file for an unknown game. Its zero-match error repeats the submitted game name so the user can identify the missing alias.
+The Shortcut asks for the shared Game Reminders folder separately for its catalog and inbox lookups during import, then reads `games.json`, accepts a dictated or typed game name, and matches it against canonical names and aliases after ignoring capitalization, punctuation, and spacing. Both setup questions must select the same folder. Those iCloud folder bookmarks are configured once per device because Shortcuts does not reliably transfer them between macOS and iPhone. The workflow uses only iPhone-supported actions, creates a reminder only when exactly one game resolves, and fails safely without creating a file for an unknown game. Its zero-match error repeats the submitted game name so the user can identify the missing alias.
 
-Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut creates or reuses `inbox`, writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
+Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
 
 ## Reminder display
 
 Five seconds after a configured game launches, Windows displays all pending reminders for that game in one persistent window. Each reminder has independent controls:
 
-- **Dismiss** moves the file from `inbox` to `completed`.
+- **Dismiss** stages and validates an archive copy inside `completed`, atomically finalizes it, and only then deletes the pending file from `inbox`. This avoids relying on cross-directory moves through the sync provider. An exact legacy duplicate at the store root is removed; a conflicting root file is preserved and blocks dismissal visibly.
 - **Show on next launch** closes that reminder while leaving its file in `inbox`.
 - Closing the window, Alt+F4, shutdown, crash, or forced termination never completes a reminder.
 
@@ -26,7 +26,7 @@ The dependable display target is borderless fullscreen. The application will not
 
 The client supports Steam metadata, conservative foreground-application detection, and manual addition. Installed Steam games are added automatically with a stable Steam app ID and summarized in one non-blocking notification. Clicking the notification opens game management. Notifications are informational and may be suppressed by Windows without affecting discovery or reminder behavior. Removing an imported Steam game creates Windows-only suppression state keyed by app ID; scans do not recreate it unless the user explicitly allows it to be re-added.
 
-Uncertain foreground-application detections are saved to Windows-only pending state and shown in **Detected games** for manual configuration or dismissal. Discovery never opens a blocking setup prompt, including during startup and manual scans.
+Uncertain foreground-application detections are saved to Windows-only pending state and shown in a distinct **Action required** section of **Games** for configuration or dismissal. Discovery never opens a blocking setup prompt, including during startup and manual scans. Ignored discoveries retain Windows-only display metadata and appear alongside removed Steam games in a launcher-neutral **Ignored** view, where either kind can be restored.
 
 The setup and management UI supports canonical names, optional alternate speech aliases, and one or more associated executables. The canonical name already participates in speech matching; Steam metadata does not provide reliable alternate spoken names, so imported aliases begin empty. Steam discovery excludes known helper executables and ranks remaining candidates by their relationship to the game name, preferring an exact root-level executable over a similarly named nested helper or shipping binary. A confident match stores the complete path relative to `steamapps\common`; this distinguishes generic executable filenames while remaining portable across Steam library roots. The editor displays the source type and explicitly explains the path base for Steam entries.
 
@@ -34,27 +34,25 @@ An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED*
 
 Newly imported games and games needing executable review are indicated on the Games list and by a persistent tray-icon badge. Informational balloon notifications are optional. Selecting a new game's row acknowledges it immediately without clearing the row selection. Otherwise, **NEW** is acknowledged only for rows that are actually visible in the Games list when the management window is hidden or deactivated; merely opening the tab does not clear off-screen items. An executable-review badge remains until a valid executable mapping is saved.
 
-The management window uses **Reload games.json** for rereading the existing iCloud catalog and **Scan Steam** for discovering installed Steam titles and updating the catalog. **Scan Steam** is available from both the management window and notification-area menu.
+The management window supports search and uses **Scan Steam** for discovering installed Steam titles and updating the catalog. Closing the window hides it to the notification area. Opening the authoritative iCloud folder and fully exiting are notification-area commands rather than window actions.
 
 ## File layout
 
 ```text
-iCloud Drive/
-└── Shortcuts/
-    └── Game Reminders/
-        ├── games.json
-        ├── inbox/
-        ├── completed/
-        └── invalid/
+Game Reminders/
+├── games.json
+├── inbox/
+├── completed/
+└── invalid/
 ```
 
-The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility; the Windows app is explicitly pointed at that authoritative folder. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until manually cleared.
+The folder is configured as **Always keep on this device**. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until manually cleared.
 
 Only the Windows client writes `games.json`, using a temporary file followed by atomic replacement. IDs remain stable when display names and aliases change. A blank file or empty JSON object is treated as a new empty catalog and rewritten in canonical schema-versioned form; other malformed content still fails visibly.
 
 ## Windows implementation
 
-The Windows application uses C#, the current .NET LTS release, and WPF. It requires no administrator privileges. Windows-only settings, pending detections, ignored processes, suppressed Steam app IDs, review indicators, and diagnostic logs live under the user's application-data directory; reminder state does not.
+The Windows application uses C#, the current .NET LTS release, and WPF. It follows the Windows light/dark app preference and requires no administrator privileges. Windows-only settings, pending detections, ignored-discovery metadata, suppressed Steam app IDs, review indicators, and diagnostic logs live under the user's application-data directory; reminder state does not.
 
 Development builds are unsigned portable ZIP artifacts built by GitHub Actions. A conventional installer and launch-at-login behavior follow after core behavior stabilizes.
 

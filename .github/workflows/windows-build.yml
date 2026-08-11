@@ -47,6 +47,16 @@ jobs:
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
 
+      - name: Verify published executable name
+        shell: pwsh
+        run: |
+          if (-not (Test-Path './artifacts/game-reminders-win-x64/GameReminders.exe')) {
+            throw 'Published build is missing GameReminders.exe.'
+          }
+          if (Test-Path './artifacts/game-reminders-win-x64/GameReminders.App.exe') {
+            throw 'Published build still contains the old GameReminders.App.exe name.'
+          }
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:

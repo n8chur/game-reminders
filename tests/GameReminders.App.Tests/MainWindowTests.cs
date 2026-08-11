@@ -67,4 +67,40 @@ public sealed class MainWindowTests
 
         Assert.Equal(expected, MainWindow.IsFullyWithinViewport(itemBounds, viewport));
     }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("selected", true)]
+    public void RowActionsRequireSelection(object? selectedItem, bool expected)
+    {
+        Assert.Equal(expected, MainWindow.HasSelection(selectedItem));
+    }
+
+    [Theory]
+    [InlineData("Farever", "fare", true)]
+    [InlineData("Farever", "EVER", true)]
+    [InlineData("Farever", "monster", false)]
+    [InlineData("Farever", "", true)]
+    public void SearchMatchesGameNamesCaseInsensitively(string value, string query, bool expected)
+    {
+        Assert.Equal(expected, MainWindow.Matches(value, query));
+    }
+
+    [Theory]
+    [InlineData(0, "game", "0 games")]
+    [InlineData(1, "game", "1 game")]
+    [InlineData(2, "item", "2 items")]
+    public void CountLabelsUseCorrectPlural(int count, string singular, string expected)
+    {
+        Assert.Equal(expected, MainWindow.CountLabel(count, singular));
+    }
+
+    [Fact]
+    public void BadgeColorsDistinguishActionFromNew()
+    {
+        var game = new GameReminders.Core.GameDefinition { Id = "test", Name = "Test" };
+
+        Assert.Equal("#B42318", new GameListItem(game, true, "ACTION REQUIRED").BadgeBackground);
+        Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
+    }
 }

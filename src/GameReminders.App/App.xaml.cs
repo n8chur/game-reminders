@@ -1,5 +1,5 @@
 using System.Text.Json;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Windows;
 using GameReminders.Core;
 
@@ -13,7 +13,9 @@ public partial class App : System.Windows.Application
     private ReminderStore? _store;
     private SettingsService? _settingsService;
     private AppSettings _settings = new();
+    private ThemeManager? _themeManager;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+    private System.Drawing.Icon? _normalTrayIcon;
     private System.Drawing.Icon? _attentionTrayIcon;
     private IReadOnlySet<string> _actionRequiredGameIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private readonly ReviewNotificationQueue _reviewNotifications = new();
@@ -23,6 +25,7 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        _themeManager = new ThemeManager(this);
 
         try
         {
@@ -42,16 +45,13 @@ public partial class App : System.Windows.Application
             _store.EnsureInitialized();
 
             _mainWindow = new MainWindow(
-                root,
-                StartMonitoring,
-                ShutdownApplication,
                 AddManualGame,
                 EditGame,
                 RemoveGame,
                 ScanSteam,
                 ConfigureDetection,
                 IgnoreDetection,
-                RestoreSteamGame,
+                RestoreIgnored,
                 MarkGamesReviewed);
             MainWindow = _mainWindow;
             CreateTrayIcon();
@@ -94,6 +94,7 @@ public partial class App : System.Windows.Application
     {
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Open Game Reminders", null, (_, _) => DispatchFromTray(ShowMainWindow));
+        menu.Items.Add("Open iCloud Folder", null, (_, _) => DispatchFromTray(OpenICloudFolder));
         menu.Items.Add("Scan Steam", null, (_, _) => DispatchFromTray(ScanSteam));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => DispatchFromTray(ShutdownApplication));
@@ -101,7 +102,7 @@ public partial class App : System.Windows.Application
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
             Text = "Game Reminders",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = _normalTrayIcon ??= AppIcon.Create(attention: false),
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -120,33 +121,11 @@ public partial class App : System.Windows.Application
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count() + _settings.PendingDetections.Count;
         _trayIcon.Icon = attentionCount > 0
-            ? _attentionTrayIcon ??= CreateAttentionIcon()
-            : System.Drawing.SystemIcons.Application;
+            ? _attentionTrayIcon ??= AppIcon.Create(attention: true)
+            : _normalTrayIcon ??= AppIcon.Create(attention: false);
         _trayIcon.Text = attentionCount > 0
             ? $"Game Reminders — {attentionCount} item(s) need review"
             : "Game Reminders";
-    }
-
-    private static System.Drawing.Icon CreateAttentionIcon()
-    {
-        using var bitmap = new System.Drawing.Bitmap(16, 16);
-        using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-        {
-            graphics.DrawIcon(System.Drawing.SystemIcons.Application, new System.Drawing.Rectangle(0, 0, 16, 16));
-            using var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(220, 38, 38));
-            graphics.FillEllipse(brush, 9, 0, 7, 7);
-        }
-
-        var handle = bitmap.GetHicon();
-        try
-        {
-            using var icon = System.Drawing.Icon.FromHandle(handle);
-            return (System.Drawing.Icon)icon.Clone();
-        }
-        finally
-        {
-            DestroyIcon(handle);
-        }
     }
 
     private void DispatchFromTray(Action action)
@@ -172,16 +151,18 @@ public partial class App : System.Windows.Application
         _mainWindow?.Activate();
     }
 
+    private void OpenICloudFolder()
+    {
+        if (!string.IsNullOrWhiteSpace(_settings.ICloudRoot))
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", _settings.ICloudRoot) { UseShellExecute = true });
+        }
+    }
+
     private void ShowGames()
     {
         ShowMainWindow();
         _mainWindow?.ShowGames();
-    }
-
-    private void ShowDetectedGames()
-    {
-        ShowMainWindow();
-        _mainWindow?.ShowDetectedGames();
     }
 
     private void ShutdownApplication()
@@ -201,30 +182,50 @@ public partial class App : System.Windows.Application
         {
             var catalog = _store.LoadCatalog();
             var previous = _monitor;
-            var replacement = new ProcessLaunchMonitor(
-                catalog.Games,
-                System.Diagnostics.Process.GetProcesses,
-                previous?.SnapshotActiveGameIds());
+            var replacement = CreateReplacementMonitor(catalog.Games, previous);
             replacement.GameLaunched += OnGameLaunched;
-
-            _monitor = replacement;
-            previous?.Dispose();
-            replacement.Start();
+            _monitor = ActivateReplacementMonitor(replacement, previous);
             _actionRequiredGameIds = catalog.Games
                 .Where(game => game.Source?.RequiresExecutableReview == true)
                 .Select(game => game.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             _mainWindow?.SetGames(catalog.Games, _settings.UnreviewedGameIds.ToHashSet(StringComparer.OrdinalIgnoreCase));
-            _mainWindow?.SetSuppressedSteamGames(_settings.SuppressedSteamGames);
+            RefreshIgnored();
             UpdateTrayAttention();
-            _mainWindow?.SetStatus($"Monitoring {catalog.Games.Count} configured game(s)");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
         {
             var status = $"Could not load games.json: {exception.Message}";
-            _mainWindow?.SetStatus(status);
+            _mainWindow?.SetStatus(status, isIssue: true);
             MessageBox.Show(status, "Could not reload games.json", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    internal static ProcessLaunchMonitor CreateReplacementMonitor(
+        IReadOnlyList<GameDefinition> games,
+        ProcessLaunchMonitor? previous,
+        Func<Process[]>? getProcesses = null) =>
+        new(
+            games,
+            getProcesses ?? Process.GetProcesses,
+            previous?.SnapshotActiveGameIds());
+
+    internal static ProcessLaunchMonitor ActivateReplacementMonitor(
+        ProcessLaunchMonitor replacement,
+        ProcessLaunchMonitor? previous,
+        Action<ProcessLaunchMonitor>? start = null)
+    {
+        previous?.Dispose();
+        if (start is null)
+        {
+            replacement.Start();
+        }
+        else
+        {
+            start(replacement);
+        }
+
+        return replacement;
     }
 
     private void StartForegroundDetection()
@@ -305,7 +306,7 @@ public partial class App : System.Windows.Application
     private void RemoveGame(GameDefinition game)
     {
         if (_store is null || MessageBox.Show(
-                $"Remove '{game.Name}' from the catalog? Existing reminder files will be preserved. Steam games can be restored later from Removed Steam games.",
+                $"Remove '{game.Name}' from the catalog? Existing reminder files will be preserved. Steam games can be restored later from Ignored.",
                 "Remove game", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
             return;
@@ -369,7 +370,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            _mainWindow?.SetStatus($"Steam discovery failed: {exception.Message}");
+            _mainWindow?.SetStatus($"Steam discovery failed: {exception.Message}", isIssue: true);
             return;
         }
 
@@ -402,7 +403,7 @@ public partial class App : System.Windows.Application
                     _settings = updated;
                     if (_settingsService?.TrySave(updated) != true)
                     {
-                        _mainWindow?.SetStatus("Steam games were added, but their review badges could not be saved");
+                        _mainWindow?.SetStatus("Steam games were added, but their review badges could not be saved.", isIssue: true);
                     }
                 }
                 StartMonitoring();
@@ -423,7 +424,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            _mainWindow?.SetStatus($"Steam scan could not update games.json: {exception.Message}");
+            _mainWindow?.SetStatus($"Steam scan could not update games.json: {exception.Message}", isIssue: true);
         }
     }
 
@@ -438,13 +439,7 @@ public partial class App : System.Windows.Application
         try
         {
             var catalog = _store.LoadCatalog();
-            var detectionProcesses = detection.Processes
-                .Where(process => !string.IsNullOrWhiteSpace(process))
-                .ToArray();
-            if (catalog.Games.Any(game =>
-                    (detection.AppId is not null && string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
-                    game.Processes.Any(configured =>
-                        detectionProcesses.Any(detected => NameNormalizer.ExecutableMatches(configured, detected)))))
+            if (IsConfiguredDetection(catalog, detection))
             {
                 return false;
             }
@@ -457,13 +452,21 @@ public partial class App : System.Windows.Application
         var updated = _settings with { PendingDetections = _settings.PendingDetections.Append(detection).ToArray() };
         if (_settingsService?.TrySave(updated) != true)
         {
-            _mainWindow?.SetStatus($"Could not persist detected game '{detection.Name}'; detection will be retried");
+            _mainWindow?.SetStatus($"Could not persist detected game '{detection.Name}'; detection will be retried.", isIssue: true);
             return false;
         }
         _settings = updated;
         RefreshPending();
         return true;
     }
+
+    internal static bool IsConfiguredDetection(GameCatalog catalog, PendingGameDetection detection) =>
+        catalog.Games.Any(game =>
+            (!string.IsNullOrWhiteSpace(detection.AppId) &&
+                string.Equals(game.Source?.AppId, detection.AppId, StringComparison.OrdinalIgnoreCase)) ||
+            game.Processes.Any(configured =>
+                detection.Processes.Any(observed =>
+                    NameNormalizer.ExecutableMatches(configured, observed))));
 
     private void ShowReviewNotification(int count, bool trustedSteamGames)
     {
@@ -488,8 +491,8 @@ public partial class App : System.Windows.Application
                 ? "A Steam game was added. Click to review it."
                 : $"{notification.Count} Steam games were added. Click to review them."
             : notification.Count == 1
-                ? "A potential game needs review. Click to open Detected games."
-                : $"{notification.Count} potential games need review. Click to open Detected games.";
+                ? "A potential game needs review. Click to open Games."
+                : $"{notification.Count} potential games need review. Click to open Games.";
         _trayIcon.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.Info;
         _trayIcon.ShowBalloonTip(5000);
     }
@@ -503,15 +506,24 @@ public partial class App : System.Windows.Application
         }
         else if (notification is not null)
         {
-            ShowDetectedGames();
+            ShowGames();
         }
     }
 
-    private void OnReviewNotificationClosed(object? sender, EventArgs e)
+    private void OnReviewNotificationClosed(object? sender, EventArgs e) =>
+        DispatchAfterReviewNotificationClosed(
+            _reviewNotifications,
+            DispatchFromTray,
+            DisplayActiveReviewNotification);
+
+    internal static void DispatchAfterReviewNotificationClosed(
+        ReviewNotificationQueue notifications,
+        Action<Action> dispatch,
+        Action display)
     {
-        if (_reviewNotifications.CompleteActive() is not null)
+        if (notifications.CompleteActive() is not null)
         {
-            DispatchFromTray(DisplayActiveReviewNotification);
+            dispatch(display);
         }
     }
 
@@ -535,7 +547,7 @@ public partial class App : System.Windows.Application
         RefreshPending();
         if (_settingsService?.TrySave(updated) != true)
         {
-            _mainWindow?.SetStatus("Steam games were added, but cached detections could not be cleaned up");
+            _mainWindow?.SetStatus("Steam games were added, but cached detections could not be cleaned up.", isIssue: true);
         }
     }
 
@@ -564,7 +576,11 @@ public partial class App : System.Windows.Application
         var updated = _settings with
         {
             PendingDetections = _settings.PendingDetections.Where(item => !string.Equals(item.Key, detection.Key, StringComparison.OrdinalIgnoreCase)).ToArray(),
-            IgnoredDetectionKeys = _settings.IgnoredDetectionKeys.Append(detection.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            IgnoredDetectionKeys = _settings.IgnoredDetectionKeys.Append(detection.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            IgnoredDetections = _settings.IgnoredDetections.Append(detection)
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray()
         };
         if (_settingsService?.TrySave(updated) != true)
         {
@@ -592,16 +608,42 @@ public partial class App : System.Windows.Application
     {
         _mainWindow?.SetPending(
             _settings.PendingDetections.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase).ToArray());
-        _mainWindow?.SetSuppressedSteamGames(_settings.SuppressedSteamGames);
+        RefreshIgnored();
         UpdateTrayAttention();
     }
 
-    private void RestoreSteamGame(SuppressedSteamGame game)
+    private void RefreshIgnored()
     {
+        var ignoredDetections = _settings.IgnoredDetections.Select(item => new IgnoredDiscoveryItem(
+            item.Key,
+            item.Name,
+            string.Equals(item.SourceType, "steam", StringComparison.OrdinalIgnoreCase) ? "Steam discovery" : "Detected application"));
+        var suppressedSteam = _settings.SuppressedSteamGames.Select(item => new IgnoredDiscoveryItem(
+            $"steam:{item.AppId}", item.Name, "Removed Steam game", item.AppId));
+        _mainWindow?.SetIgnored(ignoredDetections.Concat(suppressedSteam)
+            .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray());
+    }
+
+    private void RestoreIgnored(IgnoredDiscoveryItem item)
+    {
+        if (item.SteamAppId is null)
+        {
+            var updatedDetectionSettings = RestoreIgnoredDetection(_settings, item.Key);
+            if (_settingsService?.TrySave(updatedDetectionSettings) != true)
+            {
+                MessageBox.Show("The restore choice could not be saved.", "Game Reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            _settings = updatedDetectionSettings;
+            RefreshPending();
+            return;
+        }
+
         var updated = _settings with
         {
             SuppressedSteamGames = _settings.SuppressedSteamGames
-                .Where(item => !string.Equals(item.AppId, game.AppId, StringComparison.OrdinalIgnoreCase))
+                .Where(game => !string.Equals(game.AppId, item.SteamAppId, StringComparison.OrdinalIgnoreCase))
                 .ToArray()
         };
         if (_settingsService?.TrySave(updated) != true)
@@ -611,9 +653,33 @@ public partial class App : System.Windows.Application
         }
 
         _settings = updated;
-        _mainWindow?.SetSuppressedSteamGames(_settings.SuppressedSteamGames);
+        RefreshIgnored();
         UpdateTrayAttention();
         _ = ScanSteamAsync(showCompletion: true);
+    }
+
+    internal static AppSettings RestoreIgnoredDetection(AppSettings settings, string key)
+    {
+        var restored = settings.IgnoredDetections.FirstOrDefault(
+            detection => string.Equals(detection.Key, key, StringComparison.OrdinalIgnoreCase));
+        var pending = restored is null
+            ? settings.PendingDetections
+            : settings.PendingDetections
+                .Append(restored)
+                .GroupBy(detection => detection.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+
+        return settings with
+        {
+            PendingDetections = pending,
+            IgnoredDetections = settings.IgnoredDetections
+                .Where(detection => !string.Equals(detection.Key, key, StringComparison.OrdinalIgnoreCase))
+                .ToArray(),
+            IgnoredDetectionKeys = settings.IgnoredDetectionKeys
+                .Where(ignoredKey => !string.Equals(ignoredKey, key, StringComparison.OrdinalIgnoreCase))
+                .ToArray()
+        };
     }
 
     private void MarkGamesReviewed(IReadOnlyCollection<string> gameIds)
@@ -636,7 +702,7 @@ public partial class App : System.Windows.Application
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
             {
-                _mainWindow?.SetStatus($"Could not refresh review badges: {exception.Message}");
+                _mainWindow?.SetStatus($"Could not refresh review badges: {exception.Message}", isIssue: true);
             }
         }
         UpdateTrayAttention();
@@ -659,7 +725,7 @@ public partial class App : System.Windows.Application
                 await Dispatcher.InvokeAsync(() =>
                 {
                     var status = $"Could not display reminders for '{game.Name}': {exception.Message}";
-                    _mainWindow?.SetStatus(status);
+                    _mainWindow?.SetStatus(status, isIssue: true);
                     MessageBox.Show(status, "Could not display reminders", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
             }
@@ -682,7 +748,7 @@ public partial class App : System.Windows.Application
     private void OnInvalidReminderDetected(object? sender, InvalidReminderEventArgs e)
     {
         var status = $"Reminder file '{e.FileName}' {e.Reason}.";
-        _mainWindow?.SetStatus(status);
+        _mainWindow?.SetStatus(status, isIssue: true);
         MessageBox.Show(status, "Invalid reminder file", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
@@ -699,10 +765,9 @@ public partial class App : System.Windows.Application
             _trayIcon.Visible = false;
             _trayIcon.Dispose();
         }
+        _normalTrayIcon?.Dispose();
         _attentionTrayIcon?.Dispose();
+        _themeManager?.Dispose();
         base.OnExit(e);
     }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool DestroyIcon(IntPtr handle);
 }

@@ -33,6 +33,7 @@ public sealed class SettingsServiceTests : IDisposable
         service.Save(new AppSettings
         {
             PendingDetections = [detection],
+            IgnoredDetections = [detection with { Key = "process:ignored", SourceType = "detected" }],
             IgnoredDetectionKeys = ["process:ignored"],
             SuppressedSteamGames = [new SuppressedSteamGame { AppId = "456", Name = "Removed" }],
             UnreviewedGameIds = ["steam-123"]
@@ -40,6 +41,7 @@ public sealed class SettingsServiceTests : IDisposable
         var result = service.Load();
 
         Assert.Equal("steam:123", Assert.Single(result.PendingDetections).Key);
+        Assert.Equal("process:ignored", Assert.Single(result.IgnoredDetections).Key);
         Assert.Equal("process:ignored", Assert.Single(result.IgnoredDetectionKeys));
         Assert.Equal("456", Assert.Single(result.SuppressedSteamGames).AppId);
         Assert.Equal("steam-123", Assert.Single(result.UnreviewedGameIds));
@@ -50,14 +52,39 @@ public sealed class SettingsServiceTests : IDisposable
     {
         Directory.CreateDirectory(_root);
         var settingsPath = Path.Combine(_root, "settings.json");
-        File.WriteAllText(settingsPath, "{ \"pendingDetections\": null, \"ignoredDetectionKeys\": null, \"suppressedSteamGames\": null, \"unreviewedGameIds\": null }");
+        File.WriteAllText(settingsPath, "{ \"pendingDetections\": null, \"ignoredDetections\": null, \"ignoredDetectionKeys\": null, \"suppressedSteamGames\": null, \"unreviewedGameIds\": null }");
 
         var result = new SettingsService(settingsPath).Load();
 
         Assert.Empty(result.PendingDetections);
+        Assert.Empty(result.IgnoredDetections);
         Assert.Empty(result.IgnoredDetectionKeys);
         Assert.Empty(result.SuppressedSteamGames);
         Assert.Empty(result.UnreviewedGameIds);
+    }
+
+    [Fact]
+    public void IgnoredDetectionMetadataAlsoRestoresLegacySuppressionKey()
+    {
+        Directory.CreateDirectory(_root);
+        var settingsPath = Path.Combine(_root, "settings.json");
+        File.WriteAllText(settingsPath, """
+            {
+              "ignoredDetections": [
+                {
+                  "key": "process:testgame",
+                  "name": "Test Game",
+                  "processes": ["TestGame.exe"],
+                  "sourceType": "detected"
+                }
+              ]
+            }
+            """);
+
+        var result = new SettingsService(settingsPath).Load();
+
+        Assert.Equal("process:testgame", Assert.Single(result.IgnoredDetections).Key);
+        Assert.Equal("process:testgame", Assert.Single(result.IgnoredDetectionKeys));
     }
 
     [Fact]

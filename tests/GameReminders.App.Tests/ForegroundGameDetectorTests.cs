@@ -3,6 +3,16 @@ namespace GameReminders.App.Tests;
 public sealed class ForegroundGameDetectorTests
 {
     [Fact]
+    public void ProcessExitDuringDetectionIsIgnored()
+    {
+        var detection = ForegroundGameDetector.TryDetect(
+            123,
+            _ => throw new ArgumentException("Process is not running."));
+
+        Assert.Null(detection);
+    }
+
+    [Fact]
     public async Task ScanDoesNotOverlap()
     {
         using var scanStarted = new ManualResetEventSlim();

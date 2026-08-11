@@ -13,6 +13,7 @@ public partial class ReminderWindow : Window
     public ReminderWindow(GameDefinition game, IReadOnlyList<Reminder> reminders, ReminderStore store)
     {
         InitializeComponent();
+        ThemeManager.PrepareWindow(this);
         _store = store;
         Title = $"{game.Name} reminder";
         HeadingText.Text = reminders.Count == 1
@@ -51,11 +52,11 @@ public partial class ReminderWindow : Window
         var row = new Border
         {
             Child = content,
-            Background = Brushes.White,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(16),
             Margin = new Thickness(0, 0, 0, 10)
         };
+        row.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
         _rows[reminder.Id] = row;
         ReminderList.Children.Add(row);
     }
