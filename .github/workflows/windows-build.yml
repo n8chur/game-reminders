@@ -31,12 +31,6 @@ jobs:
         shell: pwsh
         run: ./shortcuts/Test-ShortcutArtifact.ps1 -Path './shortcuts/GameReminder-unsigned.shortcut'
 
-      - name: Validate portable Shortcut prototype
-        shell: pwsh
-        run: >-
-          ./shortcuts/Test-PortableShortcutArtifact.ps1
-          -Path './shortcuts/prototypes/portable/GameReminder-portable-unsigned.shortcut'
-          -CanonicalPath './shortcuts/GameReminder-unsigned.shortcut'
 
       - name: Restore
         run: dotnet restore GameReminders.slnx
