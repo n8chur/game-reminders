@@ -94,6 +94,7 @@ public partial class MainWindow : Window
         IgnoredList.Visibility = ignored.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         IgnoredEmptyText.Visibility = ignored.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         IgnoredTab.Header = ignored.Count > 0 ? $"Ignored ({ignored.Count})" : "Ignored";
+        UpdateSelectionStates();
     }
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
@@ -118,7 +119,18 @@ public partial class MainWindow : Window
         GamesList.Visibility = games.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         GamesEmptyText.Visibility = games.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         DetectedSection.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        DetectionActions.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateSelectionStates();
+    }
+
+    internal static bool HasSelection(object? selectedItem) => selectedItem is not null;
+
+    private void UpdateSelectionStates()
+    {
+        EditGameButton.IsEnabled = HasSelection(GamesList.SelectedItem);
+        RemoveGameButton.IsEnabled = HasSelection(GamesList.SelectedItem);
+        ConfigureDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
+        IgnoreDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
+        RestoreIgnoredButton.IsEnabled = HasSelection(IgnoredList.SelectedItem);
     }
 
     internal static bool Matches(string value, string query) =>
@@ -153,12 +165,19 @@ public partial class MainWindow : Window
 
     private void GamesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        UpdateSelectionStates();
         if (GamesList.SelectedItem is GameListItem item &&
             ShouldAcknowledge(item, isSelected: true, isVisible: false, acknowledgeVisibleRows: false))
         {
             _markGamesReviewed([item.Game.Id]);
         }
     }
+
+    private void PendingList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateSelectionStates();
+
+    private void IgnoredList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateSelectionStates();
 
     private void MarkVisibleGamesReviewed()
     {
