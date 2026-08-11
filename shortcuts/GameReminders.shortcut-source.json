@@ -5,7 +5,7 @@
   "platform": "iPhone and iPad Shortcuts",
   "distribution": {
     "unsignedArtifact": "GameReminder-unsigned.shortcut",
-    "signedArtifact": "GameReminder.shortcut",
+    "signedArtifact": "Game Reminder.shortcut",
     "status": "requires-apple-signing",
     "sharingMode": "anyone"
   },

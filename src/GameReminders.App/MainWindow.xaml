@@ -13,9 +13,14 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" Margin="0,0,0,18">
-            <Button Content="Scan Steam" DockPanel.Dock="Right" Click="ScanSteam_Click"
-                    Height="34" MinHeight="34" VerticalAlignment="Top"
-                    ToolTip="Discover installed Steam games" />
+            <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <Button Content="Scan Steam" Click="ScanSteam_Click"
+                        Height="34" MinHeight="34" HorizontalAlignment="Right"
+                        ToolTip="Discover installed Steam games" />
+                <CheckBox x:Name="LaunchAtLoginCheckBox"
+                          Content="Launch at login" Margin="0,9,0,0"
+                          HorizontalAlignment="Right" Click="LaunchAtLogin_Click" />
+            </StackPanel>
             <StackPanel>
                 <TextBlock Text="Game Reminders" FontSize="27" FontWeight="SemiBold" />
                 <TextBlock Text="Choose which games should show your reminders"

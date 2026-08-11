@@ -12,6 +12,9 @@ public partial class App : System.Windows.Application
     private MainWindow? _mainWindow;
     private ReminderStore? _store;
     private SettingsService? _settingsService;
+    private StoreRootValidator? _storeRootValidator;
+    private ILaunchAtLoginService? _launchAtLoginService;
+    private SingleInstanceCoordinator? _singleInstance;
     private AppSettings _settings = new();
     private ThemeManager? _themeManager;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -25,25 +28,36 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _themeManager = new ThemeManager(this);
 
         try
         {
+            _singleInstance = SingleInstanceCoordinator.TryStart(
+                ShouldShowMainWindow(e.Args),
+                RequestExistingInstanceWindow);
+            if (_singleInstance is null)
+            {
+                Shutdown();
+                return;
+            }
+
+            _themeManager = new ThemeManager(this);
             _settingsService = new SettingsService();
             _settings = _settingsService.Load();
-            var root = ResolveRoot(_settings);
+            _storeRootValidator = new StoreRootValidator();
+            _launchAtLoginService = new LaunchAtLoginService(
+                Environment.ProcessPath ?? throw new InvalidOperationException("The current executable path is unavailable."));
+            var root = ResolveRoot();
             if (root is null)
             {
                 Shutdown();
                 return;
             }
 
-            _settings = _settings with { ICloudRoot = root };
-            SaveSettings();
             _store = new ReminderStore(root);
             _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
 
+            var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
             _mainWindow = new MainWindow(
                 AddManualGame,
                 EditGame,
@@ -52,10 +66,20 @@ public partial class App : System.Windows.Application
                 ConfigureDetection,
                 IgnoreDetection,
                 RestoreIgnored,
-                MarkGamesReviewed);
+                MarkGamesReviewed,
+                launchAtLogin,
+                GameReminders.App.MainWindow.CanChangeLaunchAtLogin(startupStatusError),
+                SetLaunchAtLogin);
             MainWindow = _mainWindow;
+            if (startupStatusError is not null)
+            {
+                _mainWindow.SetStatus(startupStatusError, isIssue: true);
+            }
             CreateTrayIcon();
-            _mainWindow.Show();
+            if (ShouldShowMainWindow(e.Args))
+            {
+                _mainWindow.Show();
+            }
 
             StartMonitoring();
             RefreshPending();
@@ -73,21 +97,95 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private static string? ResolveRoot(AppSettings settings)
+    internal static bool ShouldShowMainWindow(IReadOnlyList<string> arguments) =>
+        !arguments.Any(argument => string.Equals(
+            argument,
+            LaunchAtLoginService.HiddenAtLoginArgument,
+            StringComparison.OrdinalIgnoreCase));
+
+    private string? ResolveRoot()
     {
-        if (!string.IsNullOrWhiteSpace(settings.ICloudRoot) && Directory.Exists(settings.ICloudRoot))
+        if (_storeRootValidator is null || _launchAtLoginService is null || _settingsService is null)
         {
-            return settings.ICloudRoot;
+            return null;
         }
 
-        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        var state = SetupStateResolver.Resolve(_settings, _storeRootValidator.ValidateSavedRoot);
+        if (state.Requirement == SetupRequirement.None)
         {
-            Description = "Select your iCloud Drive 'Game Reminders' folder",
-            UseDescriptionForTitle = true,
-            ShowNewFolderButton = true
-        };
+            _settings = ApplyValidatedRoot(_settings, state);
+            return _settings.ICloudRoot;
+        }
 
-        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dialog.SelectedPath : null;
+        var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
+        var suggestedShortcutsRoot =
+            ShortcutsFolderLocator.FromSavedRoot(state.SavedRoot) ??
+            ShortcutsFolderLocator.Find(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        var setup = new SetupWindow(
+            state,
+            suggestedShortcutsRoot,
+            launchAtLogin,
+            startupStatusError,
+            (selectedRoot, desiredLaunchAtLogin) =>
+            {
+                var result = SetupCommitter.Commit(
+                    _settings,
+                    selectedRoot,
+                    desiredLaunchAtLogin,
+                    _storeRootValidator.ValidateShortcutsSelection,
+                    _launchAtLoginService,
+                    _settingsService.TrySave);
+                if (result.Succeeded)
+                {
+                    _settings = result.Settings;
+                }
+
+                return result.Error;
+            });
+
+        return setup.ShowDialog() == true ? _settings.ICloudRoot : null;
+    }
+
+    internal static AppSettings ApplyValidatedRoot(AppSettings settings, SetupState state) =>
+        state.Requirement == SetupRequirement.None && state.Root is not null
+            ? settings with { ICloudRoot = state.Root }
+            : settings;
+
+    private bool GetLaunchAtLoginState(out string? error)
+    {
+        error = null;
+        if (_launchAtLoginService is not null &&
+            _launchAtLoginService.TryGetEnabled(out var enabled, out error))
+        {
+            return enabled;
+        }
+
+        error ??= "Windows launch-at-login status is unavailable.";
+        return false;
+    }
+
+    private LaunchAtLoginChangeResult SetLaunchAtLogin(bool enabled)
+    {
+        if (_launchAtLoginService is null)
+        {
+            return new LaunchAtLoginChangeResult(false, "Windows launch-at-login is unavailable.");
+        }
+
+        if (!_launchAtLoginService.TrySetEnabled(enabled, out var changeError))
+        {
+            var actualAfterFailure = GetLaunchAtLoginState(out _);
+            return new LaunchAtLoginChangeResult(actualAfterFailure, changeError);
+        }
+
+        var actual = GetLaunchAtLoginState(out var statusError);
+        if (statusError is not null || actual != enabled)
+        {
+            return new LaunchAtLoginChangeResult(
+                actual,
+                statusError ?? "Windows did not retain the requested launch-at-login setting.");
+        }
+
+        return new LaunchAtLoginChangeResult(actual, null);
     }
 
     private void CreateTrayIcon()
@@ -147,8 +245,53 @@ public partial class App : System.Windows.Application
 
     private void ShowMainWindow()
     {
-        _mainWindow?.Show();
-        _mainWindow?.Activate();
+        if (_mainWindow is null)
+        {
+            return;
+        }
+
+        ShowAndActivate(_mainWindow);
+    }
+
+    private void RequestExistingInstanceWindow()
+    {
+        if (!TrayDispatcher.ShouldDispatch(Dispatcher.HasShutdownStarted, Dispatcher.HasShutdownFinished))
+        {
+            return;
+        }
+
+        try
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_mainWindow is not null)
+                {
+                    ShowMainWindow();
+                    return;
+                }
+
+                var visibleWindow = Windows.OfType<Window>().FirstOrDefault(window => window.IsVisible);
+                if (visibleWindow is not null)
+                {
+                    ShowAndActivate(visibleWindow);
+                }
+            });
+        }
+        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+        {
+            // Ignore an activation request delivered while WPF is shutting down.
+        }
+    }
+
+    private static void ShowAndActivate(Window window)
+    {
+        window.Show();
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Activate();
     }
 
     private void OpenICloudFolder()
@@ -768,6 +911,7 @@ public partial class App : System.Windows.Application
         _normalTrayIcon?.Dispose();
         _attentionTrayIcon?.Dispose();
         _themeManager?.Dispose();
+        _singleInstance?.Dispose();
         base.OnExit(e);
     }
 }

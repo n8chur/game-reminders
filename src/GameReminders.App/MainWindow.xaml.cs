@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     private readonly Action<PendingGameDetection> _ignoreDetection;
     private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
     private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
+    private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
+    private bool _updatingLaunchAtLogin;
     private IReadOnlyList<GameListItem> _games = [];
     private IReadOnlyList<PendingGameDetection> _pending = [];
 
@@ -26,7 +28,10 @@ public partial class MainWindow : Window
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
         Action<IgnoredDiscoveryItem> restoreIgnored,
-        Action<IReadOnlyCollection<string>> markGamesReviewed)
+        Action<IReadOnlyCollection<string>> markGamesReviewed,
+        bool launchAtLogin,
+        bool launchAtLoginAvailable,
+        Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
@@ -38,6 +43,9 @@ public partial class MainWindow : Window
         _ignoreDetection = ignoreDetection;
         _restoreIgnored = restoreIgnored;
         _markGamesReviewed = markGamesReviewed;
+        _setLaunchAtLogin = setLaunchAtLogin;
+        LaunchAtLoginCheckBox.IsChecked = launchAtLogin;
+        LaunchAtLoginCheckBox.IsEnabled = launchAtLoginAvailable;
         Closing += (_, args) =>
         {
             args.Cancel = ShouldHideOnClose(_allowClose);
@@ -49,6 +57,8 @@ public partial class MainWindow : Window
         };
         Deactivated += (_, _) => MarkVisibleGamesReviewed();
     }
+
+    internal static bool CanChangeLaunchAtLogin(string? statusError) => statusError is null;
 
     internal static bool ShouldHideOnClose(bool allowClose) => !allowClose;
 
@@ -150,6 +160,22 @@ public partial class MainWindow : Window
         if (GamesList.SelectedItem is GameListItem item) _removeGame(item.Game);
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
+    private void LaunchAtLogin_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updatingLaunchAtLogin)
+        {
+            return;
+        }
+
+        var result = _setLaunchAtLogin(LaunchAtLoginCheckBox.IsChecked == true);
+        _updatingLaunchAtLogin = true;
+        LaunchAtLoginCheckBox.IsChecked = result.Enabled;
+        _updatingLaunchAtLogin = false;
+        if (result.Error is not null)
+        {
+            SetStatus(result.Error, isIssue: true);
+        }
+    }
     private void ConfigureDetection_Click(object sender, RoutedEventArgs e)
     {
         if (PendingList.SelectedItem is PendingGameDetection detection) _configureDetection(detection);
@@ -232,3 +258,5 @@ internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, stri
 }
 
 internal sealed record IgnoredDiscoveryItem(string Key, string Name, string SourceLabel, string? SteamAppId = null);
+
+internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);

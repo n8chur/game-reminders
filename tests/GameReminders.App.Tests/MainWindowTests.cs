@@ -2,6 +2,14 @@ namespace GameReminders.App.Tests;
 
 public sealed class MainWindowTests
 {
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("registry unavailable", false)]
+    public void LaunchAtLoginCanOnlyChangeWhenStatusIsKnown(string? statusError, bool expected)
+    {
+        Assert.Equal(expected, MainWindow.CanChangeLaunchAtLogin(statusError));
+    }
+
     [Fact]
     public void CloseIsHiddenUntilApplicationExitIsAllowed()
     {
