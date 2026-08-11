@@ -959,7 +959,8 @@ public partial class App : System.Windows.Application
                 return;
             }
 
-            var window = new NewReminderWindow(games, CreateReminder) { Owner = _mainWindow };
+            var reminders = _store.LoadAllPending().Concat(_store.LoadCompleted()).ToArray();
+            var window = new NewReminderWindow(games, reminders, CreateReminder) { Owner = _mainWindow };
             window.ShowDialog();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
