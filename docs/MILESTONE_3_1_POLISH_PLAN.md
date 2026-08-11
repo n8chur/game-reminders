@@ -1,6 +1,6 @@
 # Milestone 3.1: Shortcut polish
 
-Status: discovery and prototype.
+Status: Phase A implementation and cross-device validation.
 
 Tracking issue: [#5](https://github.com/n8chur/game-reminders/issues/5)
 
@@ -10,21 +10,21 @@ Reduce cross-device setup friction and recover safely from unknown spoken aliase
 
 This is a post-MVP polish milestone. It does not replace Milestone 4 reliability and packaging or Milestone 5 application polish in the approved MVP specification.
 
-## Phase A: portable iCloud layout
+## Phase A: cross-device iCloud layout
 
-Prototype `iCloud Drive/Shortcuts/Game Reminders` as the recommended authoritative store. The Shortcut should resolve both `Game Reminders/games.json` and `Game Reminders/inbox` relative to its built-in iCloud Shortcuts folder instead of embedding external folder bookmarks.
+Use `iCloud Drive/Shortcuts/Game Reminders` as the authoritative store. The canonical Shortcut resolves both `Game Reminders/games.json` and `Game Reminders/inbox` relative to its built-in iCloud Shortcuts folder instead of embedding external folder bookmarks. The canonical unsigned artifact and source are replaced in place; Git history preserves the prior implementation.
 
-The current custom-folder artifact remains the fallback until the exact replacement artifact passes a clean-device test.
+The currently signed distribution remains unchanged until the exact replacement payload passes Mac and iPhone testing and is signed again.
 
 ### Acceptance criteria
 
 - A newly imported signed Shortcut runs on a clean Mac and iPhone without repairing folder actions on either device.
 - The Windows client reads and writes the same authoritative folder.
-- No files are copied, moved, or deleted automatically during the prototype.
+- No files are copied, moved, or deleted automatically by the application or Shortcut.
 - Existing custom store locations remain supported.
 - The workflow uses no macOS-only actions.
-- Artifact validation rejects external folder bookmarks and import questions in the portable variant.
-- If Apple still persists device-specific state for the built-in Shortcuts folder, the limitation is recorded and the existing setup remains supported.
+- Canonical artifact validation rejects external folder bookmarks and import questions.
+- If Apple still persists device-specific state for the built-in Shortcuts folder, the limitation is recorded and the fixed-path change is not distributed.
 
 ### Migration boundary
 
@@ -34,10 +34,10 @@ Changing the authoritative root is explicit and user-driven:
 2. Verify iCloud has finished synchronizing.
 3. Move the complete `Game Reminders` directory as one unit into the iCloud `Shortcuts` directory.
 4. Point Windows at the new root.
-5. Run the portable Shortcut and verify one reminder end to end.
+5. Run the canonical replacement Shortcut and verify one reminder end to end.
 6. Retain the old location until the new root is verified; never merge two reminder trees automatically.
 
-Detailed migration and rollback instructions will be written only after the prototype passes.
+Detailed migration and rollback instructions remain part of the PR until the replacement passes.
 
 ## Phase B: unknown-alias recovery
 
@@ -100,7 +100,7 @@ dotnet build GameReminders.slnx --configuration Release --no-restore
 
 Additional regression coverage is required for:
 
-- portable Shortcut structure and absence of bookmarks/import questions;
+- canonical Shortcut structure and absence of bookmarks/import questions;
 - alias-request protocol parsing and validation;
 - staged filesystem transitions, duplicates, retryable locks, and archive collisions;
 - catalog changes between request discovery and approval;
