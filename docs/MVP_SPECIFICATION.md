@@ -8,7 +8,7 @@ The MVP consists of an iPhone Shortcut, a Windows 11 tray application, and an iC
 
 ## Reminder creation
 
-The Shortcut asks for the shared Game Reminders folder separately for its catalog and inbox lookups during import, then reads `games.json`, accepts a dictated or typed game name, and matches it against canonical names and aliases after ignoring capitalization, punctuation, and spacing. Both setup questions must select the same folder. Those iCloud folder bookmarks are configured once per device because Shortcuts does not reliably transfer them between macOS and iPhone. The workflow uses only iPhone-supported actions, creates a reminder only when exactly one game resolves, and fails safely without creating a file for an unknown game. Its zero-match error repeats the submitted game name so the user can identify the missing alias.
+The Shortcut resolves both its catalog and inbox beneath the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders`, then reads `games.json`, accepts a dictated or typed game name, and matches it against canonical names and aliases after ignoring capitalization, punctuation, and spacing. It uses Shortcuts' built-in iCloud container and contains no device-specific folder bookmarks or import questions, allowing the same synced workflow to run on Mac and iPhone. The workflow uses only iPhone-supported actions, creates a reminder only when exactly one game resolves, and fails safely without creating a file for an unknown game. Its zero-match error repeats the submitted game name so the user can identify the missing alias.
 
 Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
 
@@ -39,14 +39,16 @@ The management window uses **Reload games.json** for rereading the existing iClo
 ## File layout
 
 ```text
-Game Reminders/
-├── games.json
-├── inbox/
-├── completed/
-└── invalid/
+iCloud Drive/
+└── Shortcuts/
+    └── Game Reminders/
+        ├── games.json
+        ├── inbox/
+        ├── completed/
+        └── invalid/
 ```
 
-The folder is configured as **Always keep on this device**. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until manually cleared.
+The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility; the Windows app is explicitly pointed at that authoritative folder. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until manually cleared.
 
 Only the Windows client writes `games.json`, using a temporary file followed by atomic replacement. IDs remain stable when display names and aliases change. A blank file or empty JSON object is treated as a new empty catalog and rewritten in canonical schema-versioned form; other malformed content still fails visibly.
 
