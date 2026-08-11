@@ -495,11 +495,20 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private void OnReviewNotificationClosed(object? sender, EventArgs e)
+    private void OnReviewNotificationClosed(object? sender, EventArgs e) =>
+        DispatchAfterReviewNotificationClosed(
+            _reviewNotifications,
+            DispatchFromTray,
+            DisplayActiveReviewNotification);
+
+    internal static void DispatchAfterReviewNotificationClosed(
+        ReviewNotificationQueue notifications,
+        Action<Action> dispatch,
+        Action display)
     {
-        if (_reviewNotifications.CompleteActive() is not null)
+        if (notifications.CompleteActive() is not null)
         {
-            Dispatcher.BeginInvoke(DisplayActiveReviewNotification);
+            dispatch(display);
         }
     }
 
