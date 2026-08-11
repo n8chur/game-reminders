@@ -54,6 +54,10 @@ function Get-ActionByOutputName {
 
     foreach ($actionNode in $Actions) {
         $action = Convert-PlistDictionary $actionNode
+        if (-not $action.ContainsKey('WFWorkflowActionParameters')) {
+            continue
+        }
+
         $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
         if ($parameters.ContainsKey('CustomOutputName') -and
             $parameters.CustomOutputName.InnerText -eq $OutputName) {
