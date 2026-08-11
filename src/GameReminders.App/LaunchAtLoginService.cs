@@ -51,7 +51,7 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
     {
         try
         {
-            enabled = string.Equals(_readValue(), _command, StringComparison.OrdinalIgnoreCase);
+            enabled = CommandsMatch(_readValue(), _command);
             error = null;
             return true;
         }
@@ -84,6 +84,27 @@ internal sealed class LaunchAtLoginService : ILaunchAtLoginService
             error = $"Windows launch-at-login could not be {(enabled ? "enabled" : "disabled")}: {exception.Message}";
             return false;
         }
+    }
+
+    internal static bool CommandsMatch(string? registeredCommand, string expectedCommand)
+    {
+        if (string.IsNullOrWhiteSpace(registeredCommand))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            UnquoteCommand(registeredCommand),
+            UnquoteCommand(expectedCommand),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string UnquoteCommand(string command)
+    {
+        var trimmed = command.Trim();
+        return trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[^1] == '"'
+            ? trimmed[1..^1]
+            : trimmed;
     }
 
     internal static string QuoteExecutable(string executablePath) => $"\"{Path.GetFullPath(executablePath)}\"";
