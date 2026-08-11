@@ -111,5 +111,21 @@ public sealed class MainWindowTests
         Assert.Equal("#B42318", new GameListItem(game, true, "ACTION REQUIRED").BadgeBackground);
         Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
     }
-}
 
+    [Fact]
+    public void ReminderDetailsDoNotRepeatTheGroupGameName()
+    {
+        var item = new ReminderListItem(
+            new GameReminders.Core.Reminder
+            {
+                Id = Guid.Parse("3f0648ac-0d2c-4a68-bc05-f9760ed663e7"),
+                GameId = "test-game",
+                GameNameAtCreation = "Farever",
+                Message = "Test",
+                CreatedAt = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.Zero)
+            },
+            "Farever");
+
+        Assert.DoesNotContain("Farever", item.Details);
+    }
+}
