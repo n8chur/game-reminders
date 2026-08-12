@@ -1,7 +1,31 @@
+using System.Xml.Linq;
+
 namespace GameReminders.App.Tests;
 
 public sealed class MainWindowTests
 {
+    [Fact]
+    public void ComboBoxTemplateKeepsTheRequiredPopupPartName()
+    {
+        var appXamlPath = Path.Combine(AppContext.BaseDirectory, "App.xaml");
+        var xaml = XDocument.Load(appXamlPath);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var comboBoxStyle = Assert.Single(
+            xaml.Root!.Descendants(presentation + "Style"),
+            style => (string?)style.Attribute("TargetType") == "ComboBox");
+        var templateSetter = Assert.Single(
+            comboBoxStyle.Descendants(presentation + "Setter"),
+            setter => (string?)setter.Attribute("Property") == "Template");
+
+        var popup = Assert.Single(templateSetter
+            .Descendants(presentation + "ControlTemplate")
+            .Descendants(presentation + "Popup"));
+
+        Assert.Equal("PART_Popup", (string?)popup.Attribute(x + "Name"));
+    }
+
     [Theory]
     [InlineData(null, true)]
     [InlineData("registry unavailable", false)]

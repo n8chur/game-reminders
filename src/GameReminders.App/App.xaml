@@ -135,7 +135,7 @@
                                           IsHitTestVisible="False" />
                                 </Grid>
                             </ToggleButton>
-                            <Popup x:Name="Popup" Placement="Bottom" AllowsTransparency="True"
+                            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True"
                                    IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Slide">
                                 <Border MinWidth="{Binding ActualWidth, ElementName=DropDownToggle}"
                                         MaxHeight="260" Padding="2"
@@ -297,4 +297,3 @@
         </Style>
     </Application.Resources>
 </Application>
-
