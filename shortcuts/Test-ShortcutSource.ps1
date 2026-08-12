@@ -27,9 +27,16 @@ $actions = @(Get-WorkflowActionNames $source.workflow)
 foreach ($required in @('getFile','parseDictionary','require','chooseFromList','askForText','dictionary','serializeJson','createFolder','saveFile','moveFile','renameFile','showResult')) {
     Assert-ShortcutCondition ($actions -contains $required) "Missing required action '$required'."
 }
-foreach ($forbidden in @('normalize','branchOnCount','initializeNumber','initializeBoolean','incrementVariable')) {
+foreach ($forbidden in @('normalize','branchOnCount','initializeBoolean')) {
     Assert-ShortcutCondition ($actions -notcontains $forbidden) "Voice/text matching action '$forbidden' remains."
 }
+$matchCount = $source.workflow | Where-Object action -eq 'initializeNumber' | Select-Object -First 1
+Assert-ShortcutCondition ($matchCount.value -eq 0 -and $matchCount.output -eq 'matchCount') 'Selection resolution must start with an explicit zero match count.'
+$resolutionLoop = $source.workflow | Where-Object { $_.action -eq 'repeatEach' -and $_.input -eq 'catalog.games' } | Select-Object -Last 1
+$increments = @(Get-WorkflowActionNames $resolutionLoop.steps | Where-Object { $_ -eq 'incrementVariable' })
+Assert-ShortcutCondition ($increments.Count -eq 1) 'Each matching canonical name must increment the match count exactly once.'
+$uniqueSelection = $source.workflow | Where-Object { $_.action -eq 'require' -and $_.condition -eq 'matchCount equals 1' } | Select-Object -First 1
+Assert-ShortcutCondition ($null -ne $uniqueSelection -and $uniqueSelection.stop -eq $true) 'Canceled, missing, or duplicate selections must stop before reminder creation.'
 $choose = @($source.workflow | Where-Object action -eq 'chooseFromList')
 Assert-ShortcutCondition ($choose.Count -eq 1) 'The workflow must contain exactly one Choose from List action.'
 Assert-ShortcutCondition ($choose[0].input -eq 'gameNames' -and $choose[0].selectMultiple -eq $false) 'The chooser must present canonical names with native single selection.'
