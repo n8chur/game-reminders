@@ -10,7 +10,7 @@
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="{DynamicResource SurfaceMutedBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,14">
@@ -22,14 +22,11 @@
 
             <TextBlock Grid.Row="1" Text="Name" FontWeight="SemiBold" />
             <TextBox x:Name="NameText" Grid.Row="2" Margin="0,5,0,14" Padding="7" />
-            <TextBlock Grid.Row="3" Text="Speech aliases (optional; one per line)" FontWeight="SemiBold" />
-            <TextBox x:Name="AliasesText" Grid.Row="4" Margin="0,5,0,14" Padding="7" Height="64" AcceptsReturn="True" />
-
-            <TextBlock x:Name="ProcessesLabel" Grid.Row="5" Text="Executable paths or names (one per line)" FontWeight="SemiBold" />
-            <TextBlock x:Name="ProcessesHelp" Grid.Row="6" Margin="0,3,0,5" Height="34"
+            <TextBlock x:Name="ProcessesLabel" Grid.Row="3" Text="Executable paths or names (one per line)" FontWeight="SemiBold" />
+            <TextBlock x:Name="ProcessesHelp" Grid.Row="4" Margin="0,3,0,5" Height="34"
                        TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"
                        Text="Add every executable that should count as launching this game." />
-            <Grid Grid.Row="7" Margin="0,0,0,12">
+            <Grid Grid.Row="5" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <TextBox x:Name="ProcessesText" Padding="7" Height="82" AcceptsReturn="True"
                          VerticalScrollBarVisibility="Auto" TextChanged="ProcessesText_Changed" />
@@ -37,9 +34,9 @@
                         VerticalAlignment="Top" Click="BrowseExecutable_Click" />
             </Grid>
 
-            <TextBlock x:Name="CandidatesLabel" Grid.Row="8"
+            <TextBlock x:Name="CandidatesLabel" Grid.Row="6"
                        Text="Detected paths (select to replace; + adds another)" FontWeight="SemiBold" />
-            <ListBox x:Name="CandidatesList" Grid.Row="9" Margin="0,5,0,5" Padding="4" Height="156"
+            <ListBox x:Name="CandidatesList" Grid.Row="7" Margin="0,5,0,5" Padding="4" Height="156"
                      SelectionMode="Single" SelectionChanged="CandidateSelected"
                      HorizontalContentAlignment="Stretch"
                      ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -84,10 +81,10 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <TextBlock x:Name="CandidatesHelp" Grid.Row="10" Margin="0,0,0,14" Foreground="{DynamicResource SecondaryTextBrush}"
+            <TextBlock x:Name="CandidatesHelp" Grid.Row="8" Margin="0,0,0,14" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" Text="Detected paths remain available after saving so the mapping can be corrected later." />
 
-            <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel" IsCancel="True" />
                 <Button x:Name="SaveButton" Click="Save_Click" IsDefault="True">
                     <TextBlock x:Name="SaveButtonText" Text="Save"

@@ -31,7 +31,7 @@ The Windows app must be pointed at that same `Game Reminders` folder and it shou
 1. Get `games.json` from `iCloud Drive/Shortcuts/Game Reminders`. If it cannot be read, show an error and stop.
 2. Parse the file as a dictionary. Require `schemaVersion` to equal `1` and `games` to be a list; otherwise show an error and stop.
 3. Read the canonical `name` from every registered game and immediately present all names in one native, single-selection **Choose from List** interface.
-4. Resolve the selected canonical name back to exactly one catalog entry and retain that entry's stable `id`. Canceling stops the Shortcut. If no entry or more than one entry has the selected name, show an error and stop; duplicate canonical names must be renamed on Windows. The Shortcut does not ask for, dictate, normalize, or alias-match a game name.
+4. Resolve the selected canonical name back to exactly one catalog entry and retain that entry's stable `id`. Canceling stops the Shortcut. If no entry or more than one entry has the selected name, show an error and stop; duplicate canonical names must be renamed on Windows. The Shortcut never asks for or normalizes a game name.
 5. Ask **What should I remind you?** for text. Reject an empty or whitespace-only answer.
 6. Generate a UUID and capture the current date in ISO 8601 form.
 7. Build a dictionary with exactly these fields:
@@ -65,8 +65,8 @@ Do not commit a privately shared export or a file containing Apple contact infor
 ## Manual validation
 
 - The first interaction after catalog loading is one native **Choose from List** sheet containing every canonical game name exactly once and permitting only one selection.
-- Selecting each listed game writes that game's stable ID and current canonical name, regardless of its aliases.
-- No **Which game?** voice/text prompt, normalization, alias matching, or unknown-alias path appears.
+- Selecting each listed game writes that game's stable ID and current canonical name.
+- No game-name voice/text prompt or normalization path appears.
 - Canceling game selection or leaving the reminder prompt empty creates no file.
 - Duplicate canonical names fail visibly before the reminder prompt and create no file.
 - Quotes, emoji, and line breaks in the reminder message remain valid escaped JSON.

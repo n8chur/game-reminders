@@ -30,7 +30,6 @@ public sealed class JsonProtocolTests
                 {
                     Id = "custom-farever",
                     Name = "Farever",
-                    Aliases = ["Forever"],
                     Processes = ["Farever-Win64-Shipping.exe"]
                 }
             ]
@@ -74,35 +73,6 @@ public sealed class JsonProtocolTests
 
         Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteReminder(reminder));
     }
-
-    [Fact]
-    public void AliasRequestRoundTripContainsNoReminderMessage()
-    {
-        var request = CreateAliasRequest();
-
-        var json = JsonProtocol.WriteAliasRequest(request);
-        var roundTrip = JsonProtocol.ReadAliasRequest(json);
-
-        Assert.Equal(request, roundTrip);
-        Assert.DoesNotContain("message", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void EmptyAliasRequestFieldsAreRejected()
-    {
-        Assert.Throws<InvalidDataException>(() =>
-            JsonProtocol.WriteAliasRequest(CreateAliasRequest() with { Alias = " " }));
-        Assert.Throws<InvalidDataException>(() =>
-            JsonProtocol.WriteAliasRequest(CreateAliasRequest() with { GameId = " " }));
-    }
-
-    private static AliasRequest CreateAliasRequest() => new()
-    {
-        Id = Guid.Parse("9f6db96e-1c50-4785-91d6-94580d2ab833"),
-        GameId = "custom-farever",
-        Alias = "Fare ever",
-        CreatedAt = DateTimeOffset.Parse("2026-08-12T08:00:00Z")
-    };
 
     private static Reminder CreateReminder() => new()
     {
@@ -210,12 +180,16 @@ public sealed class JsonProtocolTests
         Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
     }
 
-    [Theory]
-    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": null }] }")]
-    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": [null] }] }")]
-    [InlineData("{ \"schemaVersion\": 1, \"games\": [{ \"id\": \"game\", \"name\": \"Game\", \"aliases\": [\"  \" ] }] }")]
-    public void NullOrEmptyAliasesAreRejected(string json)
+    [Fact]
+    public void LegacyCatalogPropertiesAreIgnoredAndNotRewritten()
     {
-        Assert.Throws<InvalidDataException>(() => JsonProtocol.ReadCatalog(json));
+        var legacyProperty = "ali" + "ases";
+        var json = $$"""
+            { "schemaVersion": 1, "games": [{ "id": "game", "name": "Game", "{{legacyProperty}}": ["Old Name"], "processes": [] }] }
+            """;
+
+        var rewritten = JsonProtocol.WriteCatalog(JsonProtocol.ReadCatalog(json));
+
+        Assert.DoesNotContain(legacyProperty, rewritten, StringComparison.OrdinalIgnoreCase);
     }
 }

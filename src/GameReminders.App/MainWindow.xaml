@@ -171,7 +171,6 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
@@ -187,80 +186,7 @@
                                                IsHitTestVisible="False" />
                                 </Grid>
 
-                                <Border x:Name="AliasRequestsSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
-                                        Background="{DynamicResource SurfaceMutedBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
-                                        Visibility="Collapsed">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <DockPanel Margin="0,0,0,3">
-                                            <TextBlock x:Name="AliasRequestCountText" DockPanel.Dock="Right"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                                            <TextBlock Text="Alias requests needing attention" FontSize="15" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource IssueTextBrush}" />
-                                        </DockPanel>
-                                        <TextBlock Grid.Row="1"
-                                                   Text="These requests could not be added automatically. Fix the problem, then retry or reject the request."
-                                                   Margin="0,0,0,8" FontSize="12"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                                        <Border x:Name="AliasRequestStatusBanner" Grid.Row="2" CornerRadius="5"
-                                                Padding="10,7" Margin="0,0,0,8"
-                                                Background="{DynamicResource IssueBackgroundBrush}"
-                                                Visibility="Collapsed">
-                                            <DockPanel>
-                                                <Button DockPanel.Dock="Right" Content="×"
-                                                        Click="DismissAliasRequestStatus_Click"
-                                                        ToolTip="Dismiss message" MinWidth="28" Width="28"
-                                                        Height="28" MinHeight="28" Padding="0"
-                                                        Margin="10,0,0,0" FontSize="16" />
-                                                <TextBlock x:Name="AliasRequestStatusText" VerticalAlignment="Center"
-                                                           TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource IssueTextBrush}" />
-                                            </DockPanel>
-                                        </Border>
-                                        <ScrollViewer Grid.Row="3" MaxHeight="190" VerticalScrollBarVisibility="Auto">
-                                            <ItemsControl x:Name="AliasRequestsList">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border BorderBrush="{DynamicResource BorderBrush}"
-                                                                BorderThickness="1" CornerRadius="4" Padding="10"
-                                                                Margin="0,0,0,6">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                </Grid.ColumnDefinitions>
-                                                                <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding AliasLabel}" FontWeight="SemiBold" />
-                                                                    <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,2,0,0"
-                                                                               TextWrapping="Wrap"
-                                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                                                            VerticalAlignment="Center" Margin="12,0,0,0">
-                                                                    <Button Content="Reject" Tag="{Binding Request}"
-                                                                            Click="RejectAliasRequest_Click"
-                                                                            AutomationProperties.Name="Reject alias request" />
-                                                                    <Button Content="Retry" Tag="{Binding Request}"
-                                                                            Style="{StaticResource PrimaryActionButtonStyle}"
-                                                                            Click="RetryAliasRequest_Click"
-                                                                            AutomationProperties.Name="Retry alias request" />
-                                                                </StackPanel>
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                    </Grid>
-                                </Border>
-
-                                <Border x:Name="DetectedSection" Grid.Row="2" Margin="0,0,0,16" Padding="12"
+                                <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
                                         Background="{DynamicResource SurfaceMutedBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                     <Grid>
@@ -301,7 +227,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Grid Grid.Row="3">
+                                <Grid Grid.Row="2">
                                     <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
                                              SelectionChanged="GamesList_SelectionChanged">
                                         <ListBox.ItemTemplate>
@@ -327,7 +253,7 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed" />
                                 </Grid>
-                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
+                                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
                                             Margin="0,14,0,0">
                                     <Button Content="Add game" Click="AddGame_Click" />
                                     <Button x:Name="EditGameButton" Content="Edit" Click="EditGame_Click"

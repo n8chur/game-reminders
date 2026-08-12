@@ -98,7 +98,6 @@ public sealed class SteamCatalogImporterTests
         {
             Id = "steam-123",
             Name = "Everwind",
-            Aliases = ["Ever Wind"],
             Source = new GameSource
             {
                 Type = "steam",
@@ -116,7 +115,6 @@ public sealed class SteamCatalogImporterTests
 
         var updated = Assert.Single(result.UpdatedGames);
         Assert.Equal(@"Everwind\Everwind.exe", Assert.Single(updated.Processes));
-        Assert.Equal("Ever Wind", Assert.Single(updated.Aliases));
         Assert.False(updated.Source?.RequiresExecutableReview);
         Assert.Equal(2, updated.Source?.ExecutableCandidates.Count);
         Assert.Empty(result.AddedGames);

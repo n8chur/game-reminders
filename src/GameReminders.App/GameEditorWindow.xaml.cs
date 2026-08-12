@@ -18,7 +18,6 @@ public partial class GameEditorWindow : Window
         _original = game;
         _save = save;
         NameText.Text = game.Name;
-        AliasesText.Text = string.Join(Environment.NewLine, game.Aliases);
         ProcessesText.Text = string.Join(Environment.NewLine, game.Processes);
 
         var sourceType = game.Source?.Type?.Trim();
@@ -58,7 +57,6 @@ public partial class GameEditorWindow : Window
             var candidate = _original with
             {
                 Name = NameText.Text.Trim(),
-                Aliases = SplitLines(AliasesText.Text),
                 Processes = processes,
                 Source = source
             };

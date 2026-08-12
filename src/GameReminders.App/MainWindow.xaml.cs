@@ -17,8 +17,6 @@ public partial class MainWindow : Window
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
     private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
-    private readonly Action<AliasRequest> _retryAliasRequest;
-    private readonly Action<AliasRequest> _rejectAliasRequest;
     private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
     private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
     private readonly Action _refreshReminders;
@@ -41,8 +39,6 @@ public partial class MainWindow : Window
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
         Action<IgnoredDiscoveryItem> restoreIgnored,
-        Action<AliasRequest> retryAliasRequest,
-        Action<AliasRequest> rejectAliasRequest,
         Action<IReadOnlyCollection<string>> markGamesReviewed,
         bool launchAtLogin,
         bool launchAtLoginAvailable,
@@ -64,8 +60,6 @@ public partial class MainWindow : Window
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
         _restoreIgnored = restoreIgnored;
-        _retryAliasRequest = retryAliasRequest;
-        _rejectAliasRequest = rejectAliasRequest;
         _markGamesReviewed = markGamesReviewed;
         _setLaunchAtLogin = setLaunchAtLogin;
         _refreshReminders = refreshReminders;
@@ -141,25 +135,6 @@ public partial class MainWindow : Window
     {
         _ignored = ignored;
         ApplyIgnoredFilter();
-    }
-
-    internal void SetAliasRequests(IReadOnlyList<AliasRequestListItem> requests)
-    {
-        AliasRequestsList.ItemsSource = requests;
-        AliasRequestsSection.Visibility = requests.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        AliasRequestCountText.Text = CountLabel(requests.Count, "request");
-        if (requests.Count == 0)
-        {
-            SetAliasRequestStatus(null);
-        }
-    }
-
-    internal void SetAliasRequestStatus(string? status)
-    {
-        AliasRequestStatusText.Text = status ?? string.Empty;
-        AliasRequestStatusBanner.Visibility = string.IsNullOrWhiteSpace(status)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
     }
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
@@ -245,7 +220,6 @@ public partial class MainWindow : Window
     private void GamesSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyGameFilter();
     private void IgnoredSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyIgnoredFilter();
     private void DismissStatus_Click(object sender, RoutedEventArgs e) => SetStatus(null);
-    private void DismissAliasRequestStatus_Click(object sender, RoutedEventArgs e) => SetAliasRequestStatus(null);
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
     private void EditGame_Click(object sender, RoutedEventArgs e)
     {
@@ -331,23 +305,6 @@ public partial class MainWindow : Window
     private void RestoreIgnored_Click(object sender, RoutedEventArgs e)
     {
         if (IgnoredList.SelectedItem is IgnoredDiscoveryItem item) _restoreIgnored(item);
-    }
-
-    private void RetryAliasRequest_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: AliasRequest request })
-        {
-            SetAliasRequestStatus(null);
-            _retryAliasRequest(request);
-        }
-    }
-
-    private void RejectAliasRequest_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: AliasRequest request })
-        {
-            _rejectAliasRequest(request);
-        }
     }
 
     private void GamesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -445,12 +402,6 @@ internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, stri
 }
 
 internal sealed record IgnoredDiscoveryItem(string Key, string Name, string SourceLabel, string? SteamAppId = null);
-
-internal sealed record AliasRequestListItem(AliasRequest Request, string GameName, string FailureReason)
-{
-    public string AliasLabel => $"“{Request.Alias}”";
-    public string Details => $"Add to {GameName} · {FailureReason}";
-}
 
 internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);
 

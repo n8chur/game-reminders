@@ -478,13 +478,13 @@ public sealed class ReminderStoreTests : IDisposable
 
         store.SaveCatalog(store.LoadCatalog() with
         {
-            Games = [original with { Name = "New Name", Aliases = ["Speech Name"], Processes = ["New.exe"] }]
+            Games = [original with { Name = "New Name", Processes = ["New.exe"] }]
         });
 
         var saved = Assert.Single(store.LoadCatalog().Games);
         Assert.Equal("steam-123", saved.Id);
         Assert.Equal("New Name", saved.Name);
-        Assert.Equal("Speech Name", Assert.Single(saved.Aliases));
+        Assert.Equal("New.exe", Assert.Single(saved.Processes));
     }
 
     [Fact]

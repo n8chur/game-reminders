@@ -247,10 +247,10 @@ $forbiddenNameFlowActions = @($actions | Where-Object {
         return $false
     }
     $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
-    $parameters.WFDictionaryKey.InnerText -eq 'aliases'
+    return $parameters.WFDictionaryKey.InnerText -eq 'aliases'
 })
 if ($forbiddenNameFlowActions.Count -ne 0) {
-    throw 'The compiled Shortcut must not parse or normalize game text or read aliases.'
+    throw 'The compiled Shortcut must not parse or normalize game-name text or read the obsolete aliases key.'
 }
 
 $missingVariableInputs = @($actions | Where-Object {

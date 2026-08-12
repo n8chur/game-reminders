@@ -13,7 +13,6 @@ public sealed record GameDefinition
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
-    public IReadOnlyList<string> Aliases { get; init; } = [];
     public IReadOnlyList<string> Processes { get; init; } = [];
     public GameSource? Source { get; init; }
 }
@@ -33,18 +32,6 @@ public sealed record Reminder
     public required string GameId { get; init; }
     public required string GameNameAtCreation { get; init; }
     public required string Message { get; init; }
-    public required DateTimeOffset CreatedAt { get; init; }
-
-    [JsonIgnore]
-    public string? SourcePath { get; init; }
-}
-
-public sealed record AliasRequest
-{
-    public int SchemaVersion { get; init; } = 1;
-    public required Guid Id { get; init; }
-    public required string GameId { get; init; }
-    public required string Alias { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
 
     [JsonIgnore]

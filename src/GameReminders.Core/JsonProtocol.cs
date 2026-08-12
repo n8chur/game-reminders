@@ -67,21 +67,6 @@ public static class JsonProtocol
         return JsonSerializer.Serialize(reminder, Options);
     }
 
-    public static AliasRequest ReadAliasRequest(string json, string? sourcePath = null)
-    {
-        var request = JsonSerializer.Deserialize<AliasRequest>(json, Options)
-            ?? throw new InvalidDataException("Alias request file contained no request.");
-
-        ValidateAliasRequest(request);
-        return request with { SourcePath = sourcePath };
-    }
-
-    public static string WriteAliasRequest(AliasRequest request)
-    {
-        ValidateAliasRequest(request);
-        return JsonSerializer.Serialize(request, Options);
-    }
-
     private static void ValidateCatalog(GameCatalog catalog)
     {
         if (catalog.SchemaVersion != 1)
@@ -116,19 +101,6 @@ public static class JsonProtocol
             if (game.Processes is null)
             {
                 throw new InvalidDataException($"Game '{game.Id}' requires a processes collection.");
-            }
-
-            if (game.Aliases is null)
-            {
-                throw new InvalidDataException($"Game '{game.Id}' requires an aliases collection.");
-            }
-
-            foreach (var alias in game.Aliases)
-            {
-                if (string.IsNullOrWhiteSpace(alias))
-                {
-                    throw new InvalidDataException($"Game '{game.Id}' contains an empty alias.");
-                }
             }
 
             foreach (var process in game.Processes)
@@ -188,19 +160,4 @@ public static class JsonProtocol
         }
     }
 
-    private static void ValidateAliasRequest(AliasRequest request)
-    {
-        if (request.SchemaVersion != 1)
-        {
-            throw new InvalidDataException(
-                $"Unsupported alias request schema version {request.SchemaVersion}.");
-        }
-
-        if (request.Id == Guid.Empty || string.IsNullOrWhiteSpace(request.GameId) ||
-            string.IsNullOrWhiteSpace(request.Alias) || request.CreatedAt == default)
-        {
-            throw new InvalidDataException(
-                "An alias request requires a non-empty id, gameId, alias, and createdAt.");
-        }
-    }
 }

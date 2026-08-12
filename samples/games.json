@@ -5,10 +5,6 @@
     {
       "id": "custom-farever",
       "name": "Farever",
-      "aliases": [
-        "Forever",
-        "For Ever"
-      ],
       "processes": [
         "Farever\\Farever.exe",
         "Farever\\Binaries\\Win64\\Farever-Win64-Shipping.exe"

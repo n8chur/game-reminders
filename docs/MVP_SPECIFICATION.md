@@ -8,7 +8,7 @@ The MVP consists of an iPhone Shortcut, a Windows 11 tray application, and an iC
 
 ## Reminder creation
 
-The Shortcut resolves both its catalog and inbox beneath the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders`, then reads `games.json` and immediately presents every registered game's canonical name in one native, single-selection **Choose from List** interface. It resolves the selected canonical name back to that game's stable ID before asking **What should I remind you?**. The Shortcut does not accept, dictate, normalize, or alias-match game-name text. It uses Shortcuts' built-in iCloud container and contains no device-specific folder bookmarks or import questions, allowing the same synced workflow to run on Mac and iPhone. The workflow uses only iPhone-supported actions, and canceling selection creates no reminder.
+The Shortcut resolves both its catalog and inbox beneath the fixed nested folder `iCloud Drive/Shortcuts/Game Reminders`, then reads `games.json` and immediately presents every registered game's canonical name in one native, single-selection **Choose from List** interface. It resolves the selected canonical name back to that game's stable ID before asking **What should I remind you?**. The Shortcut does not accept, dictate, or normalize game-name text. It uses Shortcuts' built-in iCloud container and contains no device-specific folder bookmarks or import questions, allowing the same synced workflow to run on Mac and iPhone. The workflow uses only iPhone-supported actions, and canceling selection creates no reminder.
 
 Each reminder is an immutable JSON file with schema version 1, UUID, stable game ID, display name at creation, message, and creation timestamp. The Shortcut writes the serialized reminder as visible `<UUID>.tmp` in its private iCloud staging folder, moves the completed temporary file into `inbox`, then renames it to visible `<UUID>.json` without overwrite. It reports success only after finalization succeeds and never modifies the pending file afterward.
 
@@ -26,23 +26,13 @@ The main window opens to a **Reminders** view with counted **Pending** and **Com
 
 The dependable display target is borderless fullscreen. The application will not inject into games or interact with anti-cheat systems. A normal Windows notification may be used if the popup cannot be displayed.
 
-## Game discovery and aliases
+## Game discovery and executable mapping
 
 The client supports Steam metadata, conservative foreground-application detection, and manual addition. Installed Steam games are added automatically with a stable Steam app ID and summarized in one non-blocking notification. Clicking the notification opens game management. Notifications are informational and may be suppressed by Windows without affecting discovery or reminder behavior. Removing an imported Steam game creates Windows-only suppression state keyed by app ID; scans do not recreate it unless the user explicitly allows it to be re-added.
 
 Uncertain foreground-application detections are saved to Windows-only pending state and shown in a distinct **Action required** section of **Games** for configuration or dismissal. Discovery never opens a blocking setup prompt, including during startup and manual scans. Ignored discoveries retain Windows-only display metadata and appear alongside removed Steam games in a launcher-neutral **Ignored** view, where either kind can be restored.
 
-The setup and management UI supports canonical names, optional alternate speech aliases, and one or more associated executables. The canonical name already participates in speech matching; Steam metadata does not provide reliable alternate spoken names, so imported aliases begin empty. Steam discovery excludes known helper executables and ranks remaining candidates by their relationship to the game name, preferring an exact root-level executable over a similarly named nested helper or shipping binary. A confident match stores the complete path relative to `steamapps\common`; this distinguishes generic executable filenames while remaining portable across Steam library roots. The editor displays the source type and explicitly explains the path base for Steam entries.
-
-The Windows client also processes schema-version-1 alias requests created after an explicit
-zero-match game selection in the Shortcut. Each request contains only a UUID, stable game ID,
-submitted alias, and timestamp—never reminder text. Valid requests are accepted automatically:
-the client revalidates the current catalog, refuses a normalized collision with another game,
-atomically appends the alias, and archives the request. Only requests that cannot be applied appear
-under **Alias requests needing attention**, with **Retry** and **Reject** actions. Exact duplicate
-requests are handled idempotently; conflicting duplicates, unknown game IDs, concurrent catalog
-changes, malformed files, and archive collisions fail visibly without overwriting or deleting
-ambiguous data.
+The setup and management UI supports canonical names and one or more associated executables. Steam discovery excludes known helper executables and ranks remaining candidates by their relationship to the game name, preferring an exact root-level executable over a similarly named nested helper or shipping binary. A confident match stores the complete path relative to `steamapps\common`; this distinguishes generic executable filenames while remaining portable across Steam library roots. The editor displays the source type and explicitly explains the path base for Steam entries.
 
 An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED**. Its editor marks the executable-path field in red and disables **Save** until at least one executable has been selected or entered, without inserting or removing layout-shifting content. Selecting a detected path replaces the current executable mapping; the right-aligned `+` action appends another path for games that need multiple executables. Candidate paths remain available after selection so the mapping can be corrected later. Manual games offer an executable file picker and store selected files as absolute paths. Existing filename-only mappings remain supported, and absolute paths may still be entered manually.
 
@@ -59,16 +49,12 @@ iCloud Drive/
         ├── games.json
         ├── inbox/
         ├── completed/
-        ├── invalid/
-        └── alias-requests/
-            ├── inbox/
-            ├── accepted/
-            └── rejected/
+        └── invalid/
 ```
 
 The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility. Windows setup asks for the enclosing iCloud Drive `Shortcuts` folder, creates or opens the required `Game Reminders` child, and stores that resolved child as the single authoritative root. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until individually deleted, marked pending again, or cleared from the completed section.
 
-Only the Windows client writes `games.json`, using a temporary file followed by atomic replacement. IDs remain stable when display names and aliases change. A blank file or empty JSON object is treated as a new empty catalog and rewritten in canonical schema-versioned form; other malformed content still fails visibly.
+Only the Windows client writes `games.json`, using a temporary file followed by atomic replacement. IDs remain stable when display names change. A blank file or empty JSON object is treated as a new empty catalog and rewritten in canonical schema-versioned form; other malformed content still fails visibly.
 
 ## Windows implementation
 
@@ -81,14 +67,14 @@ Development builds are unsigned portable ZIP artifacts built by GitHub Actions. 
 ## Delivery milestones
 
 1. File/process prototype: catalog loading, reminder scanning, configured process detection, persistent popup, Dismiss, and Show on next launch.
-2. Game management: tray UI, automatic trusted Steam discovery, persistent uncertain detections, and alias/executable editing.
-3. iPhone Shortcut: exact normalized matching, no-match handling, reminder creation, repository-hosted importable Shortcut, and human-readable definition.
+2. Game management: tray UI, automatic trusted Steam discovery, persistent uncertain detections, and executable editing.
+3. iPhone Shortcut: fixed-list game selection, reminder creation, repository-hosted importable Shortcut, and human-readable definition.
 4. Reliability and packaging: startup registration, rescans, invalid-file handling, diagnostics, first-run wizard, and portable builds.
 5. Polish: Windows 11 appearance, multiple reminders and monitors, accessibility, installer, and a complete README covering installation of both components, usage, supported features, limitations, configuration, and troubleshooting.
 
 ## Acceptance criteria
 
-- A configured `Forever` alias resolves to Farever; an unknown dictated name is repeated in the error and creates no reminder.
+- Selecting a configured game records its stable ID and current canonical name in the reminder.
 - A reminder created while the PC is off appears after iCloud synchronizes.
 - Launching a matching game displays its reminders and the popup persists until handled.
 - Closing or crashing cannot complete a reminder.
