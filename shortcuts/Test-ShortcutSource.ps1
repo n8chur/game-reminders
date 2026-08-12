@@ -44,6 +44,7 @@ $prompts = @($source.workflow | Where-Object action -eq 'askForText')
 Assert-ShortcutCondition ($prompts.Count -eq 1 -and $prompts[0].prompt -eq 'What should I remind you?') 'The only text prompt must request the reminder message.'
 $sourceText = Get-Content -Raw (Join-Path $PSScriptRoot 'GameReminders.shortcut-source.json')
 Assert-ShortcutCondition ($sourceText -notmatch 'requestedGame|Which game') 'The unsigned flow must not parse game-name input.'
+Assert-ShortcutCondition ($sourceText -notmatch '"aliases"\s*:') 'The unsigned flow must not read the obsolete aliases catalog key.'
 $catalogNames = @($vectors.catalog.games | ForEach-Object name)
 Assert-ShortcutCondition ($catalogNames.Count -eq $vectors.catalog.games.Count) 'Every catalog entry must contribute one canonical name.'
 Assert-ShortcutCondition (@($catalogNames | Select-Object -Unique).Count -eq $catalogNames.Count) 'Test catalog canonical names must be unique.'
