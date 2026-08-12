@@ -54,7 +54,7 @@ The temporary extension prevents the Windows scanner from treating an incomplete
 
 1. Move the single authoritative `Game Reminders` directory to `iCloud Drive/Shortcuts/Game Reminders` and point the Windows app at that location.
 2. Download `GameReminder-unsigned.shortcut` from the repository.
-3. Run `shortcuts sign --mode anyone --input GameReminder-unsigned.shortcut --output "Game Reminder.shortcut"`.
+3. With Cherri 2.3.0 or later installed, run `cherri GameReminder.cherri --share=anyone --output="Game Reminder.shortcut" --no-ansi`. Do not use `--derive-uuids`; Cherri 2.3.0 reuses control-flow group identifiers in that mode.
 4. Import the signed Shortcut on Mac. It must ask for no folders.
 5. Let the same Shortcut sync to iPhone and run it there without editing either file action.
 6. Test every case in `test-vectors.json` using a temporary catalog where destructive or collision behavior is involved.

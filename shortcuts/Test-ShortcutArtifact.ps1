@@ -24,8 +24,8 @@ if ($null -eq $actionsArray -or $null -eq $questionsArray) {
 }
 
 $actions = @($actionsArray.dict)
-if ($actions.Count -ne 65) {
-    throw "Expected 65 Shortcut actions, found $($actions.Count)."
+if ($actions.Count -ne 76) {
+    throw "Expected 76 Shortcut actions, found $($actions.Count)."
 }
 
 function Convert-PlistDictionary {
@@ -72,7 +72,7 @@ $choose = Convert-PlistDictionary $chooseActions[0]
 $chooseParameters = Convert-PlistDictionary $choose.WFWorkflowActionParameters
 if ($chooseParameters.WFChooseFromListActionPrompt.InnerText -ne 'Choose a game' -or
     $chooseParameters.WFChooseFromListActionSelectMultiple.Name -ne 'false' -or
-    (Convert-PlistDictionary (Convert-PlistDictionary $chooseParameters.WFInput).Value).OutputName.InnerText -ne 'Repeat Results') {
+    (Convert-PlistDictionary (Convert-PlistDictionary $chooseParameters.WFInput).Value).OutputName.InnerText -ne 'gameNames') {
     throw 'Choose from List must immediately show all repeated canonical names with single selection enabled.'
 }
 
@@ -111,10 +111,13 @@ function Get-ReferencedOutputName {
     return $value.OutputName.InnerText
 }
 
-$matchCountInitial = Convert-PlistDictionary (Get-ActionByOutputName 'matchCountInitial')
-$matchCountInitialParameters = Convert-PlistDictionary $matchCountInitial.WFWorkflowActionParameters
-if ($matchCountInitial.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.number' -or
-    $matchCountInitialParameters.WFNumberActionNumber.InnerText -ne '0') {
+$matchCountInitializers = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.number') { return $false }
+    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
+    $parameters.ContainsKey('WFNumberActionNumber') -and $parameters.WFNumberActionNumber.InnerText -eq '0'
+})
+if ($matchCountInitializers.Count -ne 1) {
     throw 'Selection resolution must initialize matchCount to zero.'
 }
 $selectionGuard = @($actions | Where-Object {
@@ -263,4 +266,4 @@ if ($missingVariableInputs.Count -ne 0) {
     throw 'Every Set Variable action must have an explicit input; do not rely on Nothing to clear per-game state.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 65 iPhone-compatible actions, a native single-selection canonical-name list, exactly-one stable-ID resolution, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 6 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 76 Cherri-generated iPhone-compatible actions, a native single-selection canonical-name list, exactly-one stable-ID resolution, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 6 unique balanced control-flow groups."

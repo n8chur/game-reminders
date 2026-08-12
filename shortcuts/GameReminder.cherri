@@ -1,7 +1,7 @@
 #define name Game Reminder
 #define color blue
 #define glyph bell
-#define version 30
+#define version 26
 
 #include 'actions/calendar'
 #include 'actions/crypto'
@@ -22,28 +22,31 @@ if schemaVersionNumber != 1 {
 
 const games = getValue(catalog, "games")
 
-// The final action in this repeat returns every canonical name as Repeat Results.
-for gameItem in games {
+// The loop output accumulates every canonical name for the native picker.
+const gameNames = for gameItem in games {
     const game = getDictionary(@gameItem)
-    getValue(game, "name")
+    const rawGameName = getValue(game, "name")
+    getText(rawGameName)
 }
-const selectedGameName = chooseFromList(@RepeatResults, "Choose a game", false)
+const selectedGameChoice = chooseFromList(gameNames, "Choose a game", false)
+const selectedGameName = getText(selectedGameChoice)
 
 @matchCount = 0
 @matchedGameId = "NO_MATCH"
 @matchedGameName = "NO_MATCH"
 for gameItem in games {
-    const game = getDictionary(@gameItem)
-    const gameName = getValue(game, "name")
-    if gameName == selectedGameName {
+    const candidateGame = getDictionary(@gameItem)
+    const rawCandidateName = getValue(candidateGame, "name")
+    const candidateName = getText(rawCandidateName)
+    if candidateName == selectedGameName {
         @matchCount += 1
-        const gameId = getValue(game, "id")
+        const gameId = getValue(candidateGame, "id")
         @matchedGameId = "{gameId}"
-        @matchedGameName = "{gameName}"
+        @matchedGameName = "{candidateName}"
     }
 }
 
-if matchCount != 1 {
+if @matchCount != 1 {
     alert("Choose exactly one uniquely named game. Rename duplicate games on Windows, then try again.", "Game Reminder")
     stop()
 }
