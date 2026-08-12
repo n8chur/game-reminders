@@ -30,28 +30,23 @@ The Windows app must be pointed at that same `Game Reminders` folder and it shou
 
 1. Get `games.json` from `iCloud Drive/Shortcuts/Game Reminders`. If it cannot be read, show an error and stop.
 2. Parse the file as a dictionary. Require `schemaVersion` to equal `1` and `games` to be a list; otherwise show an error and stop.
-3. Ask **Which game?** for text. This prompt also accepts dictated text when the Shortcut is run through Siri.
-4. Normalize the answer by converting it to lowercase and removing every character that is not a Unicode letter or number. If nothing remains, show an error and stop.
-5. Repeat over each game. Normalize its canonical `name` and each string in `aliases` the same way. Add the game to `matches` at most once, keyed by its stable `id`.
-6. Count `matches`:
-   - zero: show **No game alias found for “<submitted name>”.** and stop;
-   - more than one: show **More than one game matched. Make the aliases unique on Windows, then try again.** and stop;
-   - exactly one: continue with that game.
-7. Ask **What should I remind you?** for text. Reject an empty or whitespace-only answer.
-8. Generate a UUID and capture the current date in ISO 8601 form.
-9. Build a dictionary with exactly these fields:
+3. Read the canonical `name` from every registered game and immediately present all names in one native, single-selection **Choose from List** interface.
+4. Resolve the selected canonical name back to its catalog entry and retain that entry's stable `id`. The Shortcut does not ask for, dictate, normalize, or alias-match a game name.
+5. Ask **What should I remind you?** for text. Reject an empty or whitespace-only answer.
+6. Generate a UUID and capture the current date in ISO 8601 form.
+7. Build a dictionary with exactly these fields:
 
    | Key | Value |
    | --- | --- |
    | `schemaVersion` | Number `1` |
    | `id` | Generated UUID |
-   | `gameId` | Matched game's stable `id` |
-   | `gameNameAtCreation` | Matched game's current canonical `name` |
+   | `gameId` | Selected game's stable `id` |
+   | `gameNameAtCreation` | Selected game's current canonical `name` |
    | `message` | Reminder text |
    | `createdAt` | ISO 8601 current date |
 
-10. Serialize the dictionary as JSON. Create or reuse `inbox` beneath the same fixed `iCloud Drive/Shortcuts/Game Reminders` folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
-11. Only after the final rename succeeds, show **Reminder saved for <game name>.**
+8. Serialize the dictionary as JSON. Create or reuse `inbox` beneath the same fixed `iCloud Drive/Shortcuts/Game Reminders` folder; save `<UUID>.tmp` in the Shortcut's private iCloud staging folder with overwrite disabled; move the completed temporary file into `inbox`; then rename it to `<UUID>.json`. A failed operation remains visible and is never reported as success.
+9. Only after the final rename succeeds, show **Reminder saved for <game name>.**
 
 The temporary extension prevents the Windows scanner from treating an incompletely saved file as a reminder. The staging filename intentionally has no leading dot so macOS does not preserve the finalized reminder as hidden. The temporary file enters `inbox` only after Shortcuts finishes writing it, and the final JSON file is never modified by the Shortcut.
 
@@ -69,15 +64,15 @@ Do not commit a privately shared export or a file containing Apple contact infor
 
 ## Manual validation
 
-- `Farever`, `FAREVER!`, and the configured `Forever` alias resolve to the same stable game ID.
-- An unknown name creates no file and the error repeats the submitted name.
-- Two games whose names/aliases normalize to the same value create no file.
-- Empty game and reminder prompts create no file.
+- The first interaction after catalog loading is one native **Choose from List** sheet containing every canonical game name exactly once and permitting only one selection.
+- Selecting each listed game writes that game's stable ID and current canonical name, regardless of its aliases.
+- No **Which game?** voice/text prompt, normalization, alias matching, or unknown-alias path appears.
+- Canceling game selection or leaving the reminder prompt empty creates no file.
 - Quotes, emoji, and line breaks in the reminder message remain valid escaped JSON.
 - With `inbox` absent, the first successful run creates it and writes exactly one new UUID-named `.json` file there.
 - With `inbox` already present, a successful run reuses it and creates exactly one new UUID-named `.json` file.
 - An existing destination is not overwritten.
 - If iCloud is unavailable or the save/rename fails, no success message appears.
-- After iCloud sync, launching the matched game on Windows displays the reminder.
+- After iCloud sync, launching the selected game on Windows displays the reminder.
 - A clean import asks for no folder bindings and runs without any unavailable-action warning.
 - The same synced Shortcut runs on Mac and iPhone without editing either file action.

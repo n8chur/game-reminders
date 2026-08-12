@@ -14,12 +14,6 @@
     "relativeFolder": "Game Reminders",
     "importQuestions": false
   },
-  "normalization": {
-    "case": "lowercase",
-    "replacePattern": "[^\\p{L}\\p{N}]",
-    "replacement": "",
-    "replaceAll": true
-  },
   "workflow": [
     {
       "action": "getFile",
@@ -42,34 +36,25 @@
       "error": "games.json uses an unsupported format. Update Game Reminders on Windows."
     },
     {
-      "action": "askForText",
-      "prompt": "Which game?",
-      "output": "requestedGameName"
+      "action": "repeatEach",
+      "input": "catalog.games",
+      "item": "game",
+      "steps": [
+        {
+          "action": "getDictionaryValue",
+          "input": "game",
+          "key": "name",
+          "output": "gameName"
+        }
+      ],
+      "output": "gameNames"
     },
     {
-      "action": "normalize",
-      "input": "requestedGameName",
-      "output": "requestedGameKey"
-    },
-    {
-      "action": "requireNonEmpty",
-      "input": "requestedGameKey",
-      "error": "Enter a game name."
-    },
-    {
-      "action": "initializeNumber",
-      "value": 0,
-      "output": "matchCount"
-    },
-    {
-      "action": "initializeText",
-      "value": "NO_MATCH",
-      "output": "matchedGameId"
-    },
-    {
-      "action": "initializeText",
-      "value": "NO_MATCH",
-      "output": "matchedGameName"
+      "action": "chooseFromList",
+      "input": "gameNames",
+      "prompt": "Choose a game",
+      "selectMultiple": false,
+      "output": "selectedGameName"
     },
     {
       "action": "repeatEach",
@@ -77,64 +62,9 @@
       "item": "game",
       "steps": [
         {
-          "action": "initializeBoolean",
-          "value": false,
-          "output": "gameMatched"
-        },
-        {
-          "action": "normalize",
-          "input": "game.name",
-          "output": "gameNameKey"
-        },
-        {
           "action": "if",
-          "condition": "gameNameKey equals requestedGameKey",
+          "condition": "game.name equals selectedGameName",
           "then": [
-            {
-              "action": "setVariable",
-              "variable": "gameMatched",
-              "value": true
-            }
-          ]
-        },
-        {
-          "action": "repeatEach",
-          "input": "game.aliases",
-          "item": "alias",
-          "steps": [
-            {
-              "action": "if",
-              "condition": "gameMatched equals false",
-              "then": [
-                {
-                  "action": "normalize",
-                  "input": "alias",
-                  "output": "aliasKey"
-                },
-                {
-                  "action": "if",
-                  "condition": "aliasKey equals requestedGameKey",
-                  "then": [
-                    {
-                      "action": "setVariable",
-                      "variable": "gameMatched",
-                      "value": true
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "action": "if",
-          "condition": "gameMatched equals true",
-          "then": [
-            {
-              "action": "incrementVariable",
-              "variable": "matchCount",
-              "value": 1
-            },
             {
               "action": "setVariable",
               "variable": "matchedGameId",
@@ -148,21 +78,6 @@
           ]
         }
       ]
-    },
-    {
-      "action": "branchOnCount",
-      "input": "matchCount",
-      "branches": {
-        "zero": {
-          "show": "No game alias found for “<requestedGameName>”.",
-          "stop": true
-        },
-        "moreThanOne": {
-          "show": "More than one game matched. Make the aliases unique on Windows, then try again.",
-          "stop": true
-        },
-        "one": "continue"
-      }
     },
     {
       "action": "askForText",

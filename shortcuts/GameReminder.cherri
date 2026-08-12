@@ -21,56 +21,24 @@ if schemaVersionNumber != 1 {
 }
 
 const games = getValue(catalog, "games")
-const requestedGameName = prompt("Which game?")
-const requestedLower = lowercase(requestedGameName)
-const requestedGameKey = replaceText('[^\p{L}\p{N}]', "", requestedLower, true, true)
 
-if !requestedGameKey {
-    alert("Enter a game name.", "Game Reminder")
-    stop()
+// The final action in this repeat returns every canonical name as Repeat Results.
+for gameItem in games {
+    const game = getDictionary(@gameItem)
+    getValue(game, "name")
 }
+const selectedGameName = chooseFromList(@RepeatResults, "Choose a game", false)
 
-@matchCount = 0
 @matchedGameId = "NO_MATCH"
 @matchedGameName = "NO_MATCH"
-
 for gameItem in games {
     const game = getDictionary(@gameItem)
     const gameName = getValue(game, "name")
-    const aliases = getValue(game, "aliases")
-    @gameMatched = false
-    const gameNameLower = lowercase("{gameName}")
-    const gameNameKey = replaceText('[^\p{L}\p{N}]', "", gameNameLower, true, true)
-    if gameNameKey == requestedGameKey {
-        @gameMatched = true
-    }
-
-    for alias in aliases {
-        if @gameMatched == false {
-            const aliasLower = lowercase(@alias)
-            const aliasKey = replaceText('[^\p{L}\p{N}]', "", aliasLower, true, true)
-            if aliasKey == requestedGameKey {
-                @gameMatched = true
-            }
-        }
-    }
-
-    if @gameMatched == true {
-        @matchCount += 1
+    if gameName == selectedGameName {
         const gameId = getValue(game, "id")
         @matchedGameId = "{gameId}"
         @matchedGameName = "{gameName}"
     }
-}
-
-if @matchCount == 0 {
-    alert("No game alias found for “{requestedGameName}”.", "Game Reminder")
-    stop()
-}
-
-if @matchCount > 1 {
-    alert("More than one game matched. Make the aliases unique on Windows, then try again.", "Game Reminder")
-    stop()
 }
 
 const message = prompt("What should I remind you?")

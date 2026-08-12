@@ -24,8 +24,8 @@ if ($null -eq $actionsArray -or $null -eq $questionsArray) {
 }
 
 $actions = @($actionsArray.dict)
-if ($actions.Count -ne 107) {
-    throw "Expected 107 Shortcut actions, found $($actions.Count)."
+if ($actions.Count -ne 56) {
+    throw "Expected 56 Shortcut actions, found $($actions.Count)."
 }
 
 function Convert-PlistDictionary {
@@ -61,43 +61,32 @@ if ($questions.Count -ne 0) {
     throw "Expected no folder import questions for the cross-device Shortcut, found $($questions.Count)."
 }
 
-$unknownMessageTemplate = 'No game alias found for “' + [char]0xFFFC + '”.'
-$unknownGameAlerts = @($actions | Where-Object {
+$chooseActions = @($actions | Where-Object {
     $action = Convert-PlistDictionary $_
-    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.alert') {
-        return $false
-    }
-
-    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
-    if (-not $parameters.ContainsKey('WFAlertActionMessage') -or $parameters.WFAlertActionMessage.Name -ne 'dict') {
-        return $false
-    }
-
-    $message = Convert-PlistDictionary $parameters.WFAlertActionMessage
-    if (-not $message.ContainsKey('Value')) {
-        return $false
-    }
-
-    $value = Convert-PlistDictionary $message.Value
-    $value.ContainsKey('string') -and $value.string.InnerText -eq $unknownMessageTemplate
+    $action.WFWorkflowActionIdentifier.InnerText -eq 'is.workflow.actions.choosefromlist'
 })
-if ($unknownGameAlerts.Count -ne 1) {
-    throw 'The compiled Shortcut must contain one dynamic unknown-game alert that repeats the submitted name.'
+if ($chooseActions.Count -ne 1) {
+    throw "The compiled Shortcut must contain exactly one native Choose from List action."
+}
+$choose = Convert-PlistDictionary $chooseActions[0]
+$chooseParameters = Convert-PlistDictionary $choose.WFWorkflowActionParameters
+if ($chooseParameters.WFChooseFromListActionPrompt.InnerText -ne 'Choose a game' -or
+    $chooseParameters.WFChooseFromListActionSelectMultiple.Name -ne 'false' -or
+    (Convert-PlistDictionary (Convert-PlistDictionary $chooseParameters.WFInput).Value).OutputName.InnerText -ne 'Repeat Results') {
+    throw 'Choose from List must immediately show all repeated canonical names with single selection enabled.'
 }
 
-$unknownAlert = Convert-PlistDictionary $unknownGameAlerts[0]
-$unknownParameters = Convert-PlistDictionary $unknownAlert.WFWorkflowActionParameters
-$unknownMessage = Convert-PlistDictionary $unknownParameters.WFAlertActionMessage
-$unknownValue = Convert-PlistDictionary $unknownMessage.Value
-$unknownAttachments = Convert-PlistDictionary $unknownValue.attachmentsByRange
-$requestedGameNameTokens = @($unknownAttachments.Values | ForEach-Object {
-    Convert-PlistDictionary $_
-} | Where-Object {
-    $_.Type.InnerText -eq 'ActionOutput' -and
-    $_.OutputName.InnerText -eq 'requestedGameName'
+$askActions = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    $action.WFWorkflowActionIdentifier.InnerText -eq 'is.workflow.actions.ask'
 })
-if ($requestedGameNameTokens.Count -ne 1) {
-    throw 'The unknown-game alert must use the original Which game? output exactly once, not its normalized value.'
+if ($askActions.Count -ne 1) {
+    throw 'The compiled Shortcut must ask only for the reminder message; game-name text input is forbidden.'
+}
+$ask = Convert-PlistDictionary $askActions[0]
+$askParameters = Convert-PlistDictionary $ask.WFWorkflowActionParameters
+if ($askParameters.WFAskActionPrompt.InnerText -ne 'What should I remind you?') {
+    throw 'The only text prompt must ask What should I remind you?.'
 }
 
 function Get-ActionByOutputName {
@@ -194,8 +183,8 @@ foreach ($actionNode in $actions) {
     $controlFlowGroups[$group] += [int]$parameters.WFControlFlowMode.InnerText
 }
 
-if ($controlFlowGroups.Count -ne 11) {
-    throw "Expected 11 distinct control-flow groups, found $($controlFlowGroups.Count). Do not compile with Cherri's --derive-uuids option."
+if ($controlFlowGroups.Count -ne 5) {
+    throw "Expected 5 distinct control-flow groups, found $($controlFlowGroups.Count). Do not compile with Cherri's --derive-uuids option."
 }
 
 foreach ($entry in $controlFlowGroups.GetEnumerator()) {
@@ -223,18 +212,22 @@ if ($duplicateActionUuids.Count -ne 0) {
     throw "Shortcut artifact contains duplicate action UUIDs."
 }
 
-$replaceActions = @($actions | Where-Object {
+$forbiddenNameFlowActions = @($actions | Where-Object {
     $action = Convert-PlistDictionary $_
-    $action.WFWorkflowActionIdentifier.InnerText -eq 'is.workflow.actions.text.replace'
-})
-$normalizationPatterns = @($replaceActions | ForEach-Object {
-    $action = Convert-PlistDictionary $_
+    $identifier = $action.WFWorkflowActionIdentifier.InnerText
+    if ($identifier -eq 'is.workflow.actions.text.changecase') { return $true }
+    if ($identifier -eq 'is.workflow.actions.text.replace') {
+        $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
+        return $parameters.WFReplaceTextFind.InnerText -like '*p{L}*'
+    }
+    if ($identifier -ne 'is.workflow.actions.getvalueforkey') {
+        return $false
+    }
     $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
-    $parameters.WFReplaceTextFind.InnerText
-} | Where-Object { $_ -like '*p{L}*' })
-if ($normalizationPatterns.Count -ne 3 -or
-    @($normalizationPatterns | Where-Object { $_ -cne '[^\p{L}\p{N}]' }).Count -ne 0) {
-    throw 'The compiled Shortcut must contain exactly three single-escaped Unicode name-normalization patterns.'
+    $parameters.WFDictionaryKey.InnerText -eq 'aliases'
+})
+if ($forbiddenNameFlowActions.Count -ne 0) {
+    throw 'The compiled Shortcut must not parse or normalize game text or read aliases.'
 }
 
 $missingVariableInputs = @($actions | Where-Object {
@@ -250,48 +243,4 @@ if ($missingVariableInputs.Count -ne 0) {
     throw 'Every Set Variable action must have an explicit input; do not rely on Nothing to clear per-game state.'
 }
 
-$numberActions = @($actions | Where-Object {
-    $action = Convert-PlistDictionary $_
-    $action.WFWorkflowActionIdentifier.InnerText -eq 'is.workflow.actions.number'
-})
-$hasZeroInitializer = $false
-foreach ($numberActionNode in $numberActions) {
-    $action = Convert-PlistDictionary $numberActionNode
-    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
-    if ($parameters.ContainsKey('WFNumberActionNumber') -and $parameters.WFNumberActionNumber.InnerText -eq '0') {
-        $hasZeroInitializer = $true
-    }
-}
-if (-not $hasZeroInitializer) {
-    throw 'The compiled Shortcut is missing the numeric zero match-count initializer.'
-}
-
-$textInitializers = @($actions | Where-Object {
-    $action = Convert-PlistDictionary $_
-    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.gettext') {
-        return $false
-    }
-
-    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
-    if (-not $parameters.ContainsKey('WFTextActionText')) {
-        return $false
-    }
-
-    $textNode = $parameters.WFTextActionText
-    if ($textNode.Name -eq 'string') {
-        return $textNode.InnerText -eq 'NO_MATCH'
-    }
-
-    $textValue = Convert-PlistDictionary $textNode
-    if (-not $textValue.ContainsKey('Value')) {
-        return $false
-    }
-
-    $value = Convert-PlistDictionary $textValue.Value
-    $value.ContainsKey('string') -and $value.string.InnerText -eq 'NO_MATCH'
-})
-if ($textInitializers.Count -ne 2) {
-    throw 'The compiled Shortcut must initialize both matched-game text variables explicitly.'
-}
-
-Write-Host "Shortcut artifact is structurally valid: 107 iPhone-compatible actions, exact normalization, submitted-name error context, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 11 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 56 iPhone-compatible actions, a native single-selection canonical-name list, stable-ID resolution, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 5 unique balanced control-flow groups."
