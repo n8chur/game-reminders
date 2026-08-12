@@ -1,10 +1,21 @@
 <Window x:Class="GameReminders.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Game Reminders" Height="680" Width="820"
-        MinHeight="560" MinWidth="700" WindowStartupLocation="CenterScreen"
+        Title="Game Reminders" Height="680" Width="880"
+        MinHeight="560" MinWidth="740" WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackground}"
         Foreground="{DynamicResource TextBrush}">
+    <Window.Resources>
+        <Style x:Key="ReminderListBoxStyle" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
+            <Setter Property="SelectionMode" Value="Single" />
+        </Style>
+        <Style x:Key="SearchTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="28,24,28,28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -12,21 +23,11 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,18">
-            <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
-                <Button Content="Scan Steam" Click="ScanSteam_Click"
-                        Height="34" MinHeight="34" HorizontalAlignment="Right"
-                        ToolTip="Discover installed Steam games" />
-                <CheckBox x:Name="LaunchAtLoginCheckBox"
-                          Content="Launch at login" Margin="0,9,0,0"
-                          HorizontalAlignment="Right" Click="LaunchAtLogin_Click" />
-            </StackPanel>
-            <StackPanel>
-                <TextBlock Text="Game Reminders" FontSize="27" FontWeight="SemiBold" />
-                <TextBlock Text="Choose which games should show your reminders"
-                           Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}" />
-            </StackPanel>
-        </DockPanel>
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock Text="Game Reminders" FontSize="27" FontWeight="SemiBold" />
+            <TextBlock Text="Remember what matters the next time you play"
+                       Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}" />
+        </StackPanel>
 
         <Border x:Name="StatusBanner" Grid.Row="1" CornerRadius="7" Padding="12,9" Margin="0,0,0,14"
                 Background="{DynamicResource NoticeBackgroundBrush}" Visibility="Collapsed">
@@ -40,136 +41,283 @@
         </Border>
 
         <TabControl x:Name="ManagementTabs" Grid.Row="2">
-            <TabItem x:Name="GamesTab" Header="Games">
+            <TabItem x:Name="RemindersTab" Header="Reminders">
                 <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                    <TabControl x:Name="ReminderTabs">
+                        <TabItem x:Name="PendingRemindersTab" Header="Pending (0)">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                    <TextBox x:Name="SearchText" Grid.Row="0" Height="36" Padding="10,7" Margin="0,0,0,14"
-                             TextChanged="SearchText_Changed" ToolTip="Filter games and action-required items"
-                             AutomationProperties.Name="Search games" />
+                                <Grid>
+                                    <ListBox x:Name="PendingRemindersList"
+                                             Style="{StaticResource ReminderListBoxStyle}"
+                                             KeyDown="ReminderList_KeyDown"
+                                             PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Complete" Click="CompleteSelectedReminder_Click" />
+                                                <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
+                                        <ListBox.GroupStyle>
+                                            <GroupStyle>
+                                                <GroupStyle.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                   Margin="12,12,12,6"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </DataTemplate>
+                                                </GroupStyle.HeaderTemplate>
+                                            </GroupStyle>
+                                        </ListBox.GroupStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel LastChildFill="True">
+                                                    <Button DockPanel.Dock="Right" Content="Complete" Tag="{Binding Reminder}"
+                                                            Click="CompleteReminder_Click" Margin="14,0,0,0"
+                                                            VerticalAlignment="Center" />
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                                   FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="PendingRemindersEmpty" Text="No pending reminders."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
 
-                    <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
-                            Background="{DynamicResource SurfaceMutedBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <DockPanel Margin="0,0,0,3">
-                                <TextBlock x:Name="DetectedCountText" DockPanel.Dock="Right"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                <TextBlock Text="Action required" FontSize="15" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource IssueTextBrush}" />
-                            </DockPanel>
-                            <TextBlock Grid.Row="1" Text="Configure this detection as a game, or ignore it."
-                                       Margin="0,0,0,8" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <ListBox x:Name="PendingList" Grid.Row="2" MouseDoubleClick="ConfigureDetection_Click"
-                                     SelectionChanged="PendingList_SelectionChanged" MaxHeight="170">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                            <TextBlock Text="Detected application" FontSize="12" Margin="0,2,0,0"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
-                                        Margin="0,10,0,0">
-                                <Button x:Name="ConfigureDetectionButton" Content="Configure"
-                                        Click="ConfigureDetection_Click" IsEnabled="False" />
-                                <Button x:Name="IgnoreDetectionButton" Content="Ignore"
-                                        Click="IgnoreDetection_Click" IsEnabled="False" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,14,0,0">
+                                    <Button Content="New reminder" Click="NewReminder_Click"
+                                            Style="{StaticResource PrimaryActionButtonStyle}"
+                                            IsDefault="True" MinWidth="120" />
+                                </StackPanel>
+                            </Grid>
+                        </TabItem>
 
-                    <Grid Grid.Row="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <DockPanel Margin="0,0,0,7">
-                            <TextBlock x:Name="ConfiguredCountText" DockPanel.Dock="Right"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <TextBlock Text="Games" FontSize="15" FontWeight="SemiBold" />
-                        </DockPanel>
-                        <Grid Grid.Row="1">
-                            <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
-                                     SelectionChanged="GamesList_SelectionChanged">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <DockPanel LastChildFill="True">
-                                            <Border DockPanel.Dock="Right" Background="{Binding BadgeBackground}"
-                                                    CornerRadius="10" Height="20" Padding="7,0"
-                                                    Visibility="{Binding BadgeVisibility}" Margin="10,0,0,0">
-                                                <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="10"
-                                                           FontWeight="SemiBold" VerticalAlignment="Center"
-                                                           LineHeight="12" LineStackingStrategy="BlockLineHeight" />
-                                            </Border>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Game.Name}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding SourceLabel}" FontSize="12" Margin="0,2,0,0"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock x:Name="GamesEmptyText" Text="No games match this search."
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed" />
-                        </Grid>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
-                                    Margin="0,14,0,0">
-                            <Button Content="Add game" Click="AddGame_Click" />
-                            <Button x:Name="EditGameButton" Content="Edit" Click="EditGame_Click"
-                                    IsEnabled="False" />
-                            <Button x:Name="RemoveGameButton" Content="Remove" Click="RemoveGame_Click"
-                                    IsEnabled="False" />
-                        </StackPanel>
-                    </Grid>
+                        <TabItem x:Name="CompletedRemindersTab" Header="Completed (0)">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid>
+                                    <ListBox x:Name="CompletedRemindersList"
+                                             Style="{StaticResource ReminderListBoxStyle}"
+                                             KeyDown="ReminderList_KeyDown"
+                                             PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Mark as pending" Click="UncompleteSelectedReminder_Click" />
+                                            <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                    <ListBox.GroupStyle>
+                                        <GroupStyle>
+                                            <GroupStyle.HeaderTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                               Margin="12,12,12,6"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </DataTemplate>
+                                            </GroupStyle.HeaderTemplate>
+                                        </GroupStyle>
+                                    </ListBox.GroupStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True" Opacity="0.76">
+                                                <TextBlock DockPanel.Dock="Left" Text="✓" FontSize="18" Margin="0,0,10,0"
+                                                           Foreground="{DynamicResource PrimaryBrush}" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
+                                                               TextDecorations="Strikethrough" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="CompletedRemindersEmpty" Text="Completed reminders will appear here."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
+
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,14,0,0">
+                                    <Button x:Name="ClearCompletedButton" Content="Clear all" Click="ClearCompleted_Click"
+                                            Style="{StaticResource PrimaryActionButtonStyle}" MinWidth="100" />
+                                </StackPanel>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
             </TabItem>
 
-            <TabItem x:Name="IgnoredTab" Header="Ignored">
+            <TabItem x:Name="GamesTab" Header="Games">
                 <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="Ignored discoveries" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <Grid Grid.Row="1" Margin="0,8,0,0">
-                        <ListBox x:Name="IgnoredList" SelectionChanged="IgnoredList_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding SourceLabel}" FontSize="12" Margin="0,2,0,0"
+                    <TabControl x:Name="GameTabs">
+                        <TabItem x:Name="MyGamesTab" Header="My Games">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0">
+                                    <TextBox x:Name="GamesSearchText" Style="{StaticResource SearchTextBoxStyle}"
+                                             TextChanged="GamesSearchText_Changed"
+                                             ToolTip="Search my games"
+                                             AutomationProperties.Name="Search my games" />
+                                    <TextBlock x:Name="GamesSearchPlaceholder" Text="Search"
+                                               Margin="10,0,0,14" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               IsHitTestVisible="False" />
+                                </Grid>
+
+                                <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
+                                        Background="{DynamicResource SurfaceMutedBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Margin="0,0,0,3">
+                                            <TextBlock x:Name="DetectedCountText" DockPanel.Dock="Right"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="Action required" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource IssueTextBrush}" />
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1" Text="Configure this detection as a game, or ignore it."
+                                                   Margin="0,0,0,8" FontSize="12"
                                                    Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <TextBlock x:Name="IgnoredEmptyText" Text="No ignored discoveries."
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                    </Grid>
-                    <Button x:Name="RestoreIgnoredButton" Grid.Row="2" Content="Restore"
-                            HorizontalAlignment="Right" Margin="0,14,0,0"
-                            Click="RestoreIgnored_Click" IsEnabled="False" />
+                                        <ListBox x:Name="PendingList" Grid.Row="2" MouseDoubleClick="ConfigureDetection_Click"
+                                                 SelectionChanged="PendingList_SelectionChanged" MaxHeight="170">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="Detected application" FontSize="12" Margin="0,2,0,0"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    Margin="0,10,0,0">
+                                            <Button x:Name="ConfigureDetectionButton" Content="Configure"
+                                                    Click="ConfigureDetection_Click" IsEnabled="False" />
+                                            <Button x:Name="IgnoreDetectionButton" Content="Ignore"
+                                                    Click="IgnoreDetection_Click" IsEnabled="False" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Row="2">
+                                    <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
+                                             SelectionChanged="GamesList_SelectionChanged">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Right" Background="{Binding BadgeBackground}"
+                                                            CornerRadius="10" Height="20" Padding="7,0"
+                                                            Visibility="{Binding BadgeVisibility}" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="10"
+                                                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                   LineHeight="12" LineStackingStrategy="BlockLineHeight" />
+                                                    </Border>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Game.Name}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding SourceLabel}" FontSize="12" Margin="0,2,0,0"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="GamesEmptyText" Text="No games match this search."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed" />
+                                </Grid>
+                                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,14,0,0">
+                                    <Button Content="Add game" Click="AddGame_Click" />
+                                    <Button x:Name="EditGameButton" Content="Edit" Click="EditGame_Click"
+                                            IsEnabled="False" />
+                                    <Button x:Name="RemoveGameButton" Content="Remove" Click="RemoveGame_Click"
+                                            IsEnabled="False" />
+                                </StackPanel>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem x:Name="IgnoredGamesTab" Header="Ignored">
+                            <Grid Margin="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0">
+                                    <TextBox x:Name="IgnoredSearchText" Style="{StaticResource SearchTextBoxStyle}"
+                                             TextChanged="IgnoredSearchText_Changed"
+                                             ToolTip="Search ignored games"
+                                             AutomationProperties.Name="Search ignored games" />
+                                    <TextBlock x:Name="IgnoredSearchPlaceholder" Text="Search"
+                                               Margin="10,0,0,14" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               IsHitTestVisible="False" />
+                                </Grid>
+                                <Grid Grid.Row="1">
+                                    <ListBox x:Name="IgnoredList" SelectionChanged="IgnoredList_SelectionChanged">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SourceLabel}" FontSize="12" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="IgnoredEmptyText" Text="No ignored games match this search."
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
+                                <Button x:Name="RestoreIgnoredButton" Grid.Row="2" Content="Restore"
+                                        HorizontalAlignment="Right" Margin="0,14,0,0"
+                                        Click="RestoreIgnored_Click" IsEnabled="False" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
+            </TabItem>
+
+            <TabItem x:Name="SettingsTab" Header="Settings">
+                <StackPanel Margin="16" MaxWidth="520" HorizontalAlignment="Left">
+                    <TextBlock Text="Settings" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                    <Button Content="Scan Steam" Click="ScanSteam_Click"
+                            Height="34" MinHeight="34" HorizontalAlignment="Left"
+                            ToolTip="Discover installed Steam games" Margin="0,0,0,10" />
+                    <Button Content="Open iCloud folder" Click="OpenICloudFolder_Click"
+                            Height="34" MinHeight="34" HorizontalAlignment="Left"
+                            ToolTip="Open the Game Reminders folder in iCloud Drive" Margin="0,0,0,14" />
+                    <CheckBox x:Name="LaunchAtLoginCheckBox"
+                              Content="Launch at login" Click="LaunchAtLogin_Click" />
+                </StackPanel>
             </TabItem>
         </TabControl>
     </Grid>

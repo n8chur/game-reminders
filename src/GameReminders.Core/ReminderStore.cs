@@ -127,6 +127,99 @@ public sealed class ReminderStore
         return reminders.OrderBy(reminder => reminder.CreatedAt).ToArray();
     }
 
+    public IReadOnlyList<Reminder> LoadAllPending() =>
+        LoadReminderDirectory(InboxPath).OrderBy(reminder => reminder.CreatedAt).ToArray();
+
+    public IReadOnlyList<Reminder> LoadCompleted() =>
+        LoadReminderDirectory(CompletedPath).OrderByDescending(reminder => reminder.CreatedAt).ToArray();
+
+    public Reminder CreatePending(GameDefinition game, string message) =>
+        CreatePending(game, message, Guid.NewGuid(), DateTimeOffset.UtcNow);
+
+    internal Reminder CreatePending(
+        GameDefinition game,
+        string message,
+        Guid reminderId,
+        DateTimeOffset createdAt,
+        Action<string, string>? write = null,
+        Action<string, string>? move = null,
+        Action<string>? delete = null)
+    {
+        ArgumentNullException.ThrowIfNull(game);
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            throw new ArgumentException("Enter a reminder.", nameof(message));
+        }
+
+        var reminder = new Reminder
+        {
+            Id = reminderId,
+            GameId = game.Id,
+            GameNameAtCreation = game.Name,
+            Message = message.Trim(),
+            CreatedAt = createdAt
+        };
+        var contents = JsonProtocol.WriteReminder(reminder);
+        Directory.CreateDirectory(InboxPath);
+        var destination = Path.Combine(InboxPath, $"{reminder.Id:D}.json");
+        var temporaryPath = Path.Combine(InboxPath, $".{reminder.Id:D}.{Guid.NewGuid():N}.tmp");
+        write ??= File.WriteAllText;
+        move ??= (source, target) => File.Move(source, target, overwrite: false);
+        delete ??= File.Delete;
+
+        try
+        {
+            RetrySyncProviderOperation(() =>
+            {
+                write(temporaryPath, contents);
+                return true;
+            });
+            var staged = JsonProtocol.ReadReminder(
+                RetrySyncProviderOperation(() => File.ReadAllText(temporaryPath)),
+                temporaryPath);
+            if (!HasSamePayload(staged, reminder))
+            {
+                throw new InvalidDataException("The staged reminder did not match the reminder being created.");
+            }
+
+            RetrySyncProviderOperation(() =>
+            {
+                move(temporaryPath, destination);
+                return true;
+            });
+            return reminder with { SourcePath = destination };
+        }
+        finally
+        {
+            try
+            {
+                delete(temporaryPath);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static IReadOnlyList<Reminder> LoadReminderDirectory(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return [];
+        }
+
+        var paths = RetrySyncProviderOperation(() =>
+            Directory.EnumerateFiles(directory, "*.json").OrderBy(path => path).ToArray());
+        var reminders = new List<Reminder>(paths.Length);
+        foreach (var path in paths)
+        {
+            reminders.Add(JsonProtocol.ReadReminder(
+                RetrySyncProviderOperation(() => File.ReadAllText(path)),
+                path));
+        }
+
+        return reminders;
+    }
+
     private void TrackInvalidReminder(string path)
     {
         try
@@ -193,6 +286,59 @@ public sealed class ReminderStore
             (source, destination) => File.Copy(source, destination, overwrite: true),
             File.ReadAllText,
             (source, destination) => File.Move(source, destination, overwrite: false));
+    }
+
+    public void Delete(Reminder reminder)
+    {
+        if (string.IsNullOrWhiteSpace(reminder.SourcePath))
+        {
+            throw new InvalidOperationException("The reminder has no source path.");
+        }
+
+        RetrySyncProviderOperation(() =>
+        {
+            var stored = JsonProtocol.ReadReminder(File.ReadAllText(reminder.SourcePath), reminder.SourcePath);
+            if (!HasSamePayload(stored, reminder))
+            {
+                throw new InvalidDataException(
+                    $"Reminder '{Path.GetFileName(reminder.SourcePath)}' changed and was preserved.");
+            }
+
+            File.Delete(reminder.SourcePath);
+            return true;
+        });
+    }
+
+    public void Uncomplete(Reminder reminder)
+    {
+        if (string.IsNullOrWhiteSpace(reminder.SourcePath))
+        {
+            throw new InvalidOperationException("The reminder has no source path.");
+        }
+
+        Directory.CreateDirectory(InboxPath);
+        var fileName = Path.GetFileName(reminder.SourcePath);
+        var destination = Path.Combine(InboxPath, fileName);
+
+        RetrySyncProviderOperation(() =>
+        {
+            var stored = JsonProtocol.ReadReminder(File.ReadAllText(reminder.SourcePath), reminder.SourcePath);
+            if (!HasSamePayload(stored, reminder))
+            {
+                throw new InvalidDataException(
+                    $"Completed reminder '{fileName}' changed and was preserved.");
+            }
+
+            if (File.Exists(destination))
+            {
+                EnsureSameArchive(destination, reminder);
+                File.Delete(reminder.SourcePath);
+                return true;
+            }
+
+            File.Move(reminder.SourcePath, destination, overwrite: false);
+            return true;
+        });
     }
 
     internal void Complete(

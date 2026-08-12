@@ -24,6 +24,7 @@ public partial class App : System.Windows.Application
     private readonly ReviewNotificationQueue _reviewNotifications = new();
     private readonly Dictionary<string, ReminderWindow> _openReminderWindows =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ReminderSessionState _reminderSession = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -69,7 +70,14 @@ public partial class App : System.Windows.Application
                 MarkGamesReviewed,
                 launchAtLogin,
                 GameReminders.App.MainWindow.CanChangeLaunchAtLogin(startupStatusError),
-                SetLaunchAtLogin);
+                SetLaunchAtLogin,
+                RefreshReminders,
+                ShowNewReminder,
+                CompleteReminder,
+                DeleteReminder,
+                UncompleteReminder,
+                ClearCompletedReminders,
+                OpenICloudFolder);
             MainWindow = _mainWindow;
             if (startupStatusError is not null)
             {
@@ -82,6 +90,7 @@ public partial class App : System.Windows.Application
             }
 
             StartMonitoring();
+            RefreshReminders();
             RefreshPending();
             StartForegroundDetection();
             _ = ScanSteamAsync(showCompletion: false);
@@ -251,6 +260,7 @@ public partial class App : System.Windows.Application
         }
 
         ShowAndActivate(_mainWindow);
+        RefreshReminders();
     }
 
     private void RequestExistingInstanceWindow()
@@ -882,10 +892,192 @@ public partial class App : System.Windows.Application
         if (_store is null || _openReminderWindows.ContainsKey(game.Id)) return;
         var reminders = _store.LoadPending(game.Id);
         if (reminders.Count == 0) return;
-        var window = new ReminderWindow(game, reminders, _store);
+        _reminderSession.BeginNextLaunch(reminders);
+        RefreshReminders();
+        var window = new ReminderWindow(
+            game,
+            reminders,
+            _store,
+            reminder =>
+            {
+                _reminderSession.Complete(reminder);
+                RefreshReminders();
+            },
+            reminder =>
+            {
+                _reminderSession.Defer(reminder);
+                RefreshReminders();
+            });
         _openReminderWindows[game.Id] = window;
         window.Closed += (_, _) => _openReminderWindows.Remove(game.Id);
         window.Show();
+    }
+
+    private void RefreshReminders()
+    {
+        if (_store is null || _mainWindow is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var catalog = _store.LoadCatalog();
+            var names = catalog.Games.ToDictionary(game => game.Id, game => game.Name, StringComparer.OrdinalIgnoreCase);
+            var pending = _store.LoadAllPending();
+            var completed = _store.LoadCompleted();
+            var lists = _reminderSession.Partition(pending, completed, names);
+            _mainWindow.SetReminders(lists.Pending, lists.Completed);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            _mainWindow.SetStatus(
+                $"Could not refresh reminders. The last loaded list is still shown. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    internal static ReminderListItem ToListItem(Reminder reminder, IReadOnlyDictionary<string, string> catalogNames) =>
+        new(reminder, catalogNames.TryGetValue(reminder.GameId, out var currentName)
+            ? currentName
+            : reminder.GameNameAtCreation);
+
+    private void ShowNewReminder()
+    {
+        if (_store is null || _mainWindow is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var games = _store.LoadCatalog().Games;
+            if (games.Count == 0)
+            {
+                MessageBox.Show("Add a game before creating a reminder.", "Game Reminders",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var reminders = _store.LoadAllPending().Concat(_store.LoadCompleted()).ToArray();
+            var window = new NewReminderWindow(games, reminders, CreateReminder) { Owner = _mainWindow };
+            window.ShowDialog();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            _mainWindow.SetStatus($"Could not open the new reminder form: {exception.Message}", isIssue: true);
+        }
+    }
+
+    private string? CreateReminder(GameDefinition game, string message)
+    {
+        if (_store is null)
+        {
+            return "The reminder store is unavailable.";
+        }
+
+        try
+        {
+            _store.CreatePending(game, message);
+            RefreshReminders();
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
+        {
+            return exception.Message;
+        }
+    }
+
+    private void CompleteReminder(Reminder reminder)
+    {
+        if (_store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Complete(reminder);
+            _reminderSession.Complete(reminder);
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder is still pending because it could not be completed. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void DeleteReminder(Reminder reminder)
+    {
+        if (_store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Delete(reminder);
+            _reminderSession.Complete(reminder);
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder was preserved because it could not be deleted. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void UncompleteReminder(Reminder reminder)
+    {
+        if (_store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Uncomplete(reminder);
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder stayed completed because it could not be marked pending. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void ClearCompletedReminders()
+    {
+        if (_store is null ||
+            MessageBox.Show(
+                "Clear all completed reminders? Pending reminders will not be affected.",
+                "Clear completed reminders",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var reminder in _store.LoadCompleted())
+            {
+                _store.Delete(reminder);
+            }
+
+            RefreshReminders();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or JsonException)
+        {
+            _mainWindow?.SetStatus(
+                $"Could not clear all completed reminders. Any remaining reminders were preserved. {exception.Message}",
+                isIssue: true);
+            RefreshReminders();
+        }
     }
 
     private void OnInvalidReminderDetected(object? sender, InvalidReminderEventArgs e)

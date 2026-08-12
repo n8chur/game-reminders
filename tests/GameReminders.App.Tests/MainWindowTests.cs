@@ -1,7 +1,31 @@
+using System.Xml.Linq;
+
 namespace GameReminders.App.Tests;
 
 public sealed class MainWindowTests
 {
+    [Fact]
+    public void ComboBoxTemplateKeepsTheRequiredPopupPartName()
+    {
+        var appXamlPath = Path.Combine(AppContext.BaseDirectory, "App.xaml");
+        var xaml = XDocument.Load(appXamlPath);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var comboBoxStyle = Assert.Single(
+            xaml.Root!.Descendants(presentation + "Style"),
+            style => (string?)style.Attribute("TargetType") == "ComboBox");
+        var templateSetter = Assert.Single(
+            comboBoxStyle.Descendants(presentation + "Setter"),
+            setter => (string?)setter.Attribute("Property") == "Template");
+
+        var popup = Assert.Single(templateSetter
+            .Descendants(presentation + "ControlTemplate")
+            .Descendants(presentation + "Popup"));
+
+        Assert.Equal("PART_Popup", (string?)popup.Attribute(x + "Name"));
+    }
+
     [Theory]
     [InlineData(null, true)]
     [InlineData("registry unavailable", false)]
@@ -110,5 +134,22 @@ public sealed class MainWindowTests
 
         Assert.Equal("#B42318", new GameListItem(game, true, "ACTION REQUIRED").BadgeBackground);
         Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
+    }
+
+    [Fact]
+    public void ReminderDetailsDoNotRepeatTheGroupGameName()
+    {
+        var item = new ReminderListItem(
+            new GameReminders.Core.Reminder
+            {
+                Id = Guid.Parse("3f0648ac-0d2c-4a68-bc05-f9760ed663e7"),
+                GameId = "test-game",
+                GameNameAtCreation = "Farever",
+                Message = "Test",
+                CreatedAt = new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.Zero)
+            },
+            "Farever");
+
+        Assert.DoesNotContain("Farever", item.Details);
     }
 }

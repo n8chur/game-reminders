@@ -15,4 +15,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\GameReminders.App\GameReminders.App.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\src\GameReminders.App\App.xaml" Link="App.xaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

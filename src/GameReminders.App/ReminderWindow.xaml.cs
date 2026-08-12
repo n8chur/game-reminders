@@ -8,13 +8,22 @@ namespace GameReminders.App;
 public partial class ReminderWindow : Window
 {
     private readonly ReminderStore _store;
+    private readonly Action<Reminder> _completed;
+    private readonly Action<Reminder> _deferred;
     private readonly Dictionary<Guid, Border> _rows = [];
 
-    public ReminderWindow(GameDefinition game, IReadOnlyList<Reminder> reminders, ReminderStore store)
+    public ReminderWindow(
+        GameDefinition game,
+        IReadOnlyList<Reminder> reminders,
+        ReminderStore store,
+        Action<Reminder>? completed = null,
+        Action<Reminder>? deferred = null)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
         _store = store;
+        _completed = completed ?? (_ => { });
+        _deferred = deferred ?? (_ => { });
         Title = $"{game.Name} reminder";
         HeadingText.Text = reminders.Count == 1
             ? $"{game.Name} reminder"
@@ -71,6 +80,7 @@ public partial class ReminderWindow : Window
         try
         {
             _store.Complete(reminder);
+            _completed(reminder);
             RemoveReminder(reminder);
         }
         catch (Exception exception)
@@ -87,6 +97,7 @@ public partial class ReminderWindow : Window
     {
         if (sender is Button { Tag: Reminder reminder })
         {
+            _deferred(reminder);
             RemoveReminder(reminder);
         }
     }
