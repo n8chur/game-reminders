@@ -29,16 +29,23 @@ for gameItem in games {
 }
 const selectedGameName = chooseFromList(@RepeatResults, "Choose a game", false)
 
+@matchCount = 0
 @matchedGameId = "NO_MATCH"
 @matchedGameName = "NO_MATCH"
 for gameItem in games {
     const game = getDictionary(@gameItem)
     const gameName = getValue(game, "name")
     if gameName == selectedGameName {
+        @matchCount += 1
         const gameId = getValue(game, "id")
         @matchedGameId = "{gameId}"
         @matchedGameName = "{gameName}"
     }
+}
+
+if matchCount != 1 {
+    alert("Choose exactly one uniquely named game. Rename duplicate games on Windows, then try again.", "Game Reminder")
+    stop()
 }
 
 const message = prompt("What should I remind you?")
