@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
     private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
-    private readonly Action<AliasRequest> _acceptAliasRequest;
+    private readonly Action<AliasRequest> _retryAliasRequest;
     private readonly Action<AliasRequest> _rejectAliasRequest;
     private readonly Action<IReadOnlyCollection<string>> _markGamesReviewed;
     private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
@@ -41,7 +41,7 @@ public partial class MainWindow : Window
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
         Action<IgnoredDiscoveryItem> restoreIgnored,
-        Action<AliasRequest> acceptAliasRequest,
+        Action<AliasRequest> retryAliasRequest,
         Action<AliasRequest> rejectAliasRequest,
         Action<IReadOnlyCollection<string>> markGamesReviewed,
         bool launchAtLogin,
@@ -64,7 +64,7 @@ public partial class MainWindow : Window
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
         _restoreIgnored = restoreIgnored;
-        _acceptAliasRequest = acceptAliasRequest;
+        _retryAliasRequest = retryAliasRequest;
         _rejectAliasRequest = rejectAliasRequest;
         _markGamesReviewed = markGamesReviewed;
         _setLaunchAtLogin = setLaunchAtLogin;
@@ -224,7 +224,7 @@ public partial class MainWindow : Window
         ConfigureDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
         IgnoreDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
         RestoreIgnoredButton.IsEnabled = HasSelection(IgnoredList.SelectedItem);
-        AcceptAliasButton.IsEnabled = HasSelection(AliasRequestsList.SelectedItem);
+        RetryAliasButton.IsEnabled = HasSelection(AliasRequestsList.SelectedItem);
         RejectAliasButton.IsEnabled = HasSelection(AliasRequestsList.SelectedItem);
     }
 
@@ -323,11 +323,11 @@ public partial class MainWindow : Window
         if (IgnoredList.SelectedItem is IgnoredDiscoveryItem item) _restoreIgnored(item);
     }
 
-    private void AcceptAliasRequest_Click(object sender, RoutedEventArgs e)
+    private void RetryAliasRequest_Click(object sender, RoutedEventArgs e)
     {
         if (AliasRequestsList.SelectedItem is AliasRequestListItem item)
         {
-            _acceptAliasRequest(item.Request);
+            _retryAliasRequest(item.Request);
         }
     }
 
@@ -438,10 +438,10 @@ internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, stri
 
 internal sealed record IgnoredDiscoveryItem(string Key, string Name, string SourceLabel, string? SteamAppId = null);
 
-internal sealed record AliasRequestListItem(AliasRequest Request, string GameName)
+internal sealed record AliasRequestListItem(AliasRequest Request, string GameName, string FailureReason)
 {
     public string AliasLabel => $"“{Request.Alias}”";
-    public string Details => $"Add to {GameName} · {Request.CreatedAt.ToLocalTime():g}";
+    public string Details => $"Add to {GameName} · {FailureReason}";
 }
 
 internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);

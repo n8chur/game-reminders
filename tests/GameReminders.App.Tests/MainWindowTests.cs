@@ -142,14 +142,16 @@ public sealed class MainWindowTests
                 Alias = "Fare ever",
                 CreatedAt = DateTimeOffset.Parse("2026-08-12T08:00:00Z")
             },
-            "Farever");
+            "Farever",
+            "The game no longer exists.");
 
         Assert.Equal("“Fare ever”", item.AliasLabel);
         Assert.Contains("Farever", item.Details);
+        Assert.Contains("no longer exists", item.Details);
     }
 
     [Fact]
-    public void AliasRequestActionsExistInMyGames()
+    public void FailedAliasRequestActionsExistInMyGames()
     {
         var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
         var xaml = XDocument.Load(xamlPath);
@@ -162,7 +164,7 @@ public sealed class MainWindowTests
             .ToHashSet();
 
         Assert.Contains("AliasRequestsList", names);
-        Assert.Contains("AcceptAliasButton", names);
+        Assert.Contains("RetryAliasButton", names);
         Assert.Contains("RejectAliasButton", names);
     }
 }

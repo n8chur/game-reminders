@@ -10,12 +10,12 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void LoadPendingDeduplicatesExactRequestIdsWithoutDeletingCopies()
     {
-        var (requests, reminders, catalog) = CreateStores();
+        var (requests, _, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "first.json", request);
         Write(requests.InboxPath, "second.json", request);
 
-        var loaded = Assert.Single(requests.LoadPending(catalog));
+        var loaded = Assert.Single(requests.LoadPending());
 
         Assert.Equal(request.Id, loaded.Id);
         Assert.Equal(2, Directory.EnumerateFiles(requests.InboxPath, "*.json").Count());
@@ -24,42 +24,64 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void ConflictingDuplicateIdsArePreservedAndReported()
     {
-        var (requests, _, catalog) = CreateStores();
+        var (requests, _, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "first.json", request);
         Write(requests.InboxPath, "second.json", request with { Alias = "Different" });
         var issues = new List<AliasRequestIssueEventArgs>();
         requests.IssueDetected += (_, args) => issues.Add(args);
 
-        Assert.Empty(requests.LoadPending(catalog));
+        Assert.Empty(requests.LoadPending());
         Assert.Equal(2, issues.Count);
         Assert.Equal(2, Directory.EnumerateFiles(requests.InboxPath, "*.json").Count());
     }
 
     [Fact]
-    public void UnknownGameRequestIsPreservedAndReported()
+    public void AutoAcceptPreservesAndReturnsUnknownGameRequestAsFailure()
     {
-        var (requests, _, catalog) = CreateStores();
+        var (requests, reminders, _) = CreateStores();
         var request = CreateRequest() with { GameId = "missing" };
         Write(requests.InboxPath, "unknown.json", request);
-        AliasRequestIssueEventArgs? issue = null;
-        requests.IssueDetected += (_, args) => issue = args;
+        var result = requests.AutoAcceptPending(reminders);
 
-        Assert.Empty(requests.LoadPending(catalog));
-        Assert.Contains("unknown game id", Assert.IsType<AliasRequestIssueEventArgs>(issue).Reason);
+        var failure = Assert.Single(result.Failures);
+        Assert.Equal(request.Id, failure.Request.Id);
+        Assert.Contains("no longer exists", failure.Reason);
         Assert.Single(Directory.EnumerateFiles(requests.InboxPath, "*.json"));
+    }
+
+    [Fact]
+    public void AutoAcceptAddsEveryValidAliasWithoutUserAction()
+    {
+        var (requests, reminders, _) = CreateStores();
+        var first = CreateRequest();
+        var second = CreateRequest() with
+        {
+            Id = Guid.Parse("acde4a04-4442-4f07-823d-50ecf006c097"),
+            Alias = "Fare-ever"
+        };
+        Write(requests.InboxPath, "first.json", first);
+        Write(requests.InboxPath, "second.json", second);
+
+        var result = requests.AutoAcceptPending(reminders);
+
+        Assert.Equal(2, result.AcceptedCount);
+        Assert.Empty(result.Failures);
+        Assert.Equal(["Fare ever"], Assert.Single(reminders.LoadCatalog().Games).Aliases);
+        Assert.Empty(Directory.EnumerateFiles(requests.InboxPath, "*.json"));
+        Assert.Equal(2, Directory.EnumerateFiles(requests.AcceptedPath, "*.json").Count());
     }
 
     [Fact]
     public void MalformedRequestIsReportedWithoutHidingValidRequests()
     {
-        var (requests, _, catalog) = CreateStores();
+        var (requests, _, _) = CreateStores();
         Write(requests.InboxPath, "valid.json", CreateRequest());
         File.WriteAllText(Path.Combine(requests.InboxPath, "malformed.json"), "{ nope }");
         AliasRequestIssueEventArgs? issue = null;
         requests.IssueDetected += (_, args) => issue = args;
 
-        Assert.Single(requests.LoadPending(catalog));
+        Assert.Single(requests.LoadPending());
         Assert.Equal("malformed.json", Assert.IsType<AliasRequestIssueEventArgs>(issue).FileName);
         Assert.True(File.Exists(Path.Combine(requests.InboxPath, "malformed.json")));
     }
@@ -67,11 +89,11 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void AcceptAddsAliasAndArchivesEveryExactDuplicate()
     {
-        var (requests, reminders, catalog) = CreateStores();
+        var (requests, reminders, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "first.json", request);
         Write(requests.InboxPath, "second.json", request);
-        var selected = Assert.Single(requests.LoadPending(catalog));
+        var selected = Assert.Single(requests.LoadPending());
 
         requests.Accept(selected, reminders);
 
@@ -83,11 +105,11 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void AcceptIsIdempotentWhenAliasAlreadyBelongsToSelectedGame()
     {
-        var (requests, reminders, catalog) = CreateStores(["Fare ever"]);
+        var (requests, reminders, _) = CreateStores(["Fare ever"]);
         var request = CreateRequest();
         Write(requests.InboxPath, "request.json", request);
 
-        requests.Accept(Assert.Single(requests.LoadPending(catalog)), reminders);
+        requests.Accept(Assert.Single(requests.LoadPending()), reminders);
 
         Assert.Equal(["Fare ever"], Assert.Single(reminders.LoadCatalog().Games).Aliases);
         Assert.Single(Directory.EnumerateFiles(requests.AcceptedPath, "*.json"));
@@ -96,7 +118,7 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void AliasCollisionPreservesRequestAndCatalog()
     {
-        var (requests, reminders, catalog) = CreateStores();
+        var (requests, reminders, _) = CreateStores();
         var other = new GameDefinition
         {
             Id = "other",
@@ -107,12 +129,11 @@ public sealed class AliasRequestStoreTests : IDisposable
         {
             Games = reminders.LoadCatalog().Games.Concat([other]).ToArray()
         });
-        var currentCatalog = reminders.LoadCatalog();
         var request = CreateRequest();
         Write(requests.InboxPath, "request.json", request);
 
         var exception = Assert.Throws<InvalidDataException>(() =>
-            requests.Accept(Assert.Single(requests.LoadPending(currentCatalog)), reminders));
+            requests.Accept(Assert.Single(requests.LoadPending()), reminders));
 
         Assert.Contains("another game", exception.Message);
         Assert.Single(Directory.EnumerateFiles(requests.InboxPath, "*.json"));
@@ -122,10 +143,10 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void ConcurrentCatalogChangePreservesRequest()
     {
-        var (requests, reminders, catalog) = CreateStores();
+        var (requests, reminders, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "request.json", request);
-        var selected = Assert.Single(requests.LoadPending(catalog));
+        var selected = Assert.Single(requests.LoadPending());
 
         var exception = Assert.Throws<InvalidDataException>(() =>
             requests.Accept(selected, reminders, stale =>
@@ -142,11 +163,11 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void RejectPreservesPendingRequestWhenArchiveConflicts()
     {
-        var (requests, _, catalog) = CreateStores();
+        var (requests, _, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "request.json", request);
         Write(requests.RejectedPath, "request.json", request with { Alias = "Conflicting" });
-        var selected = Assert.Single(requests.LoadPending(catalog));
+        var selected = Assert.Single(requests.LoadPending());
 
         Assert.Throws<InvalidDataException>(() => requests.Reject(selected));
 
@@ -157,12 +178,12 @@ public sealed class AliasRequestStoreTests : IDisposable
     [Fact]
     public void RejectCompletesAfterAnIdenticalArchiveAlreadyExists()
     {
-        var (requests, _, catalog) = CreateStores();
+        var (requests, _, _) = CreateStores();
         var request = CreateRequest();
         Write(requests.InboxPath, "request.json", request);
         Write(requests.RejectedPath, "request.json", request);
 
-        requests.Reject(Assert.Single(requests.LoadPending(catalog)));
+        requests.Reject(Assert.Single(requests.LoadPending()));
 
         Assert.Empty(Directory.EnumerateFiles(requests.InboxPath, "*.json"));
         Assert.Single(Directory.EnumerateFiles(requests.RejectedPath, "*.json"));

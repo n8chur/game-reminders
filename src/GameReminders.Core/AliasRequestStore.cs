@@ -23,9 +23,8 @@ public sealed class AliasRequestStore
         Directory.CreateDirectory(RejectedPath);
     }
 
-    public IReadOnlyList<AliasRequest> LoadPending(GameCatalog catalog)
+    public IReadOnlyList<AliasRequest> LoadPending()
     {
-        ArgumentNullException.ThrowIfNull(catalog);
         EnsureInitialized();
 
         var parsed = new List<AliasRequest>();
@@ -43,7 +42,6 @@ public sealed class AliasRequestStore
             }
         }
 
-        var gamesById = catalog.Games.ToDictionary(game => game.Id, StringComparer.OrdinalIgnoreCase);
         var result = new List<AliasRequest>();
         foreach (var group in parsed.GroupBy(request => request.Id))
         {
@@ -58,16 +56,32 @@ public sealed class AliasRequestStore
                 continue;
             }
 
-            if (!gamesById.ContainsKey(first.GameId))
-            {
-                Report(first.SourcePath!, $"references unknown game id '{first.GameId}'");
-                continue;
-            }
-
             result.Add(first);
         }
 
         return result.OrderBy(request => request.CreatedAt).ToArray();
+    }
+
+    public AliasRequestProcessingResult AutoAcceptPending(ReminderStore reminderStore)
+    {
+        ArgumentNullException.ThrowIfNull(reminderStore);
+        var acceptedCount = 0;
+        var failures = new List<AliasRequestFailure>();
+        foreach (var request in LoadPending())
+        {
+            try
+            {
+                Accept(request, reminderStore);
+                acceptedCount++;
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or System.Text.Json.JsonException)
+            {
+                failures.Add(new AliasRequestFailure(request, exception.Message));
+            }
+        }
+
+        return new AliasRequestProcessingResult(acceptedCount, failures);
     }
 
     public void Accept(AliasRequest request, ReminderStore reminderStore) =>
@@ -262,3 +276,9 @@ public sealed class AliasRequestIssueEventArgs(string fileName, string reason) :
     public string FileName { get; } = fileName;
     public string Reason { get; } = reason;
 }
+
+public sealed record AliasRequestFailure(AliasRequest Request, string Reason);
+
+public sealed record AliasRequestProcessingResult(
+    int AcceptedCount,
+    IReadOnlyList<AliasRequestFailure> Failures);

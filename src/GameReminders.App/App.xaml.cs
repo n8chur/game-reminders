@@ -71,7 +71,7 @@ public partial class App : System.Windows.Application
                 ConfigureDetection,
                 IgnoreDetection,
                 RestoreIgnored,
-                AcceptAliasRequest,
+                RetryAliasRequest,
                 RejectAliasRequest,
                 MarkGamesReviewed,
                 launchAtLogin,
@@ -961,12 +961,24 @@ public partial class App : System.Windows.Application
         try
         {
             catalog ??= _store.LoadCatalog();
+            var processing = _aliasRequestStore.AutoAcceptPending(_store);
+            if (processing.AcceptedCount > 0)
+            {
+                catalog = _store.LoadCatalog();
+                _mainWindow.SetGames(
+                    catalog.Games,
+                    _settings.UnreviewedGameIds.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            }
+
             var gameNames = catalog.Games.ToDictionary(
                 game => game.Id,
                 game => game.Name,
                 StringComparer.OrdinalIgnoreCase);
-            var requests = _aliasRequestStore.LoadPending(catalog)
-                .Select(request => new AliasRequestListItem(request, gameNames[request.GameId]))
+            var requests = processing.Failures
+                .Select(failure => new AliasRequestListItem(
+                    failure.Request,
+                    gameNames.GetValueOrDefault(failure.Request.GameId) ?? failure.Request.GameId,
+                    failure.Reason))
                 .ToArray();
             _mainWindow.SetAliasRequests(requests);
         }
@@ -979,7 +991,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private void AcceptAliasRequest(AliasRequest request)
+    private void RetryAliasRequest(AliasRequest request)
     {
         if (_store is null || _aliasRequestStore is null)
         {
@@ -996,7 +1008,7 @@ public partial class App : System.Windows.Application
             exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
         {
             _mainWindow?.SetStatus(
-                $"The alias request was preserved because it could not be accepted. {exception.Message}",
+                $"The alias request was preserved because it still could not be added. {exception.Message}",
                 isIssue: true);
             RefreshAliasRequests();
         }
