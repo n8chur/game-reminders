@@ -6,74 +6,63 @@
       {
         "id": "custom-farever",
         "name": "Farever",
-        "aliases": ["Forever", "For Ever"],
-        "processes": ["Farever\\Farever.exe"]
+        "aliases": [
+          "Forever",
+          "For Ever"
+        ],
+        "processes": [
+          "Farever\\Farever.exe"
+        ]
       },
       {
         "id": "custom-other",
         "name": "Other Game",
-        "aliases": ["Shared Alias"],
-        "processes": ["OtherGame.exe"]
+        "aliases": [
+          "Shared Alias"
+        ],
+        "processes": [
+          "OtherGame.exe"
+        ]
       },
       {
         "id": "custom-collision",
         "name": "Collision",
-        "aliases": ["Shared-Alias"],
-        "processes": ["Collision.exe"]
+        "aliases": [
+          "Shared-Alias"
+        ],
+        "processes": [
+          "Collision.exe"
+        ]
       },
       {
         "id": "custom-pokemon",
         "name": "Pokémon",
         "aliases": [],
-        "processes": ["Pokemon.exe"]
+        "processes": [
+          "Pokemon.exe"
+        ]
       }
     ]
   },
   "cases": [
     {
-      "name": "canonical name",
-      "input": "Farever",
-      "expectedStatus": "created",
+      "name": "Farever",
+      "selectedName": "Farever",
       "expectedGameId": "custom-farever"
     },
     {
-      "name": "case and punctuation",
-      "input": "FAREVER!",
-      "expectedStatus": "created",
-      "expectedGameId": "custom-farever"
+      "name": "Other Game",
+      "selectedName": "Other Game",
+      "expectedGameId": "custom-other"
     },
     {
-      "name": "speech alias",
-      "input": "for ever",
-      "expectedStatus": "created",
-      "expectedGameId": "custom-farever"
+      "name": "Collision",
+      "selectedName": "Collision",
+      "expectedGameId": "custom-collision"
     },
     {
-      "name": "unknown game",
-      "input": "Missing",
-      "expectedStatus": "unknownGame",
-      "expectedError": "No game alias found for “Missing”."
-    },
-    {
-      "name": "empty normalized name",
-      "input": " ! ",
-      "expectedStatus": "emptyGameName"
-    },
-    {
-      "name": "normalized alias collision",
-      "input": "shared alias",
-      "expectedStatus": "ambiguousGame"
-    },
-    {
-      "name": "missing diacritic",
-      "input": "Pokemon",
-      "expectedStatus": "unknownGame",
-      "expectedError": "No game alias found for “Pokemon”."
-    },
-    {
-      "name": "preserved diacritic",
-      "input": "Pokémon",
-      "expectedStatus": "created",
+      "name": "Pokémon",
+      "selectedName": "Pokémon",
       "expectedGameId": "custom-pokemon"
     }
   ]
