@@ -43,7 +43,11 @@ public sealed class ProcessLaunchMonitorTests
         var launches = 0;
         monitor.GameLaunched += (_, _) => Interlocked.Increment(ref launches);
 
-        var scanTask = Task.Run(monitor.ScanOnce);
+        var scanTask = Task.Factory.StartNew(
+            monitor.ScanOnce,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(5)));
 
         monitor.Dispose();
