@@ -24,8 +24,8 @@ if ($null -eq $actionsArray -or $null -eq $questionsArray) {
 }
 
 $actions = @($actionsArray.dict)
-if ($actions.Count -ne 56) {
-    throw "Expected 56 Shortcut actions, found $($actions.Count)."
+if ($actions.Count -ne 65) {
+    throw "Expected 65 Shortcut actions, found $($actions.Count)."
 }
 
 function Convert-PlistDictionary {
@@ -111,6 +111,26 @@ function Get-ReferencedOutputName {
     return $value.OutputName.InnerText
 }
 
+$matchCountInitial = Convert-PlistDictionary (Get-ActionByOutputName 'matchCountInitial')
+$matchCountInitialParameters = Convert-PlistDictionary $matchCountInitial.WFWorkflowActionParameters
+if ($matchCountInitial.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.number' -or
+    $matchCountInitialParameters.WFNumberActionNumber.InnerText -ne '0') {
+    throw 'Selection resolution must initialize matchCount to zero.'
+}
+$selectionGuard = @($actions | Where-Object {
+    $action = Convert-PlistDictionary $_
+    if ($action.WFWorkflowActionIdentifier.InnerText -ne 'is.workflow.actions.conditional') { return $false }
+    $parameters = Convert-PlistDictionary $action.WFWorkflowActionParameters
+    $parameters.ContainsKey('WFCondition') -and
+        $parameters.WFCondition.InnerText -eq '5' -and
+        $parameters.ContainsKey('WFNumberValue') -and
+        $parameters.WFNumberValue.InnerText -eq '1' -and
+        $parameters.WFInput.InnerText -match 'matchCount'
+})
+if ($selectionGuard.Count -ne 1) {
+    throw 'Canceled, missing, and duplicate game selections must be rejected unless matchCount equals one.'
+}
+
 $inboxActionNode = Get-ActionByOutputName 'inboxFolder'
 $saveActionNode = Get-ActionByOutputName 'stagedFile'
 $moveActionNode = Get-ActionByOutputName 'inboxStagedFile'
@@ -183,8 +203,8 @@ foreach ($actionNode in $actions) {
     $controlFlowGroups[$group] += [int]$parameters.WFControlFlowMode.InnerText
 }
 
-if ($controlFlowGroups.Count -ne 5) {
-    throw "Expected 5 distinct control-flow groups, found $($controlFlowGroups.Count). Do not compile with Cherri's --derive-uuids option."
+if ($controlFlowGroups.Count -ne 6) {
+    throw "Expected 6 distinct control-flow groups, found $($controlFlowGroups.Count). Do not compile with Cherri's --derive-uuids option."
 }
 
 foreach ($entry in $controlFlowGroups.GetEnumerator()) {
@@ -243,4 +263,4 @@ if ($missingVariableInputs.Count -ne 0) {
     throw 'Every Set Variable action must have an explicit input; do not rely on Nothing to clear per-game state.'
 }
 
-Write-Host "Shortcut artifact is structurally valid: 56 iPhone-compatible actions, a native single-selection canonical-name list, stable-ID resolution, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 5 unique balanced control-flow groups."
+Write-Host "Shortcut artifact is structurally valid: 65 iPhone-compatible actions, a native single-selection canonical-name list, exactly-one stable-ID resolution, explicit variable inputs, unique action IDs, exact visible Shortcuts paths for Game Reminders/games.json and Game Reminders/inbox without bookmarks or import questions, visible staging/final filenames, anchored inbox move, and 6 unique balanced control-flow groups."
