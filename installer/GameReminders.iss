@@ -19,7 +19,7 @@
 AppId={#AppId}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVerName={#AppName}
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://github.com/n8chur/game-reminders
 AppSupportURL=https://github.com/n8chur/game-reminders/issues
