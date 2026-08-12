@@ -11,6 +11,7 @@ public partial class App : System.Windows.Application
     private ForegroundGameDetector? _foregroundDetector;
     private MainWindow? _mainWindow;
     private ReminderStore? _store;
+    private AliasRequestStore? _aliasRequestStore;
     private SettingsService? _settingsService;
     private StoreRootValidator? _storeRootValidator;
     private ILaunchAtLoginService? _launchAtLoginService;
@@ -57,6 +58,9 @@ public partial class App : System.Windows.Application
             _store = new ReminderStore(root);
             _store.InvalidReminderDetected += OnInvalidReminderDetected;
             _store.EnsureInitialized();
+            _aliasRequestStore = new AliasRequestStore(root);
+            _aliasRequestStore.IssueDetected += OnAliasRequestIssueDetected;
+            _aliasRequestStore.EnsureInitialized();
 
             var launchAtLogin = GetLaunchAtLoginState(out var startupStatusError);
             _mainWindow = new MainWindow(
@@ -67,11 +71,13 @@ public partial class App : System.Windows.Application
                 ConfigureDetection,
                 IgnoreDetection,
                 RestoreIgnored,
+                RetryAliasRequest,
+                RejectAliasRequest,
                 MarkGamesReviewed,
                 launchAtLogin,
                 GameReminders.App.MainWindow.CanChangeLaunchAtLogin(startupStatusError),
                 SetLaunchAtLogin,
-                RefreshReminders,
+                RefreshManagement,
                 ShowNewReminder,
                 CompleteReminder,
                 DeleteReminder,
@@ -91,6 +97,7 @@ public partial class App : System.Windows.Application
 
             StartMonitoring();
             RefreshReminders();
+            RefreshAliasRequests();
             RefreshPending();
             StartForegroundDetection();
             _ = ScanSteamAsync(showCompletion: false);
@@ -343,6 +350,7 @@ public partial class App : System.Windows.Application
                 .Select(game => game.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             _mainWindow?.SetGames(catalog.Games, _settings.UnreviewedGameIds.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            RefreshAliasRequests(catalog);
             RefreshIgnored();
             UpdateTrayAttention();
         }
@@ -936,6 +944,101 @@ public partial class App : System.Windows.Application
                 isIssue: true);
         }
     }
+
+    private void RefreshManagement()
+    {
+        RefreshReminders();
+        RefreshAliasRequests();
+    }
+
+    private void RefreshAliasRequests(GameCatalog? catalog = null)
+    {
+        if (_store is null || _aliasRequestStore is null || _mainWindow is null)
+        {
+            return;
+        }
+
+        try
+        {
+            catalog ??= _store.LoadCatalog();
+            var processing = _aliasRequestStore.AutoAcceptPending(_store);
+            if (processing.AcceptedCount > 0)
+            {
+                catalog = _store.LoadCatalog();
+                _mainWindow.SetGames(
+                    catalog.Games,
+                    _settings.UnreviewedGameIds.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            }
+
+            var gameNames = catalog.Games.ToDictionary(
+                game => game.Id,
+                game => game.Name,
+                StringComparer.OrdinalIgnoreCase);
+            var requests = processing.Failures
+                .Select(failure => new AliasRequestListItem(
+                    failure.Request,
+                    gameNames.GetValueOrDefault(failure.Request.GameId) ?? failure.Request.GameId,
+                    failure.Reason))
+                .ToArray();
+            _mainWindow.SetAliasRequests(requests);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            _mainWindow.SetStatus(
+                $"Could not refresh alias requests. The last loaded list is still shown. {exception.Message}",
+                isIssue: true);
+        }
+    }
+
+    private void RetryAliasRequest(AliasRequest request)
+    {
+        if (_store is null || _aliasRequestStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _aliasRequestStore.Accept(request, _store);
+            StartMonitoring();
+            RefreshAliasRequests();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetAliasRequestStatus(
+                $"The alias request was preserved because it still could not be added. {exception.Message}");
+            RefreshAliasRequests();
+        }
+    }
+
+    private void RejectAliasRequest(AliasRequest request)
+    {
+        if (_aliasRequestStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _aliasRequestStore.Reject(request);
+            RefreshAliasRequests();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            _mainWindow?.SetStatus(
+                $"The alias request was preserved because it could not be rejected. {exception.Message}",
+                isIssue: true);
+            RefreshAliasRequests();
+        }
+    }
+
+    private void OnAliasRequestIssueDetected(object? sender, AliasRequestIssueEventArgs e) =>
+        _mainWindow?.SetStatus(
+            $"Alias request file '{e.FileName}' {e.Reason}. The file was preserved.",
+            isIssue: true);
 
     internal static ReminderListItem ToListItem(Reminder reminder, IReadOnlyDictionary<string, string> catalogNames) =>
         new(reminder, catalogNames.TryGetValue(reminder.GameId, out var currentName)

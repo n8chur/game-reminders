@@ -38,3 +38,15 @@ public sealed record Reminder
     [JsonIgnore]
     public string? SourcePath { get; init; }
 }
+
+public sealed record AliasRequest
+{
+    public int SchemaVersion { get; init; } = 1;
+    public required Guid Id { get; init; }
+    public required string GameId { get; init; }
+    public required string Alias { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+
+    [JsonIgnore]
+    public string? SourcePath { get; init; }
+}

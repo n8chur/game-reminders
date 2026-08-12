@@ -75,6 +75,35 @@ public sealed class JsonProtocolTests
         Assert.Throws<InvalidDataException>(() => JsonProtocol.WriteReminder(reminder));
     }
 
+    [Fact]
+    public void AliasRequestRoundTripContainsNoReminderMessage()
+    {
+        var request = CreateAliasRequest();
+
+        var json = JsonProtocol.WriteAliasRequest(request);
+        var roundTrip = JsonProtocol.ReadAliasRequest(json);
+
+        Assert.Equal(request, roundTrip);
+        Assert.DoesNotContain("message", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EmptyAliasRequestFieldsAreRejected()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            JsonProtocol.WriteAliasRequest(CreateAliasRequest() with { Alias = " " }));
+        Assert.Throws<InvalidDataException>(() =>
+            JsonProtocol.WriteAliasRequest(CreateAliasRequest() with { GameId = " " }));
+    }
+
+    private static AliasRequest CreateAliasRequest() => new()
+    {
+        Id = Guid.Parse("9f6db96e-1c50-4785-91d6-94580d2ab833"),
+        GameId = "custom-farever",
+        Alias = "Fare ever",
+        CreatedAt = DateTimeOffset.Parse("2026-08-12T08:00:00Z")
+    };
+
     private static Reminder CreateReminder() => new()
     {
         Id = Guid.Parse("0198a7de-81a2-74fe-b560-0242ac120002"),
