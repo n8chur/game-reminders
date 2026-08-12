@@ -148,7 +148,18 @@ public partial class MainWindow : Window
         AliasRequestsList.ItemsSource = requests;
         AliasRequestsSection.Visibility = requests.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         AliasRequestCountText.Text = CountLabel(requests.Count, "request");
-        UpdateSelectionStates();
+        if (requests.Count == 0)
+        {
+            SetAliasRequestStatus(null);
+        }
+    }
+
+    internal void SetAliasRequestStatus(string? status)
+    {
+        AliasRequestStatusText.Text = status ?? string.Empty;
+        AliasRequestStatusBanner.Visibility = string.IsNullOrWhiteSpace(status)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     public void ShowGames() => ManagementTabs.SelectedItem = GamesTab;
@@ -224,8 +235,6 @@ public partial class MainWindow : Window
         ConfigureDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
         IgnoreDetectionButton.IsEnabled = HasSelection(PendingList.SelectedItem);
         RestoreIgnoredButton.IsEnabled = HasSelection(IgnoredList.SelectedItem);
-        RetryAliasButton.IsEnabled = HasSelection(AliasRequestsList.SelectedItem);
-        RejectAliasButton.IsEnabled = HasSelection(AliasRequestsList.SelectedItem);
     }
 
     internal static bool Matches(string value, string query) =>
@@ -236,6 +245,7 @@ public partial class MainWindow : Window
     private void GamesSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyGameFilter();
     private void IgnoredSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyIgnoredFilter();
     private void DismissStatus_Click(object sender, RoutedEventArgs e) => SetStatus(null);
+    private void DismissAliasRequestStatus_Click(object sender, RoutedEventArgs e) => SetAliasRequestStatus(null);
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
     private void EditGame_Click(object sender, RoutedEventArgs e)
     {
@@ -325,17 +335,18 @@ public partial class MainWindow : Window
 
     private void RetryAliasRequest_Click(object sender, RoutedEventArgs e)
     {
-        if (AliasRequestsList.SelectedItem is AliasRequestListItem item)
+        if (sender is Button { Tag: AliasRequest request })
         {
-            _retryAliasRequest(item.Request);
+            SetAliasRequestStatus(null);
+            _retryAliasRequest(request);
         }
     }
 
     private void RejectAliasRequest_Click(object sender, RoutedEventArgs e)
     {
-        if (AliasRequestsList.SelectedItem is AliasRequestListItem item)
+        if (sender is Button { Tag: AliasRequest request })
         {
-            _rejectAliasRequest(item.Request);
+            _rejectAliasRequest(request);
         }
     }
 
@@ -353,9 +364,6 @@ public partial class MainWindow : Window
         UpdateSelectionStates();
 
     private void IgnoredList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        UpdateSelectionStates();
-
-    private void AliasRequestsList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         UpdateSelectionStates();
 
     private void MarkVisibleGamesReviewed()

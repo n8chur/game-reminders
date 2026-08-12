@@ -151,11 +151,30 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void FailedAliasRequestActionsExistInMyGames()
+    public void FailedAliasRequestActionsAreEmbeddedInNonSelectableRows()
     {
         var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
         var xaml = XDocument.Load(xamlPath);
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var requestList = xaml.Descendants(presentation + "ItemsControl")
+            .Single(element => (string?)element.Attribute(x + "Name") == "AliasRequestsList");
+        var rowButtons = requestList.Descendants(presentation + "Button").ToArray();
+
+        Assert.Contains(rowButtons, button => (string?)button.Attribute("Content") == "Retry");
+        Assert.Contains(rowButtons, button => (string?)button.Attribute("Content") == "Reject");
+        Assert.All(rowButtons, button => Assert.Equal("{Binding Request}", (string?)button.Attribute("Tag")));
+        Assert.DoesNotContain(requestList.DescendantsAndSelf(), element =>
+            element.Name == presentation + "ListBox" ||
+            element.Attribute("SelectionChanged") is not null);
+    }
+
+    [Fact]
+    public void AliasRetryErrorsHaveALocalBanner()
+    {
+        var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
+        var xaml = XDocument.Load(xamlPath);
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
 
         var names = xaml.Descendants()
@@ -163,8 +182,7 @@ public sealed class MainWindowTests
             .Where(name => name is not null)
             .ToHashSet();
 
-        Assert.Contains("AliasRequestsList", names);
-        Assert.Contains("RetryAliasButton", names);
-        Assert.Contains("RejectAliasButton", names);
+        Assert.Contains("AliasRequestStatusBanner", names);
+        Assert.Contains("AliasRequestStatusText", names);
     }
 }

@@ -1007,9 +1007,8 @@ public partial class App : System.Windows.Application
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
         {
-            _mainWindow?.SetStatus(
-                $"The alias request was preserved because it still could not be added. {exception.Message}",
-                isIssue: true);
+            _mainWindow?.SetAliasRequestStatus(
+                $"The alias request was preserved because it still could not be added. {exception.Message}");
             RefreshAliasRequests();
         }
     }
