@@ -132,57 +132,11 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void AliasRequestRowsShowSubmittedAliasAndSelectedGame()
-    {
-        var item = new AliasRequestListItem(
-            new GameReminders.Core.AliasRequest
-            {
-                Id = Guid.Parse("9f6db96e-1c50-4785-91d6-94580d2ab833"),
-                GameId = "custom-farever",
-                Alias = "Fare ever",
-                CreatedAt = DateTimeOffset.Parse("2026-08-12T08:00:00Z")
-            },
-            "Farever",
-            "The game no longer exists.");
-
-        Assert.Equal("“Fare ever”", item.AliasLabel);
-        Assert.Contains("Farever", item.Details);
-        Assert.Contains("no longer exists", item.Details);
-    }
-
-    [Fact]
-    public void FailedAliasRequestActionsAreEmbeddedInNonSelectableRows()
+    public void GameManagementContainsNoObsoleteRequestSection()
     {
         var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
         var xaml = XDocument.Load(xamlPath);
-        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
 
-        var requestList = xaml.Descendants(presentation + "ItemsControl")
-            .Single(element => (string?)element.Attribute(x + "Name") == "AliasRequestsList");
-        var rowButtons = requestList.Descendants(presentation + "Button").ToArray();
-
-        Assert.Contains(rowButtons, button => (string?)button.Attribute("Content") == "Retry");
-        Assert.Contains(rowButtons, button => (string?)button.Attribute("Content") == "Reject");
-        Assert.All(rowButtons, button => Assert.Equal("{Binding Request}", (string?)button.Attribute("Tag")));
-        Assert.DoesNotContain(requestList.DescendantsAndSelf(), element =>
-            element.Name == presentation + "ListBox" ||
-            element.Attribute("SelectionChanged") is not null);
-    }
-
-    [Fact]
-    public void AliasRetryErrorsHaveALocalBanner()
-    {
-        var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
-        var xaml = XDocument.Load(xamlPath);
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-
-        var names = xaml.Descendants()
-            .Select(element => (string?)element.Attribute(x + "Name"))
-            .Where(name => name is not null)
-            .ToHashSet();
-
-        Assert.Contains("AliasRequestStatusBanner", names);
-        Assert.Contains("AliasRequestStatusText", names);
+        Assert.DoesNotContain("ali" + "as", xaml.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 }

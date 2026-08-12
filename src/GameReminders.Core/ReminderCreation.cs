@@ -1,13 +1,10 @@
-using System.Text;
-
 namespace GameReminders.Core;
 
 public enum ReminderCreationStatus
 {
     Created,
-    EmptyGameName,
-    UnknownGame,
-    AmbiguousGame,
+    EmptyGameId,
+    GameNotFound,
     EmptyMessage
 }
 
@@ -25,34 +22,25 @@ public static class ReminderCreation
 {
     public static ReminderCreationResult Create(
         GameCatalog catalog,
-        string requestedGameName,
+        string selectedGameId,
         string message,
         Guid reminderId,
         DateTimeOffset createdAt)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        ArgumentNullException.ThrowIfNull(requestedGameName);
+        ArgumentNullException.ThrowIfNull(selectedGameId);
         ArgumentNullException.ThrowIfNull(message);
 
-        var requestedKey = NormalizeShortcutName(requestedGameName);
-        if (string.IsNullOrEmpty(requestedKey))
+        if (string.IsNullOrWhiteSpace(selectedGameId))
         {
-            return Failed(ReminderCreationStatus.EmptyGameName);
+            return Failed(ReminderCreationStatus.EmptyGameId);
         }
 
-        var matches = catalog.Games
-            .Where(game => Matches(game, requestedKey))
-            .Take(2)
-            .ToArray();
-
-        if (matches.Length == 0)
+        var game = catalog.Games.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, selectedGameId, StringComparison.OrdinalIgnoreCase));
+        if (game is null)
         {
-            return Failed(ReminderCreationStatus.UnknownGame);
-        }
-
-        if (matches.Length > 1)
-        {
-            return Failed(ReminderCreationStatus.AmbiguousGame);
+            return Failed(ReminderCreationStatus.GameNotFound);
         }
 
         if (string.IsNullOrWhiteSpace(message))
@@ -70,7 +58,6 @@ public static class ReminderCreation
             throw new ArgumentException("A generated creation timestamp cannot be empty.", nameof(createdAt));
         }
 
-        var game = matches[0];
         return new ReminderCreationResult
         {
             Status = ReminderCreationStatus.Created,
@@ -83,24 +70,6 @@ public static class ReminderCreation
                 CreatedAt = createdAt
             }
         };
-    }
-
-    private static bool Matches(GameDefinition game, string requestedKey) =>
-        NormalizeShortcutName(game.Name) == requestedKey ||
-        game.Aliases.Any(alias => NormalizeShortcutName(alias) == requestedKey);
-
-    private static string NormalizeShortcutName(string value)
-    {
-        var result = new StringBuilder(value.Length);
-        foreach (var rune in value.EnumerateRunes())
-        {
-            if (Rune.IsLetterOrDigit(rune))
-            {
-                result.Append(Rune.ToLowerInvariant(rune));
-            }
-        }
-
-        return result.ToString();
     }
 
     private static ReminderCreationResult Failed(ReminderCreationStatus status) =>
