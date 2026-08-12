@@ -20,7 +20,7 @@ Version 0.0.1 supports Windows x64 only. Steam is the only launcher with automat
 
 Download one of these files from the latest [GitHub Release](https://github.com/n8chur/game-reminders/releases):
 
-- `GameReminders-0.0.1-win-x64-setup.exe` is the recommended installer. It installs for the current user, adds a Start Menu entry and uninstaller, and can optionally create a desktop shortcut.
+- `GameReminders-0.0.1-win-x64-setup.exe` is the recommended installer. It installs for the current user, adds a Start Menu entry and uninstaller, enables launch at sign-in by default, and can optionally create a desktop shortcut.
 - `GameReminders-0.0.1-win-x64-portable.zip` contains the same application without an installer. Extract the complete ZIP to a permanent folder before running `GameReminders.exe`.
 
 Version 0.0.1 is not code-signed. Windows may show a Microsoft Defender SmartScreen warning because it cannot verify the publisher. Confirm that the file came from this repository's Releases page before choosing **More info** and **Run anyway**. Do not bypass a warning for a copy from another source.
@@ -32,7 +32,7 @@ Version 0.0.1 is not code-signed. Windows may show a Microsoft Defender SmartScr
 3. Select the `Shortcuts` folder inside iCloud Drive. When one standard location is unambiguous, the app selects it automatically.
 4. Game Reminders creates or opens the fixed `Game Reminders` child folder and verifies that it is usable.
 5. Allow the app to request **Always keep on this device** for that child folder. If iCloud rejects the request, apply that option to the folder in File Explorer and retry.
-6. Optionally enable **Launch Game Reminders when I sign in to Windows**.
+6. Confirm **Launch Game Reminders when I sign in to Windows**. Installer users begin with this enabled unless they cleared the installer task; portable users can opt in here.
 7. Add a game manually or choose **Scan Steam**.
 
 The resulting authoritative folder is:
