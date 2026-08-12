@@ -1,6 +1,6 @@
 # Milestone 3.1: Shortcut polish
 
-Status: Phase A implementation and cross-device validation.
+Status: Phase A validated; Phase B Windows review support in progress.
 
 Tracking issue: [#5](https://github.com/n8chur/game-reminders/issues/5)
 
@@ -59,7 +59,10 @@ Pending files live under a new `alias-requests/inbox` directory and use UUID fil
 
 Alias requests never contain reminder message text.
 
-The final directory names and archive lifecycle are not approved until Core store behavior and collision handling are designed and tested.
+Windows uses `alias-requests/inbox`, `alias-requests/accepted`, and
+`alias-requests/rejected`. Accepting or rejecting stages and validates an archive copy before
+removing the inbox copy. Exact duplicate request IDs are shown once and all identical copies are
+archived; conflicting duplicates and archive collisions preserve every file and fail visibly.
 
 ### Required Windows behavior
 
@@ -78,7 +81,18 @@ The final directory names and archive lifecycle are not approved until Core stor
 - Canceling or failing any validation: create neither a reminder nor an alias request.
 - More than one normalized match remains an error; the Shortcut must not guess.
 
-Atomicity across two iCloud files is not available. The implementation must define a recoverable order and idempotent retry behavior before this phase is coded.
+Atomicity across two iCloud files is not available. The Shortcut will finalize the privacy-safe
+alias request first and then the reminder. If reminder finalization fails, the request remains
+useful and Windows can still approve the alias for a retry; the Shortcut must report that the
+reminder was not saved. Reprocessing an already-approved alias is idempotent.
+
+### Delivery slices
+
+1. Windows receiver: protocol validation, safe inbox/archive transitions, deduplication,
+   collision handling, catalog concurrency checks, review UI, tests, and a sample request.
+2. Shortcut producer: zero-match selection, staged alias-request write, reminder creation,
+   source/artifact validators, and unsigned artifact generation.
+3. Apple signing and exact-artifact cross-device validation.
 
 ## Phase C: distribution and documentation
 

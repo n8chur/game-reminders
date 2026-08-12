@@ -19,5 +19,8 @@
     <Content Include="..\..\src\GameReminders.App\App.xaml" Link="App.xaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\..\src\GameReminders.App\MainWindow.xaml" Link="MainWindow.xaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

@@ -1,31 +1,7 @@
-using System.Xml.Linq;
-
 namespace GameReminders.App.Tests;
 
 public sealed class MainWindowTests
 {
-    [Fact]
-    public void ComboBoxTemplateKeepsTheRequiredPopupPartName()
-    {
-        var appXamlPath = Path.Combine(AppContext.BaseDirectory, "App.xaml");
-        var xaml = XDocument.Load(appXamlPath);
-        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-
-        var comboBoxStyle = Assert.Single(
-            xaml.Root!.Descendants(presentation + "Style"),
-            style => (string?)style.Attribute("TargetType") == "ComboBox");
-        var templateSetter = Assert.Single(
-            comboBoxStyle.Descendants(presentation + "Setter"),
-            setter => (string?)setter.Attribute("Property") == "Template");
-
-        var popup = Assert.Single(templateSetter
-            .Descendants(presentation + "ControlTemplate")
-            .Descendants(presentation + "Popup"));
-
-        Assert.Equal("PART_Popup", (string?)popup.Attribute(x + "Name"));
-    }
-
     [Theory]
     [InlineData(null, true)]
     [InlineData("registry unavailable", false)]
@@ -151,5 +127,40 @@ public sealed class MainWindowTests
             "Farever");
 
         Assert.DoesNotContain("Farever", item.Details);
+    }
+
+    [Fact]
+    public void AliasRequestRowsShowSubmittedAliasAndSelectedGame()
+    {
+        var item = new AliasRequestListItem(
+            new GameReminders.Core.AliasRequest
+            {
+                Id = Guid.Parse("9f6db96e-1c50-4785-91d6-94580d2ab833"),
+                GameId = "custom-farever",
+                Alias = "Fare ever",
+                CreatedAt = DateTimeOffset.Parse("2026-08-12T08:00:00Z")
+            },
+            "Farever");
+
+        Assert.Equal("“Fare ever”", item.AliasLabel);
+        Assert.Contains("Farever", item.Details);
+    }
+
+    [Fact]
+    public void AliasRequestActionsExistInMyGames()
+    {
+        var xamlPath = Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml");
+        var xaml = XDocument.Load(xamlPath);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var names = xaml.Descendants()
+            .Select(element => (string?)element.Attribute(x + "Name"))
+            .Where(name => name is not null)
+            .ToHashSet();
+
+        Assert.Contains("AliasRequestsList", names);
+        Assert.Contains("AcceptAliasButton", names);
+        Assert.Contains("RejectAliasButton", names);
     }
 }

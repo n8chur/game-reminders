@@ -17,6 +17,12 @@ Closing the main window leaves Game Reminders running in the notification area. 
 
 If the saved iCloud folder is moved, unavailable, malformed, or no longer writable, startup presents a recovery screen and preserves the saved path until a replacement is deliberately validated and confirmed. Launch at login uses the current user's Windows startup registration and does not require administrator privileges.
 
+Alias requests synchronized into `alias-requests/inbox` appear under **Suggested aliases** in
+**My Games**. Accepting a request safely adds its submitted phrase to the selected game; rejecting
+it leaves the catalog unchanged. Both actions archive the request, and conflicts preserve the
+original files for recovery. A sample request is available in
+[`samples/alias-request.json`](samples/alias-request.json).
+
 Ambiguous games are added with **ACTION REQUIRED** instead of guessing. Their editor marks the executable field in red and disables **Save** until that field is resolved. Detected paths remain available for later correction; select one to replace the current mapping, or use its circular **+** button to append another executable. Manual entries can use **Browse** to select one or more `.exe` files. A blank `games.json` or `{}` is treated as a new empty catalog and rewritten safely. Distinct red **ACTION REQUIRED** and green **NEW** badges persist until a new row is selected or is actually visible when the window is hidden or deactivated; acknowledging a badge does not clear the selected row. Off-screen entries remain new. Configured and pending discoveries share the searchable **Games** view. Removed Steam games and ignored foreground discoveries appear in **Ignored** and can be restored. An example catalog and reminder are available in [`samples`](samples/). Full installation, Shortcut, usage, supported-feature, and troubleshooting documentation will be completed with Milestone 5.
 
 The auditable iPhone workflow definition, generated unsigned Shortcut, test vectors, Apple signing instructions, and tested Apple **Anyone**-signed distribution file are in [`shortcuts`](shortcuts/).

@@ -171,6 +171,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
@@ -186,7 +187,51 @@
                                                IsHitTestVisible="False" />
                                 </Grid>
 
-                                <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
+                                <Border x:Name="AliasRequestsSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
+                                        Background="{DynamicResource SurfaceMutedBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                                        Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Margin="0,0,0,3">
+                                            <TextBlock x:Name="AliasRequestCountText" DockPanel.Dock="Right"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="Suggested aliases" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource IssueTextBrush}" />
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1"
+                                                   Text="Review game names selected after the Shortcut could not find a match."
+                                                   Margin="0,0,0,8" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                        <ListBox x:Name="AliasRequestsList" Grid.Row="2" MaxHeight="150"
+                                                 SelectionChanged="AliasRequestsList_SelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding AliasLabel}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,2,0,0"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    Margin="0,10,0,0">
+                                            <Button x:Name="RejectAliasButton" Content="Reject"
+                                                    Click="RejectAliasRequest_Click" IsEnabled="False" />
+                                            <Button x:Name="AcceptAliasButton" Content="Accept"
+                                                    Style="{StaticResource PrimaryActionButtonStyle}"
+                                                    Click="AcceptAliasRequest_Click" IsEnabled="False" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border x:Name="DetectedSection" Grid.Row="2" Margin="0,0,0,16" Padding="12"
                                         Background="{DynamicResource SurfaceMutedBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                     <Grid>
@@ -227,7 +272,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Grid Grid.Row="2">
+                                <Grid Grid.Row="3">
                                     <ListBox x:Name="GamesList" MouseDoubleClick="EditGame_Click"
                                              SelectionChanged="GamesList_SelectionChanged">
                                         <ListBox.ItemTemplate>
@@ -253,7 +298,7 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed" />
                                 </Grid>
-                                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
                                             Margin="0,14,0,0">
                                     <Button Content="Add game" Click="AddGame_Click" />
                                     <Button x:Name="EditGameButton" Content="Edit" Click="EditGame_Click"

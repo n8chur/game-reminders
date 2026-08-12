@@ -34,6 +34,15 @@ Uncertain foreground-application detections are saved to Windows-only pending st
 
 The setup and management UI supports canonical names, optional alternate speech aliases, and one or more associated executables. The canonical name already participates in speech matching; Steam metadata does not provide reliable alternate spoken names, so imported aliases begin empty. Steam discovery excludes known helper executables and ranks remaining candidates by their relationship to the game name, preferring an exact root-level executable over a similarly named nested helper or shipping binary. A confident match stores the complete path relative to `steamapps\common`; this distinguishes generic executable filenames while remaining portable across Steam library roots. The editor displays the source type and explicitly explains the path base for Steam entries.
 
+The Windows client also reviews schema-version-1 alias requests created after an explicit
+zero-match game selection in the Shortcut. Each request contains only a UUID, stable game ID,
+submitted alias, and timestamp—never reminder text. **My Games** shows valid pending requests once
+per UUID with **Accept** and **Reject** actions. Accepting revalidates the current catalog, refuses a
+normalized collision with another game, atomically appends the alias, and archives the request.
+Rejecting archives it without changing the catalog. Exact duplicate requests are handled
+idempotently; conflicting duplicates, unknown game IDs, concurrent catalog changes, malformed
+files, and archive collisions fail visibly without overwriting or deleting ambiguous data.
+
 An ambiguous or missing match is left unconfigured and marked **ACTION REQUIRED**. Its editor marks the executable-path field in red and disables **Save** until at least one executable has been selected or entered, without inserting or removing layout-shifting content. Selecting a detected path replaces the current executable mapping; the right-aligned `+` action appends another path for games that need multiple executables. Candidate paths remain available after selection so the mapping can be corrected later. Manual games offer an executable file picker and store selected files as absolute paths. Existing filename-only mappings remain supported, and absolute paths may still be entered manually.
 
 Newly imported games and games needing executable review are indicated on the Games list and by a persistent tray-icon badge. Informational balloon notifications are optional. Selecting a new game's row acknowledges it immediately without clearing the row selection. Otherwise, **NEW** is acknowledged only for rows that are actually visible in the Games list when the management window is hidden or deactivated; merely opening the tab does not clear off-screen items. An executable-review badge remains until a valid executable mapping is saved.
@@ -49,7 +58,11 @@ iCloud Drive/
         ├── games.json
         ├── inbox/
         ├── completed/
-        └── invalid/
+        ├── invalid/
+        └── alias-requests/
+            ├── inbox/
+            ├── accepted/
+            └── rejected/
 ```
 
 The nested `Game Reminders` folder is configured as **Always keep on this device**. Its name and location are fixed for cross-device Shortcut compatibility. Windows setup asks for the enclosing iCloud Drive `Shortcuts` folder, creates or opens the required `Game Reminders` child, and stores that resolved child as the single authoritative root. The client scans on startup, on filesystem changes, before showing reminders, and every 60 seconds as a fallback. Malformed files move to `invalid` only after repeated failures. Dismissed reminders are archived until individually deleted, marked pending again, or cleared from the completed section.
