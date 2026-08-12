@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 namespace GameReminders.App.Tests;
 
 public sealed class MainWindowTests
