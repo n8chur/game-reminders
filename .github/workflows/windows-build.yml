@@ -3,16 +3,16 @@ name: Windows build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build-and-test:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    permissions:
+      contents: read
 
     steps:
       - name: Check out source
@@ -22,6 +22,22 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      - name: Read and validate product version
+        id: version
+        shell: pwsh
+        run: |
+          try {
+            ./installer/Test-ReleaseVersion.ps1 -RefName 'v999.999.999' | Out-Null
+            throw 'The release-version check accepted a mismatched tag.'
+          }
+          catch {
+            if ($_.Exception.Message -notlike "Tag 'v999.999.999' does not match product version*") {
+              throw
+            }
+          }
+          $refName = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}' } else { '' }
+          ./installer/Test-ReleaseVersion.ps1 -RefName $refName -GitHubOutput $env:GITHUB_OUTPUT
 
       - name: Validate Shortcut source
         shell: pwsh
@@ -47,20 +63,80 @@ jobs:
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
 
-      - name: Verify published executable name
+      - name: Verify published executable name and version
         shell: pwsh
         run: |
-          if (-not (Test-Path './artifacts/game-reminders-win-x64/GameReminders.exe')) {
+          $executable = './artifacts/game-reminders-win-x64/GameReminders.exe'
+          if (-not (Test-Path $executable)) {
             throw 'Published build is missing GameReminders.exe.'
           }
           if (Test-Path './artifacts/game-reminders-win-x64/GameReminders.App.exe') {
             throw 'Published build still contains the old GameReminders.App.exe name.'
           }
+          $expected = '${{ steps.version.outputs.version }}'
+          $actual = (Get-Item $executable).VersionInfo.ProductVersion.Split('+')[0]
+          if ($actual -ne $expected) {
+            throw "Published version '$actual' does not match '$expected'."
+          }
 
-      - name: Upload Windows artifact
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force './artifacts/packages' | Out-Null
+          Compress-Archive -Path './artifacts/game-reminders-win-x64/*' -DestinationPath './artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-portable.zip'
+          $testRoot = Join-Path $env:RUNNER_TEMP 'game-reminders-portable-check'
+          Expand-Archive './artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-portable.zip' $testRoot
+          if (-not (Test-Path (Join-Path $testRoot 'GameReminders.exe'))) {
+            throw 'Portable ZIP is missing GameReminders.exe at its root.'
+          }
+
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: >-
+          winget install --id JRSoftware.InnoSetup --version 6.7.3 -e -s winget
+          --accept-package-agreements --accept-source-agreements --disable-interactivity
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $compiler = @(
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $compiler) {
+            throw 'Inno Setup compiler was not found after installation.'
+          }
+          & $compiler "/DAppVersion=${{ steps.version.outputs.version }}" "/DPublishDir=$((Resolve-Path './artifacts/game-reminders-win-x64').Path)" "/DOutputDir=$((Resolve-Path './artifacts/packages').Path)" './installer/GameReminders.iss'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path './artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-setup.exe')) {
+            throw 'Inno Setup did not produce the expected installer.'
+          }
+
+      - name: Upload release packages
         uses: actions/upload-artifact@v4
         with:
-          name: game-reminders-win-x64
-          path: artifacts/game-reminders-win-x64/
+          name: game-reminders-${{ steps.version.outputs.version }}-win-x64
+          path: artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-*
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build-and-test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: game-reminders-*-win-x64
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create '${{ github.ref_name }}' ./release-assets/* --repo '${{ github.repository }}' --verify-tag --generate-notes --title 'Game Reminders ${{ github.ref_name }}'

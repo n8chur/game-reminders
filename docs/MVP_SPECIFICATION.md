@@ -58,19 +58,19 @@ Only the Windows client writes `games.json`, using a temporary file followed by 
 
 ## Windows implementation
 
-The Windows application uses C#, the current .NET LTS release, and WPF. It follows the Windows light/dark app preference and requires no administrator privileges. Windows-only settings, pending detections, ignored-discovery metadata, suppressed Steam app IDs, review indicators, and diagnostic logs live under the user's application-data directory; reminder state does not.
+The Windows application uses C#, the current .NET LTS release, and WPF. It follows the Windows light/dark app preference and requires no administrator privileges. Windows-only settings, pending detections, ignored-discovery metadata, suppressed Steam app IDs, and review indicators live under the user's application-data directory; reminder state does not.
 
 On first run, Windows requires the user to select and validate the `Shortcuts` folder inside iCloud Drive before monitoring begins. It preselects one unambiguous standard Shortcuts location when available, recognizes both the user-facing and iCloud-for-Windows physical container names, and never exposes the physical container name as a setup requirement. The app creates or opens the fixed `Game Reminders` child without copying, moving, or merging another store. It checks the child folder's Windows Cloud Files pin state and requests the pinned state recursively; if the provider rejects the request, setup gives a manual **Always keep on this device** fallback. An unavailable saved folder opens a recovery path while preserving the saved value until the user deliberately confirms a valid replacement. Canceling setup exits without changing local settings. Setup also offers optional per-user launch at login. The main window exposes the same setting, reflects the actual Windows startup registration for the current executable, and reports registration failures visibly.
 
-Development builds are unsigned portable ZIP artifacts built by GitHub Actions. A conventional installer follows after core behavior stabilizes.
+Version 0.0.1 ships as both an unsigned, per-user Inno Setup installer and a portable ZIP for Windows x64. Both self-contained artifacts are built by GitHub Actions. A matching `v0.0.1` tag publishes them to one GitHub Release; a mismatched version tag fails validation. The installer requires no elevation, uses a stable application identity for upgrades, and preserves local settings and the authoritative iCloud store during upgrade and uninstall.
 
 ## Delivery milestones
 
 1. File/process prototype: catalog loading, reminder scanning, configured process detection, persistent popup, Dismiss, and Show on next launch.
 2. Game management: tray UI, automatic trusted Steam discovery, persistent uncertain detections, and executable editing.
 3. iPhone Shortcut: fixed-list game selection, reminder creation, repository-hosted importable Shortcut, and human-readable definition.
-4. Reliability and packaging: startup registration, rescans, invalid-file handling, diagnostics, first-run wizard, and portable builds.
-5. Polish: Windows 11 appearance, multiple reminders and monitors, accessibility, installer, and a complete README covering installation of both components, usage, supported features, limitations, configuration, and troubleshooting.
+4. Reliability and portable packaging: startup registration, rescans, invalid-file handling, first-run wizard, and portable builds. Completed.
+5. Polish and release: Windows 11 appearance, multiple reminders and monitors, accessibility, installer, and complete documentation. The per-user installer, v0.0.1 release automation, and installation, usage, limitations, configuration, and troubleshooting documentation are delivered for v0.0.1; later polish can continue independently.
 
 ## Acceptance criteria
 
