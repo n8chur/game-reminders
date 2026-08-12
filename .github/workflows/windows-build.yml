@@ -92,9 +92,18 @@ jobs:
 
       - name: Install Inno Setup compiler
         shell: pwsh
-        run: >-
-          winget install --id JRSoftware.InnoSetup --version 6.7.3 -e -s winget
-          --accept-package-agreements --accept-source-agreements --disable-interactivity
+        run: |
+          $compiler = @(
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if ($compiler) {
+            Write-Host "Using preinstalled Inno Setup compiler at '$compiler'."
+          }
+          else {
+            winget install --id JRSoftware.InnoSetup --version 6.7.3 -e -s winget --accept-package-agreements --accept-source-agreements --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build installer
         shell: pwsh
