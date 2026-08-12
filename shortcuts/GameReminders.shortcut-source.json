@@ -57,6 +57,11 @@
       "output": "selectedGameName"
     },
     {
+      "action": "initializeNumber",
+      "value": 0,
+      "output": "matchCount"
+    },
+    {
       "action": "repeatEach",
       "input": "catalog.games",
       "item": "game",
@@ -65,6 +70,11 @@
           "action": "if",
           "condition": "game.name equals selectedGameName",
           "then": [
+            {
+              "action": "incrementVariable",
+              "variable": "matchCount",
+              "value": 1
+            },
             {
               "action": "setVariable",
               "variable": "matchedGameId",
@@ -78,6 +88,12 @@
           ]
         }
       ]
+    },
+    {
+      "action": "require",
+      "condition": "matchCount equals 1",
+      "error": "Choose exactly one uniquely named game. Rename duplicate games on Windows, then try again.",
+      "stop": true
     },
     {
       "action": "askForText",
