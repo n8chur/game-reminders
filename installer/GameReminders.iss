@@ -63,7 +63,7 @@ Name: "{group}\Game Reminders"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\Game Reminders"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "GameReminders"; ValueData: """{app}\{#AppExeName}"" --hidden-at-login"; Tasks: launchatlogin; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "GameReminders"; ValueData: """{app}\{#AppExeName}"" --hidden-at-login"; Tasks: launchatlogin
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch Game Reminders"; Flags: nowait postinstall skipifsilent
@@ -109,14 +109,32 @@ begin
   Result := '';
 end;
 
+procedure RemoveOwnedLaunchAtLoginRegistration;
+var
+  RegisteredCommand: String;
+  InstalledExecutable: String;
+begin
+  if not RegQueryStringValue(
+           HKCU,
+           'Software\Microsoft\Windows\CurrentVersion\Run',
+           'GameReminders',
+           RegisteredCommand) then
+    Exit;
+
+  InstalledExecutable := '"' + ExpandConstant('{app}\{#AppExeName}') + '"';
+  if (CompareText(RegisteredCommand, InstalledExecutable + ' --hidden-at-login') = 0) or
+     (CompareText(RegisteredCommand, InstalledExecutable) = 0) then
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'GameReminders');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if (CurStep = ssPostInstall) and (not WizardIsTaskSelected('launchatlogin')) then
-    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'GameReminders');
+    RemoveOwnedLaunchAtLoginRegistration;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
-    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'GameReminders');
+    RemoveOwnedLaunchAtLoginRegistration;
 end;

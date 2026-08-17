@@ -157,6 +157,39 @@ jobs:
             throw 'Uninstall left the GameReminders launch-at-login value behind.'
           }
 
+          $secondSetup = Start-Process -FilePath $installer -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installRoot"
+          ) -Wait -PassThru
+          if ($secondSetup.ExitCode -ne 0) { throw "Second installer smoke test failed with exit code $($secondSetup.ExitCode)." }
+
+          $portableCommand = '"C:\Portable\GameReminders.exe" --hidden-at-login'
+          Set-ItemProperty -Path $runKey -Name 'GameReminders' -Value $portableCommand
+          $upgrade = Start-Process -FilePath $installer -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installRoot",
+            '/TASKS="!launchatlogin"'
+          ) -Wait -PassThru
+          if ($upgrade.ExitCode -ne 0) { throw "Upgrade smoke test failed with exit code $($upgrade.ExitCode)." }
+          if ((Get-ItemPropertyValue -Path $runKey -Name 'GameReminders') -ne $portableCommand) {
+            throw 'Installer removed or replaced a portable launch-at-login registration.'
+          }
+
+          $secondUninstall = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART'
+          ) -Wait -PassThru
+          if ($secondUninstall.ExitCode -ne 0) { throw "Second uninstaller smoke test failed with exit code $($secondUninstall.ExitCode)." }
+          if ((Get-ItemPropertyValue -Path $runKey -Name 'GameReminders') -ne $portableCommand) {
+            throw 'Uninstall removed or replaced a portable launch-at-login registration.'
+          }
+          Remove-ItemProperty -Path $runKey -Name 'GameReminders'
+
       - name: Upload release packages
         uses: actions/upload-artifact@v4
         with:
