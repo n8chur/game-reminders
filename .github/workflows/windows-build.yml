@@ -126,8 +126,13 @@ jobs:
         run: |
           $installer = Resolve-Path './artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-setup.exe'
           $installRoot = Join-Path $env:RUNNER_TEMP 'game-reminders-installer-smoke'
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$installRoot"
-          if ($LASTEXITCODE -ne 0) { throw "Installer smoke test failed with exit code $LASTEXITCODE." }
+          $setup = Start-Process -FilePath $installer -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installRoot"
+          ) -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer smoke test failed with exit code $($setup.ExitCode)." }
 
           $installedExe = Join-Path $installRoot 'GameReminders.exe'
           if (-not (Test-Path $installedExe)) {
@@ -142,8 +147,12 @@ jobs:
           }
 
           $uninstaller = Join-Path $installRoot 'unins000.exe'
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Uninstaller smoke test failed with exit code $LASTEXITCODE." }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART'
+          ) -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller smoke test failed with exit code $($uninstall.ExitCode)." }
           if (Get-ItemProperty -Path $runKey -Name 'GameReminders' -ErrorAction SilentlyContinue) {
             throw 'Uninstall left the GameReminders launch-at-login value behind.'
           }
