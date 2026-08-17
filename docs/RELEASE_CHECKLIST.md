@@ -13,10 +13,10 @@ Use this checklist on Windows x64 before publishing a Game Reminders version tag
 
 1. Use a Windows user profile without Game Reminders settings or startup registration.
 2. Run the installer without elevation and confirm its destination is `%LocalAppData%\Programs\Game Reminders`.
-3. Confirm the Start Menu entry, Add/Remove Programs entry, checked-by-default launch-at-sign-in task, and optional desktop shortcut.
+3. Confirm the Start Menu entry, Add/Remove Programs entry, checked-by-default launch-at-sign-in option, and optional desktop shortcut.
 4. Launch the app and complete setup against a disposable `iCloud Drive\Shortcuts\Game Reminders` store.
 5. Confirm the child folder is pinned or that the manual **Always keep on this device** instructions appear.
-6. Confirm first-run setup reflects the installer task's actual launch-at-login state, then confirm the app starts hidden after signing out and back in.
+6. Confirm first-run setup reflects the installer option's actual launch-at-login state, then confirm the app starts hidden after signing out and back in.
 7. Import the repository Shortcut on a clean Apple device, create a reminder, wait for iCloud synchronization, and confirm launching the mapped game displays it.
 
 ## Upgrade and data preservation

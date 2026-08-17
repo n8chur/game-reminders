@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-[xml] $props = Get-Content (Join-Path $PSScriptRoot '..\Directory.Build.props')
+[xml] $props = Get-Content -Raw (Join-Path $PSScriptRoot '..\Directory.Build.props')
 $version = [string] $props.Project.PropertyGroup.VersionPrefix
 if ($version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Directory.Build.props contains an invalid VersionPrefix: '$version'."
@@ -17,7 +17,7 @@ if ($RefName -and $RefName -ne "v$version") {
 }
 
 if ($GitHubOutput) {
-    "version=$version" | Add-Content -Path $GitHubOutput
+    "version=$version" | Add-Content -Path $GitHubOutput -Encoding utf8
 }
 
 $version

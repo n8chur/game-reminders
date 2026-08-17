@@ -32,7 +32,7 @@ Version 0.0.1 is not code-signed. Windows may show a Microsoft Defender SmartScr
 3. Select the `Shortcuts` folder inside iCloud Drive. When one standard location is unambiguous, the app selects it automatically.
 4. Game Reminders creates or opens the fixed `Game Reminders` child folder and verifies that it is usable.
 5. Allow the app to request **Always keep on this device** for that child folder. If iCloud rejects the request, apply that option to the folder in File Explorer and retry.
-6. Confirm **Launch Game Reminders when I sign in to Windows**. Installer users begin with this enabled unless they cleared the installer task; portable users can opt in here.
+6. Confirm **Launch Game Reminders when I sign in to Windows**. Installer users begin with this enabled unless they cleared the installer option; portable users can opt in here.
 7. Add a game manually or choose **Scan Steam**.
 
 The resulting authoritative folder is:
