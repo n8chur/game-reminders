@@ -69,11 +69,17 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#AppExeName}"; Description: "Launch Game Reminders"; Flags: nowait postinstall skipifsilent
 
 [Code]
-procedure InitializeWizard;
+var
+  LaunchAtLoginTaskInitialized: Boolean;
+
+procedure InitializeLaunchAtLoginTask;
 var
   RegisteredCommand: String;
   ExpectedCommand: String;
 begin
+  if LaunchAtLoginTaskInitialized then
+    Exit;
+
   if FileExists(ExpandConstant('{app}\{#AppExeName}')) then
   begin
     ExpectedCommand := '"' + ExpandConstant('{app}\{#AppExeName}') + '" --hidden-at-login';
@@ -87,6 +93,20 @@ begin
     else
       WizardSelectTasks('!launchatlogin');
   end;
+
+  LaunchAtLoginTaskInitialized := True;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpSelectTasks then
+    InitializeLaunchAtLoginTask;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  InitializeLaunchAtLoginTask;
+  Result := '';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

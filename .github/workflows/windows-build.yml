@@ -121,6 +121,33 @@ jobs:
             throw 'Inno Setup did not produce the expected installer.'
           }
 
+      - name: Smoke test installer lifecycle
+        shell: pwsh
+        run: |
+          $installer = Resolve-Path './artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-setup.exe'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'game-reminders-installer-smoke'
+          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$installRoot"
+          if ($LASTEXITCODE -ne 0) { throw "Installer smoke test failed with exit code $LASTEXITCODE." }
+
+          $installedExe = Join-Path $installRoot 'GameReminders.exe'
+          if (-not (Test-Path $installedExe)) {
+            throw 'Installer smoke test did not install GameReminders.exe.'
+          }
+
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $startupCommand = Get-ItemPropertyValue -Path $runKey -Name 'GameReminders'
+          $expectedCommand = "`"$installedExe`" --hidden-at-login"
+          if ($startupCommand -ne $expectedCommand) {
+            throw "Installer wrote an unexpected launch-at-login command: '$startupCommand'."
+          }
+
+          $uninstaller = Join-Path $installRoot 'unins000.exe'
+          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          if ($LASTEXITCODE -ne 0) { throw "Uninstaller smoke test failed with exit code $LASTEXITCODE." }
+          if (Get-ItemProperty -Path $runKey -Name 'GameReminders' -ErrorAction SilentlyContinue) {
+            throw 'Uninstall left the GameReminders launch-at-login value behind.'
+          }
+
       - name: Upload release packages
         uses: actions/upload-artifact@v4
         with:

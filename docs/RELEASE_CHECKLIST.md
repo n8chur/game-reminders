@@ -5,7 +5,7 @@ Use this checklist on Windows x64 before publishing a Game Reminders version tag
 ## Automated packages
 
 1. Open the successful pull-request workflow run.
-2. Confirm Shortcut validation, restore, tests, publish, version validation, ZIP inspection, and Inno Setup compilation all passed.
+2. Confirm Shortcut validation, restore, tests, publish, version validation, ZIP inspection, Inno Setup compilation, and the silent install/uninstall lifecycle smoke test all passed.
 3. Download the workflow artifact and confirm it contains exactly the expected versioned installer and portable ZIP.
 4. Extract the ZIP and confirm `GameReminders.exe` is at its root and starts without a separately installed .NET runtime.
 
