@@ -9,6 +9,11 @@
     <ApplicationIcon>Assets\GameReminders.ico</ApplicationIcon>
     <AssemblyName>GameReminders</AssemblyName>
     <RootNamespace>GameReminders.App</RootNamespace>
+    <Product>Game Reminders</Product>
+    <Company>Game Reminders</Company>
+    <Authors>n8chur</Authors>
+    <Description>Game launch reminders synchronized through iCloud Drive</Description>
+    <RepositoryUrl>https://github.com/n8chur/game-reminders</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\GameReminders.Core\GameReminders.Core.csproj" />
