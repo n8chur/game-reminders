@@ -191,12 +191,13 @@ jobs:
           Remove-ItemProperty -Path $runKey -Name 'GameReminders'
 
       - name: Upload release packages
+        if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: game-reminders-${{ steps.version.outputs.version }}-win-x64
           path: artifacts/packages/GameReminders-${{ steps.version.outputs.version }}-win-x64-*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
   release:
     if: github.ref_type == 'tag'
