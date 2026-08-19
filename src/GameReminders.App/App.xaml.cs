@@ -72,6 +72,7 @@ public partial class App : System.Windows.Application
                 SetLaunchAtLogin,
                 RefreshManagement,
                 ShowNewReminder,
+                ShowReminderDetails,
                 CompleteReminder,
                 DeleteReminder,
                 UncompleteReminder,
@@ -989,6 +990,58 @@ public partial class App : System.Windows.Application
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
         {
             return exception.Message;
+        }
+    }
+
+    private void ShowReminderDetails(Reminder reminder, bool editable)
+    {
+        if (_store is null || _mainWindow is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var games = _store.LoadCatalog().Games;
+            var window = new ReminderDetailsWindow(
+                reminder,
+                games,
+                editable,
+                editable ? UpdateReminder : null)
+            {
+                Owner = _mainWindow
+            };
+            window.ShowDialog();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            _mainWindow.SetStatus($"Could not open the reminder details: {exception.Message}", isIssue: true);
+        }
+    }
+
+    private ReminderUpdateResult UpdateReminder(Reminder original, GameDefinition game, string message)
+    {
+        if (_store is null)
+        {
+            return new ReminderUpdateResult(null, "The reminder store is unavailable.");
+        }
+
+        try
+        {
+            var updated = _store.UpdatePending(original, game, message);
+            if (_openReminderWindows.TryGetValue(original.GameId, out var popup))
+            {
+                popup.ApplyEdit(original, updated);
+            }
+            RefreshReminders();
+            return new ReminderUpdateResult(updated, null);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or ArgumentException)
+        {
+            _mainWindow?.SetStatus(
+                $"The reminder was preserved because it could not be saved. {exception.Message}",
+                isIssue: true);
+            return new ReminderUpdateResult(null, exception.Message);
         }
     }
 

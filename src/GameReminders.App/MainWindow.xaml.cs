@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
     private readonly Action _refreshReminders;
     private readonly Action _newReminder;
+    private readonly Action<Reminder, bool> _showReminderDetails;
     private readonly Action<Reminder> _completeReminder;
     private readonly Action<Reminder> _deleteReminder;
     private readonly Action<Reminder> _uncompleteReminder;
@@ -45,6 +46,7 @@ public partial class MainWindow : Window
         Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin,
         Action refreshReminders,
         Action newReminder,
+        Action<Reminder, bool> showReminderDetails,
         Action<Reminder> completeReminder,
         Action<Reminder> deleteReminder,
         Action<Reminder> uncompleteReminder,
@@ -64,6 +66,7 @@ public partial class MainWindow : Window
         _setLaunchAtLogin = setLaunchAtLogin;
         _refreshReminders = refreshReminders;
         _newReminder = newReminder;
+        _showReminderDetails = showReminderDetails;
         _completeReminder = completeReminder;
         _deleteReminder = deleteReminder;
         _uncompleteReminder = uncompleteReminder;
@@ -231,6 +234,30 @@ public partial class MainWindow : Window
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
     private void NewReminder_Click(object sender, RoutedEventArgs e) => _newReminder();
+    private void ReminderList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is ListBox { SelectedItem: ReminderListItem item } list &&
+            FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is not null &&
+            FindAncestor<Button>(e.OriginalSource as DependencyObject) is null)
+        {
+            _showReminderDetails(item.Reminder, ReferenceEquals(list, PendingRemindersList));
+            e.Handled = true;
+        }
+    }
+    private void EditSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReminderFromContext(sender) is { } item)
+        {
+            _showReminderDetails(item.Reminder, true);
+        }
+    }
+    private void ViewSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReminderFromContext(sender) is { } item)
+        {
+            _showReminderDetails(item.Reminder, false);
+        }
+    }
     private void OpenICloudFolder_Click(object sender, RoutedEventArgs e) => _openICloudFolder();
     private void CompleteReminder_Click(object sender, RoutedEventArgs e)
     {
