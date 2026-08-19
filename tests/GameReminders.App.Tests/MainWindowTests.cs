@@ -131,6 +131,20 @@ public sealed class MainWindowTests
         Assert.DoesNotContain("Farever", item.Details);
     }
 
+    [Theory]
+    [InlineData("First\nSecond\nThird", "First\nSecond\nThird")]
+    [InlineData("First\nSecond\nThird\nFourth", "First\nSecond\nThird…")]
+    [InlineData("First\r\nSecond\r\nThird\r\nFourth", "First\nSecond\nThird…")]
+    [InlineData("First\rSecond\rThird\rFourth", "First\nSecond\nThird…")]
+    public void ReminderPreviewShowsThreeLinesAndEllipsisWhenMoreRemain(
+        string message,
+        string expected)
+    {
+        Assert.Equal(
+            expected.Replace("\n", Environment.NewLine, StringComparison.Ordinal),
+            ReminderListItem.CreatePreview(message, 3));
+    }
+
     [Fact]
     public void GameManagementContainsNoObsoleteRequestSection()
     {
@@ -147,7 +161,7 @@ public sealed class MainWindowTests
         var previews = xaml.Descendants()
             .Where(element =>
                 element.Name.LocalName == "TextBlock" &&
-                (string?)element.Attribute("Text") == "{Binding Reminder.Message}")
+                (string?)element.Attribute("Text") == "{Binding PreviewMessage}")
             .ToArray();
 
         Assert.Equal(2, previews.Length);

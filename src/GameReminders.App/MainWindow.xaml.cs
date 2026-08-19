@@ -434,5 +434,22 @@ internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);
 
 internal sealed record ReminderListItem(Reminder Reminder, string GameName)
 {
+    private const int PreviewLineLimit = 3;
+
     public string Details => Reminder.CreatedAt.ToLocalTime().ToString("g");
+    public string PreviewMessage => CreatePreview(Reminder.Message, PreviewLineLimit);
+
+    internal static string CreatePreview(string message, int lineLimit)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(lineLimit, 1);
+        var lines = message.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+        if (lines.Length <= lineLimit)
+        {
+            return message;
+        }
+
+        var preview = lines.Take(lineLimit).ToArray();
+        preview[^1] = preview[^1].TrimEnd() + "…";
+        return string.Join(Environment.NewLine, preview);
+    }
 }

@@ -82,7 +82,7 @@
                                                             Click="CompleteReminder_Click" Margin="14,0,0,0"
                                                             VerticalAlignment="Center" />
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding Reminder.Message}" FontSize="13"
+                                                        <TextBlock Text="{Binding PreviewMessage}" FontSize="13"
                                                                    FontWeight="SemiBold" TextWrapping="Wrap"
                                                                    LineHeight="17" LineStackingStrategy="BlockLineHeight"
                                                                    MaxHeight="51" TextTrimming="CharacterEllipsis" />
@@ -144,7 +144,7 @@
                                                 <TextBlock DockPanel.Dock="Left" Text="✓" FontSize="18" Margin="0,0,10,0"
                                                            Foreground="{DynamicResource PrimaryBrush}" />
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="13"
+                                                    <TextBlock Text="{Binding PreviewMessage}" FontSize="13"
                                                                TextDecorations="Strikethrough" TextWrapping="Wrap"
                                                                LineHeight="17" LineStackingStrategy="BlockLineHeight"
                                                                MaxHeight="51" TextTrimming="CharacterEllipsis" />
