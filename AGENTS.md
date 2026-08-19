@@ -34,7 +34,8 @@ Add regression tests for protocol validation, filesystem state transitions, proc
 
 - Write PR titles as imperative squash-commit subjects.
 - Write individual commit messages as concise, descriptive imperative subjects that state the user-visible intent; avoid generic subjects such as "Update files."
-- Attribute AI-authored changes in every PR description with this disclosure immediately below the issue reference: `> Implemented by OpenAI Codex under <user name>'s direction.`
+- Attribute AI-authored changes in every PR description with this exact disclosure immediately below the issue reference: `> Implemented by OpenAI Codex under @n8chur's direction.`
+- Refer to the repository owner only by the GitHub username `@n8chur` anywhere in a PR description. Never substitute a profile display name, legal name, or first name.
 - Add the `AI Generated` label to every PR containing AI-authored changes.
 - Write the description as a durable squash-commit body, including motivation and completed validation.
 - Every PR description must include current, concrete instructions for manually validating the user-visible changes. Update those instructions whenever the implementation changes what reviewers should test.
