@@ -1036,7 +1036,7 @@ public partial class App : System.Windows.Application
             RefreshReminders();
             return new ReminderUpdateResult(updated, null);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or ArgumentException)
+        catch (Exception exception) when (IsReminderUpdateFailure(exception))
         {
             _mainWindow?.SetStatus(
                 $"The reminder was preserved because it could not be saved. {exception.Message}",
@@ -1044,6 +1044,14 @@ public partial class App : System.Windows.Application
             return new ReminderUpdateResult(null, exception.Message);
         }
     }
+
+    internal static bool IsReminderUpdateFailure(Exception exception) =>
+        exception is IOException or
+            UnauthorizedAccessException or
+            InvalidDataException or
+            InvalidOperationException or
+            ArgumentException or
+            JsonException;
 
     private void CompleteReminder(Reminder reminder)
     {

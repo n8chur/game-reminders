@@ -1,4 +1,5 @@
 using GameReminders.Core;
+using System.Text.Json;
 
 namespace GameReminders.App.Tests;
 
@@ -54,6 +55,24 @@ public sealed class ReminderDetailsWindowTests
         Assert.True(ReminderWindow.RemainsInPopup(original, original with { Message = "Updated" }));
         Assert.False(ReminderWindow.RemainsInPopup(original, original with { GameId = "other" }));
     }
+
+    [Theory]
+    [MemberData(nameof(ReminderUpdateFailures))]
+    public void ReminderUpdateFailuresAreHandled(Exception exception, bool expected)
+    {
+        Assert.Equal(expected, App.IsReminderUpdateFailure(exception));
+    }
+
+    public static TheoryData<Exception, bool> ReminderUpdateFailures => new()
+    {
+        { new IOException(), true },
+        { new UnauthorizedAccessException(), true },
+        { new InvalidDataException(), true },
+        { new InvalidOperationException(), true },
+        { new ArgumentException(), true },
+        { new JsonException(), true },
+        { new NotSupportedException(), false }
+    };
 
     private static Reminder Reminder(string gameId, string gameName) => new()
     {
