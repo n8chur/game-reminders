@@ -24,9 +24,12 @@ public partial class ReminderDetailsWindow : Window
 
         var options = BuildGameOptions(reminder, games);
         GamePicker.ItemsSource = options;
-        GamePicker.SelectedItem = options.First(option =>
+        var selectedGame = options.First(option =>
             string.Equals(option.Game.Id, reminder.GameId, StringComparison.OrdinalIgnoreCase));
-        GamePicker.IsEnabled = editable;
+        GamePicker.SelectedItem = selectedGame;
+        GamePicker.Visibility = editable ? Visibility.Visible : Visibility.Collapsed;
+        GameDisplaySurface.Visibility = editable ? Visibility.Collapsed : Visibility.Visible;
+        GameDisplayText.Text = selectedGame.DisplayName;
         MessageText.Text = reminder.Message;
         MessageText.IsReadOnly = !editable;
         CreatedText.Text = $"Created {reminder.CreatedAt.ToLocalTime():f}";

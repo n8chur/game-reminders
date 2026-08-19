@@ -1,5 +1,6 @@
 using GameReminders.Core;
 using System.Text.Json;
+using System.Xml.Linq;
 
 namespace GameReminders.App.Tests;
 
@@ -45,6 +46,25 @@ public sealed class ReminderDetailsWindowTests
 
         Assert.False(option.IsUnavailable);
         Assert.Equal("Current Name", option.DisplayName);
+    }
+
+    [Fact]
+    public void ViewModeHasDedicatedNonInteractiveGameDisplay()
+    {
+        var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "ReminderDetailsWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var picker = Assert.Single(xaml.Descendants(), element =>
+            (string?)element.Attribute(x + "Name") == "GamePicker");
+        var surface = Assert.Single(xaml.Descendants(), element =>
+            (string?)element.Attribute(x + "Name") == "GameDisplaySurface");
+        var displayText = Assert.Single(xaml.Descendants(), element =>
+            (string?)element.Attribute(x + "Name") == "GameDisplayText");
+
+        Assert.Equal("ComboBox", picker.Name.LocalName);
+        Assert.Equal("Border", surface.Name.LocalName);
+        Assert.Equal("Collapsed", (string?)surface.Attribute("Visibility"));
+        Assert.Equal("TextBlock", displayText.Name.LocalName);
     }
 
     [Fact]

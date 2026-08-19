@@ -27,6 +27,12 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
+            <Border x:Name="GameDisplaySurface" MinHeight="36" Padding="9,5"
+                    Visibility="Collapsed" CornerRadius="4"
+                    Background="{DynamicResource SurfaceMutedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <TextBlock x:Name="GameDisplayText" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </Border>
         </StackPanel>
 
         <TextBlock Grid.Row="2" Text="Reminder" FontWeight="SemiBold" Margin="0,0,0,5" />
