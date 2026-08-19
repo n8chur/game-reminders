@@ -445,7 +445,7 @@ internal sealed record ReminderListItem(Reminder Reminder, string GameName)
         var lines = message.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
         if (lines.Length <= lineLimit)
         {
-            return message;
+            return string.Join(Environment.NewLine, lines);
         }
 
         var preview = lines.Take(lineLimit).ToArray();
