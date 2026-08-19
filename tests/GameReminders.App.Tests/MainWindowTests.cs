@@ -176,6 +176,24 @@ public sealed class MainWindowTests
     }
 
     [Fact]
+    public void ReminderListsConstrainRowsToTheViewportForTextWrapping()
+    {
+        var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var style = Assert.Single(xaml.Descendants(), element =>
+            element.Name.LocalName == "Style" &&
+            (string?)element.Attribute(x + "Key") == "ReminderListBoxStyle");
+        var setters = style.Elements()
+            .Where(element => element.Name.LocalName == "Setter")
+            .ToDictionary(
+                element => (string)element.Attribute("Property")!,
+                element => (string)element.Attribute("Value")!);
+
+        Assert.Equal("Stretch", setters["HorizontalContentAlignment"]);
+        Assert.Equal("Disabled", setters["ScrollViewer.HorizontalScrollBarVisibility"]);
+    }
+
+    [Fact]
     public void ReminderListsExposeDoubleClickAndContextDetailsActions()
     {
         var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
