@@ -10,7 +10,7 @@ public partial class ReminderWindow : Window
     private readonly ReminderStore _store;
     private readonly Action<Reminder> _completed;
     private readonly Action<Reminder> _deferred;
-    private readonly Dictionary<Guid, Border> _rows = [];
+    private readonly Dictionary<Guid, ReminderPopupRow> _rows = [];
 
     public ReminderWindow(
         GameDefinition game,
@@ -66,9 +66,30 @@ public partial class ReminderWindow : Window
             Margin = new Thickness(0, 0, 0, 10)
         };
         row.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
-        _rows[reminder.Id] = row;
+        _rows[reminder.Id] = new ReminderPopupRow(row, message, dismiss, nextLaunch);
         ReminderList.Children.Add(row);
     }
+
+    internal void ApplyEdit(Reminder original, Reminder updated)
+    {
+        if (!_rows.TryGetValue(original.Id, out var row))
+        {
+            return;
+        }
+
+        if (!RemainsInPopup(original, updated))
+        {
+            RemoveReminder(original);
+            return;
+        }
+
+        row.Message.Text = updated.Message;
+        row.Dismiss.Tag = updated;
+        row.NextLaunch.Tag = updated;
+    }
+
+    internal static bool RemainsInPopup(Reminder original, Reminder updated) =>
+        string.Equals(original.GameId, updated.GameId, StringComparison.OrdinalIgnoreCase);
 
     private void Dismiss_Click(object sender, RoutedEventArgs e)
     {
@@ -106,7 +127,7 @@ public partial class ReminderWindow : Window
     {
         if (_rows.Remove(reminder.Id, out var row))
         {
-            ReminderList.Children.Remove(row);
+            ReminderList.Children.Remove(row.Container);
         }
 
         if (_rows.Count == 0)
@@ -114,4 +135,10 @@ public partial class ReminderWindow : Window
             Close();
         }
     }
+
+    private sealed record ReminderPopupRow(
+        Border Container,
+        TextBlock Message,
+        Button Dismiss,
+        Button NextLaunch);
 }

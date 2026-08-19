@@ -136,6 +136,108 @@ public sealed class ReminderStore
     public Reminder CreatePending(GameDefinition game, string message) =>
         CreatePending(game, message, Guid.NewGuid(), DateTimeOffset.UtcNow);
 
+    public Reminder UpdatePending(Reminder original, GameDefinition game, string message) =>
+        UpdatePending(
+            original,
+            game,
+            message,
+            File.WriteAllText,
+            File.ReadAllText,
+            (source, destination) => File.Move(source, destination, overwrite: true),
+            delete: File.Delete);
+
+    internal Reminder UpdatePending(
+        Reminder original,
+        GameDefinition game,
+        string message,
+        Action<string, string> write,
+        Func<string, string> read,
+        Action<string, string> move,
+        Action<int>? wait = null,
+        Action<string>? delete = null)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        ArgumentNullException.ThrowIfNull(game);
+        ArgumentNullException.ThrowIfNull(write);
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(move);
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            throw new ArgumentException("Enter a reminder.", nameof(message));
+        }
+
+        if (string.IsNullOrWhiteSpace(original.SourcePath))
+        {
+            throw new InvalidOperationException("The reminder has no source path.");
+        }
+
+        var sourcePath = Path.GetFullPath(original.SourcePath);
+        if (!string.Equals(Path.GetDirectoryName(sourcePath), Path.GetFullPath(InboxPath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only pending reminders can be edited.");
+        }
+
+        var gameChanged = !string.Equals(original.GameId, game.Id, StringComparison.OrdinalIgnoreCase);
+        var updated = original with
+        {
+            GameId = gameChanged ? game.Id : original.GameId,
+            GameNameAtCreation = gameChanged ? game.Name : original.GameNameAtCreation,
+            Message = message.Trim(),
+            SourcePath = sourcePath
+        };
+        var contents = JsonProtocol.WriteReminder(updated);
+        var temporaryPath = Path.Combine(
+            InboxPath,
+            $".{Path.GetFileName(sourcePath)}.{Guid.NewGuid():N}.tmp");
+        delete ??= File.Delete;
+
+        try
+        {
+            EnsureUnchangedPending(original, sourcePath, read, wait);
+            RetrySyncProviderOperation(() =>
+            {
+                write(temporaryPath, contents);
+                return true;
+            }, wait);
+
+            var staged = JsonProtocol.ReadReminder(
+                RetrySyncProviderOperation(() => read(temporaryPath), wait),
+                temporaryPath);
+            if (!HasSamePayload(staged, updated))
+            {
+                throw new InvalidDataException("The staged reminder did not match the requested edit.");
+            }
+
+            RetrySyncProviderOperation(() =>
+            {
+                var current = JsonProtocol.ReadReminder(read(sourcePath), sourcePath);
+                if (HasSamePayload(current, updated))
+                {
+                    return true;
+                }
+
+                if (!HasSamePayload(current, original))
+                {
+                    throw new InvalidDataException(
+                        $"Reminder '{Path.GetFileName(sourcePath)}' changed and was preserved.");
+                }
+
+                move(temporaryPath, sourcePath);
+                return true;
+            }, wait);
+            return updated;
+        }
+        finally
+        {
+            try
+            {
+                delete(temporaryPath);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     internal Reminder CreatePending(
         GameDefinition game,
         string message,
@@ -477,6 +579,22 @@ public sealed class ReminderStore
         string.Equals(left.GameNameAtCreation, right.GameNameAtCreation, StringComparison.Ordinal) &&
         string.Equals(left.Message, right.Message, StringComparison.Ordinal) &&
         left.CreatedAt == right.CreatedAt;
+
+    private static void EnsureUnchangedPending(
+        Reminder original,
+        string sourcePath,
+        Func<string, string> read,
+        Action<int>? wait)
+    {
+        var stored = JsonProtocol.ReadReminder(
+            RetrySyncProviderOperation(() => read(sourcePath), wait),
+            sourcePath);
+        if (!HasSamePayload(stored, original))
+        {
+            throw new InvalidDataException(
+                $"Reminder '{Path.GetFileName(sourcePath)}' changed and was preserved.");
+        }
+    }
 
     public static void AtomicWrite(string path, string contents)
     {

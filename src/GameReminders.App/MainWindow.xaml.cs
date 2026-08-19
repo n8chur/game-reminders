@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly Func<bool, LaunchAtLoginChangeResult> _setLaunchAtLogin;
     private readonly Action _refreshReminders;
     private readonly Action _newReminder;
+    private readonly Action<Reminder, bool> _showReminderDetails;
     private readonly Action<Reminder> _completeReminder;
     private readonly Action<Reminder> _deleteReminder;
     private readonly Action<Reminder> _uncompleteReminder;
@@ -45,6 +46,7 @@ public partial class MainWindow : Window
         Func<bool, LaunchAtLoginChangeResult> setLaunchAtLogin,
         Action refreshReminders,
         Action newReminder,
+        Action<Reminder, bool> showReminderDetails,
         Action<Reminder> completeReminder,
         Action<Reminder> deleteReminder,
         Action<Reminder> uncompleteReminder,
@@ -64,6 +66,7 @@ public partial class MainWindow : Window
         _setLaunchAtLogin = setLaunchAtLogin;
         _refreshReminders = refreshReminders;
         _newReminder = newReminder;
+        _showReminderDetails = showReminderDetails;
         _completeReminder = completeReminder;
         _deleteReminder = deleteReminder;
         _uncompleteReminder = uncompleteReminder;
@@ -231,6 +234,30 @@ public partial class MainWindow : Window
     }
     private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
     private void NewReminder_Click(object sender, RoutedEventArgs e) => _newReminder();
+    private void ReminderList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is ListBox { SelectedItem: ReminderListItem item } list &&
+            FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is not null &&
+            FindAncestor<Button>(e.OriginalSource as DependencyObject) is null)
+        {
+            _showReminderDetails(item.Reminder, ReferenceEquals(list, PendingRemindersList));
+            e.Handled = true;
+        }
+    }
+    private void EditSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReminderFromContext(sender) is { } item)
+        {
+            _showReminderDetails(item.Reminder, true);
+        }
+    }
+    private void ViewSelectedReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReminderFromContext(sender) is { } item)
+        {
+            _showReminderDetails(item.Reminder, false);
+        }
+    }
     private void OpenICloudFolder_Click(object sender, RoutedEventArgs e) => _openICloudFolder();
     private void CompleteReminder_Click(object sender, RoutedEventArgs e)
     {
@@ -407,5 +434,22 @@ internal sealed record LaunchAtLoginChangeResult(bool Enabled, string? Error);
 
 internal sealed record ReminderListItem(Reminder Reminder, string GameName)
 {
+    private const int PreviewLineLimit = 3;
+
     public string Details => Reminder.CreatedAt.ToLocalTime().ToString("g");
+    public string PreviewMessage => CreatePreview(Reminder.Message, PreviewLineLimit);
+
+    internal static string CreatePreview(string message, int lineLimit)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(lineLimit, 1);
+        var lines = message.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+        if (lines.Length <= lineLimit)
+        {
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        var preview = lines.Take(lineLimit).ToArray();
+        preview[^1] = preview[^1].TrimEnd() + "…";
+        return string.Join(Environment.NewLine, preview);
+    }
 }

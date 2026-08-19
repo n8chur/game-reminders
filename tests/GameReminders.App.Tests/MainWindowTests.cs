@@ -131,6 +131,20 @@ public sealed class MainWindowTests
         Assert.DoesNotContain("Farever", item.Details);
     }
 
+    [Theory]
+    [InlineData("First\nSecond\nThird", "First\nSecond\nThird")]
+    [InlineData("First\nSecond\nThird\nFourth", "First\nSecond\nThird…")]
+    [InlineData("First\r\nSecond\r\nThird\r\nFourth", "First\nSecond\nThird…")]
+    [InlineData("First\rSecond\rThird\rFourth", "First\nSecond\nThird…")]
+    public void ReminderPreviewShowsThreeLinesAndEllipsisWhenMoreRemain(
+        string message,
+        string expected)
+    {
+        Assert.Equal(
+            expected.Replace("\n", Environment.NewLine, StringComparison.Ordinal),
+            ReminderListItem.CreatePreview(message, 3));
+    }
+
     [Fact]
     public void GameManagementContainsNoObsoleteRequestSection()
     {
@@ -138,5 +152,61 @@ public sealed class MainWindowTests
         var xaml = XDocument.Load(xamlPath);
 
         Assert.DoesNotContain("ali" + "as", xaml.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ReminderListsUseCompactThreeLineEllipsisPreviews()
+    {
+        var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        var previews = xaml.Descendants()
+            .Where(element =>
+                element.Name.LocalName == "TextBlock" &&
+                (string?)element.Attribute("Text") == "{Binding PreviewMessage}")
+            .ToArray();
+
+        Assert.Equal(2, previews.Length);
+        Assert.All(previews, preview =>
+        {
+            Assert.Equal("13", (string?)preview.Attribute("FontSize"));
+            Assert.Equal("Wrap", (string?)preview.Attribute("TextWrapping"));
+            Assert.Equal("17", (string?)preview.Attribute("LineHeight"));
+            Assert.Equal("51", (string?)preview.Attribute("MaxHeight"));
+            Assert.Equal("CharacterEllipsis", (string?)preview.Attribute("TextTrimming"));
+        });
+    }
+
+    [Fact]
+    public void ReminderListsConstrainRowsToTheViewportForTextWrapping()
+    {
+        var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var style = Assert.Single(xaml.Descendants(), element =>
+            element.Name.LocalName == "Style" &&
+            (string?)element.Attribute(x + "Key") == "ReminderListBoxStyle");
+        var setters = style.Elements()
+            .Where(element => element.Name.LocalName == "Setter")
+            .ToDictionary(
+                element => (string)element.Attribute("Property")!,
+                element => (string)element.Attribute("Value")!);
+
+        Assert.Equal("Stretch", setters["HorizontalContentAlignment"]);
+        Assert.Equal("Disabled", setters["ScrollViewer.HorizontalScrollBarVisibility"]);
+    }
+
+    [Fact]
+    public void ReminderListsExposeDoubleClickAndContextDetailsActions()
+    {
+        var xaml = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        var lists = xaml.Descendants()
+            .Where(element => (string?)element.Attribute("MouseDoubleClick") == "ReminderList_MouseDoubleClick")
+            .ToArray();
+
+        Assert.Equal(2, lists.Length);
+        Assert.Contains(xaml.Descendants(), element =>
+            (string?)element.Attribute("Header") == "Edit" &&
+            (string?)element.Attribute("Click") == "EditSelectedReminder_Click");
+        Assert.Contains(xaml.Descendants(), element =>
+            (string?)element.Attribute("Header") == "View" &&
+            (string?)element.Attribute("Click") == "ViewSelectedReminder_Click");
     }
 }

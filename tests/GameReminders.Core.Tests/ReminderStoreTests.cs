@@ -541,6 +541,193 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Equal(3, attempts);
     }
 
+    [Fact]
+    public void UpdatePendingChangesMessageAndGameWhilePreservingIdentity()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var replacementGame = new GameDefinition { Id = "replacement", Name = "Replacement" };
+
+        var updated = store.UpdatePending(loaded, replacementGame, "  Updated message  ");
+
+        Assert.Equal(original.Id, updated.Id);
+        Assert.Equal(original.CreatedAt, updated.CreatedAt);
+        Assert.Equal(loaded.SourcePath, updated.SourcePath);
+        Assert.Equal("replacement", updated.GameId);
+        Assert.Equal("Replacement", updated.GameNameAtCreation);
+        Assert.Equal("Updated message", updated.Message);
+        Assert.Equal(updated, Assert.Single(store.LoadAllPending()));
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void UpdatePendingMessageEditPreservesCreationGameName()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+
+        var updated = store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId.ToUpperInvariant(), Name = "Current Catalog Name" },
+            "Updated");
+
+        Assert.Equal(original.GameId, updated.GameId);
+        Assert.Equal(original.GameNameAtCreation, updated.GameNameAtCreation);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdatePendingRejectsBlankMessages(string message)
+    {
+        var store = new ReminderStore(_root);
+        var original = CreateReminder() with { SourcePath = Path.Combine(store.InboxPath, "reminder.json") };
+
+        Assert.Throws<ArgumentException>(() => store.UpdatePending(
+            original,
+            new GameDefinition { Id = "game", Name = "Game" },
+            message));
+    }
+
+    [Fact]
+    public void UpdatePendingRejectsCompletedReminder()
+    {
+        var store = new ReminderStore(_root);
+        var original = CreateReminder() with { SourcePath = Path.Combine(store.CompletedPath, "reminder.json") };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => store.UpdatePending(
+            original,
+            new GameDefinition { Id = "game", Name = "Game" },
+            "Updated"));
+
+        Assert.Contains("pending", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UpdatePendingPreservesConcurrentlyChangedSource()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var source = loaded.SourcePath!;
+        var concurrent = original with { Message = "Changed elsewhere" };
+        File.WriteAllText(source, JsonProtocol.WriteReminder(concurrent));
+
+        Assert.Throws<InvalidDataException>(() => store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId, Name = original.GameNameAtCreation },
+            "My edit"));
+
+        Assert.Equal("Changed elsewhere", JsonProtocol.ReadReminder(File.ReadAllText(source)).Message);
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void UpdatePendingRejectsInvalidStagedPayloadAndCleansItUp()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var source = loaded.SourcePath!;
+
+        Assert.Throws<InvalidDataException>(() => store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId, Name = original.GameNameAtCreation },
+            "My edit",
+            (path, _) => File.WriteAllText(path, JsonProtocol.WriteReminder(original)),
+            File.ReadAllText,
+            (from, to) => File.Move(from, to, overwrite: true)));
+
+        Assert.Equal(original.Message, JsonProtocol.ReadReminder(File.ReadAllText(source)).Message);
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
+    [Fact]
+    public void UpdatePendingRetriesTransientWriteReadAndMoveFailures()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var writeAttempts = 0;
+        var stagedReadAttempts = 0;
+        var moveAttempts = 0;
+        var waits = new List<int>();
+
+        var updated = store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId, Name = original.GameNameAtCreation },
+            "Updated",
+            (path, contents) =>
+            {
+                if (++writeAttempts == 1) throw new IOException("Locked");
+                File.WriteAllText(path, contents);
+            },
+            path =>
+            {
+                if (path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) && ++stagedReadAttempts == 1)
+                {
+                    throw new UnauthorizedAccessException("Locked");
+                }
+                return File.ReadAllText(path);
+            },
+            (from, to) =>
+            {
+                if (++moveAttempts == 1) throw new IOException("Locked");
+                File.Move(from, to, overwrite: true);
+            },
+            waits.Add);
+
+        Assert.Equal("Updated", updated.Message);
+        Assert.Equal(2, writeAttempts);
+        Assert.Equal(2, stagedReadAttempts);
+        Assert.Equal(2, moveAttempts);
+        Assert.Equal([1, 1, 1], waits);
+    }
+
+    [Fact]
+    public void UpdatePendingTreatsCompletedMoveThatThrowsAsSuccess()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var moveAttempts = 0;
+        var waits = new List<int>();
+
+        var updated = store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId, Name = original.GameNameAtCreation },
+            "Updated",
+            File.WriteAllText,
+            File.ReadAllText,
+            (from, to) =>
+            {
+                moveAttempts++;
+                File.Move(from, to, overwrite: true);
+                throw new IOException("The provider reported a failure after replacing the file.");
+            },
+            waits.Add);
+
+        Assert.Equal("Updated", updated.Message);
+        Assert.Equal("Updated", Assert.Single(store.LoadAllPending()).Message);
+        Assert.Equal(1, moveAttempts);
+        Assert.Equal([1], waits);
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>

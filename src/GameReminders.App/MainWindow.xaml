@@ -8,6 +8,8 @@
     <Window.Resources>
         <Style x:Key="ReminderListBoxStyle" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
             <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         </Style>
         <Style x:Key="SearchTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Height" Value="36" />
@@ -54,10 +56,12 @@
                                 <Grid>
                                     <ListBox x:Name="PendingRemindersList"
                                              Style="{StaticResource ReminderListBoxStyle}"
+                                             MouseDoubleClick="ReminderList_MouseDoubleClick"
                                              KeyDown="ReminderList_KeyDown"
                                              PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
                                         <ListBox.ContextMenu>
                                             <ContextMenu>
+                                                <MenuItem Header="Edit" Click="EditSelectedReminder_Click" />
                                                 <MenuItem Header="Complete" Click="CompleteSelectedReminder_Click" />
                                                 <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
                                             </ContextMenu>
@@ -80,8 +84,10 @@
                                                             Click="CompleteReminder_Click" Margin="14,0,0,0"
                                                             VerticalAlignment="Center" />
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
-                                                                   FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding PreviewMessage}" FontSize="13"
+                                                                   FontWeight="SemiBold" TextWrapping="Wrap"
+                                                                   LineHeight="17" LineStackingStrategy="BlockLineHeight"
+                                                                   MaxHeight="51" TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
                                                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                                                     </StackPanel>
@@ -113,10 +119,12 @@
                                 <Grid>
                                     <ListBox x:Name="CompletedRemindersList"
                                              Style="{StaticResource ReminderListBoxStyle}"
+                                             MouseDoubleClick="ReminderList_MouseDoubleClick"
                                              KeyDown="ReminderList_KeyDown"
                                              PreviewMouseRightButtonDown="ReminderList_PreviewMouseRightButtonDown">
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
+                                            <MenuItem Header="View" Click="ViewSelectedReminder_Click" />
                                             <MenuItem Header="Mark as pending" Click="UncompleteSelectedReminder_Click" />
                                             <MenuItem Header="Delete" Click="DeleteSelectedReminder_Click" />
                                         </ContextMenu>
@@ -138,8 +146,10 @@
                                                 <TextBlock DockPanel.Dock="Left" Text="✓" FontSize="18" Margin="0,0,10,0"
                                                            Foreground="{DynamicResource PrimaryBrush}" />
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Reminder.Message}" FontSize="15"
-                                                               TextDecorations="Strikethrough" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding PreviewMessage}" FontSize="13"
+                                                               TextDecorations="Strikethrough" TextWrapping="Wrap"
+                                                               LineHeight="17" LineStackingStrategy="BlockLineHeight"
+                                                               MaxHeight="51" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Text="{Binding Details}" Margin="0,4,0,0" FontSize="12"
                                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                                 </StackPanel>
