@@ -211,6 +211,11 @@ public sealed class ReminderStore
             RetrySyncProviderOperation(() =>
             {
                 var current = JsonProtocol.ReadReminder(read(sourcePath), sourcePath);
+                if (HasSamePayload(current, updated))
+                {
+                    return true;
+                }
+
                 if (!HasSamePayload(current, original))
                 {
                     throw new InvalidDataException(

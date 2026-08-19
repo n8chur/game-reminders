@@ -696,6 +696,38 @@ public sealed class ReminderStoreTests : IDisposable
         Assert.Equal([1, 1, 1], waits);
     }
 
+    [Fact]
+    public void UpdatePendingTreatsCompletedMoveThatThrowsAsSuccess()
+    {
+        var store = new ReminderStore(_root);
+        store.EnsureInitialized();
+        var original = CreateReminder();
+        Write(store, original);
+        var loaded = Assert.Single(store.LoadAllPending());
+        var moveAttempts = 0;
+        var waits = new List<int>();
+
+        var updated = store.UpdatePending(
+            loaded,
+            new GameDefinition { Id = original.GameId, Name = original.GameNameAtCreation },
+            "Updated",
+            File.WriteAllText,
+            File.ReadAllText,
+            (from, to) =>
+            {
+                moveAttempts++;
+                File.Move(from, to, overwrite: true);
+                throw new IOException("The provider reported a failure after replacing the file.");
+            },
+            waits.Add);
+
+        Assert.Equal("Updated", updated.Message);
+        Assert.Equal("Updated", Assert.Single(store.LoadAllPending()).Message);
+        Assert.Equal(1, moveAttempts);
+        Assert.Equal([1], waits);
+        Assert.Empty(Directory.EnumerateFiles(store.InboxPath, ".*.tmp"));
+    }
+
     private static Reminder CreateReminder(
         string gameId = "custom-farever",
         DateTimeOffset? createdAt = null) =>
