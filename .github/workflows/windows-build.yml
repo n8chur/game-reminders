@@ -206,12 +206,19 @@ jobs:
       contents: write
 
     steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
       - name: Download release packages
         uses: actions/download-artifact@v4
         with:
           pattern: game-reminders-*-win-x64
           path: release-assets
           merge-multiple: true
+
+      - name: Add Apple Shortcut
+        shell: pwsh
+        run: Copy-Item './shortcuts/Game Reminder.shortcut' './release-assets/Game-Reminder.shortcut'
 
       - name: Publish GitHub Release
         shell: pwsh
