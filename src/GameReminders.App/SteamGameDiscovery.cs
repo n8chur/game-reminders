@@ -28,6 +28,86 @@ internal sealed class SteamGameDiscovery
     internal SteamDiscoveryResult Discover() => Discover(null);
 
     /// <summary>
+    /// Lists the app ids Steam currently has on disk without opening a single manifest or
+    /// walking a game directory for executables.
+    /// </summary>
+    /// <remarks>
+    /// This is the cheap half of a scan: one directory listing per library answers "has
+    /// anything changed?", so the expensive executable walk in <see cref="Discover"/> only
+    /// has to run for the app ids that actually appeared or changed.
+    /// </remarks>
+    internal SteamProbeResult Probe()
+    {
+        var appIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var steamApps = EnumerateSteamAppsFolders(out var fullyEnumerated);
+        foreach (var steamAppsFolder in steamApps)
+        {
+            var manifests = EnumerateManifestFiles(steamAppsFolder, out var manifestsListed);
+            fullyEnumerated &= manifestsListed;
+            foreach (var manifest in manifests)
+            {
+                if (ParseManifestAppId(manifest) is { } appId)
+                {
+                    appIds.Add(appId);
+                }
+            }
+        }
+
+        return new SteamProbeResult(appIds, fullyEnumerated);
+    }
+
+    /// <summary>Reads an app id straight out of an <c>appmanifest_*.acf</c> filename.</summary>
+    internal static string? ParseManifestAppId(string manifestPath)
+    {
+        var filename = Path.GetFileNameWithoutExtension(manifestPath);
+        if (!filename.StartsWith(ManifestPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var appId = filename[ManifestPrefix.Length..];
+        return ulong.TryParse(appId, NumberStyles.None, CultureInfo.InvariantCulture, out _) ? appId : null;
+    }
+
+    /// <summary>
+    /// Resolves every readable <c>steamapps</c> folder and reports whether all of them were
+    /// reachable. A library Steam lists but that is not mounted, such as an external drive,
+    /// makes the answer incomplete rather than empty.
+    /// </summary>
+    private static IReadOnlyList<string> EnumerateSteamAppsFolders(out bool fullyEnumerated)
+    {
+        var steamRoot = FindSteamRoot();
+        if (steamRoot is null)
+        {
+            fullyEnumerated = false;
+            return [];
+        }
+
+        var complete = true;
+        var libraries = FindLibraries(steamRoot, out var librariesResolved)
+            .Append(steamRoot)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        complete &= librariesResolved;
+        var folders = new List<string>();
+        foreach (var library in libraries)
+        {
+            var steamApps = Path.Combine(library, "steamapps");
+            if (!Directory.Exists(steamApps))
+            {
+                // A library Steam still lists but whose contents we cannot see. Treat the
+                // scan as incomplete rather than concluding its games were uninstalled.
+                complete = false;
+                continue;
+            }
+
+            folders.Add(steamApps);
+        }
+
+        fullyEnumerated = complete;
+        return folders;
+    }
+
+    /// <summary>
     /// Enumerates installed Steam games. When <paramref name="appIds"/> is supplied only
     /// those apps are inspected, which keeps an install-completion poll from re-walking
     /// every library for executables.
@@ -39,30 +119,11 @@ internal sealed class SteamGameDiscovery
     /// </remarks>
     internal SteamDiscoveryResult Discover(IReadOnlySet<string>? appIds)
     {
-        var steamRoot = FindSteamRoot();
-        if (steamRoot is null)
-        {
-            return new SteamDiscoveryResult([], LibrariesFullyEnumerated: false);
-        }
-
-        var fullyEnumerated = true;
-        var libraries = FindLibraries(steamRoot, out var librariesResolved)
-            .Append(steamRoot)
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-        fullyEnumerated &= librariesResolved;
+        var steamApps = EnumerateSteamAppsFolders(out var fullyEnumerated);
         var results = new Dictionary<string, PendingGameDetection>(StringComparer.OrdinalIgnoreCase);
-        foreach (var library in libraries)
+        foreach (var steamAppsFolder in steamApps)
         {
-            var steamApps = Path.Combine(library, "steamapps");
-            if (!Directory.Exists(steamApps))
-            {
-                // A library Steam still lists but whose contents we cannot see. Treat the
-                // scan as incomplete rather than concluding its games were uninstalled.
-                fullyEnumerated = false;
-                continue;
-            }
-
-            var manifests = EnumerateManifestFiles(steamApps, out var manifestsListed);
+            var manifests = EnumerateManifestFiles(steamAppsFolder, out var manifestsListed);
             fullyEnumerated &= manifestsListed;
             foreach (var manifest in manifests)
             {
@@ -76,7 +137,7 @@ internal sealed class SteamGameDiscovery
                     var values = ParsePairs(File.ReadAllText(manifest))
                         .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                         .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase);
-                    var detection = CreateDetection(values, steamApps);
+                    var detection = CreateDetection(values, steamAppsFolder);
                     if (detection is not null)
                     {
                         results[detection.Key] = detection;
@@ -363,4 +424,13 @@ internal sealed record ExecutableSelection(string? Process, int Score);
 /// </summary>
 internal sealed record SteamDiscoveryResult(
     IReadOnlyList<PendingGameDetection> Games,
+    bool LibrariesFullyEnumerated);
+
+/// <summary>
+/// App ids Steam has on disk right now, plus whether every library was listed without
+/// error. A missing app id only means the game is gone when
+/// <paramref name="LibrariesFullyEnumerated"/> is true.
+/// </summary>
+internal sealed record SteamProbeResult(
+    IReadOnlySet<string> InstalledAppIds,
     bool LibrariesFullyEnumerated);

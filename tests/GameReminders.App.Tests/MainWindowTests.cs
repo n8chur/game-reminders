@@ -169,14 +169,14 @@ public sealed class MainWindowTests
     }
 
     [Theory]
-    [InlineData(1, 0, 0, 0, 0, "Steam scan added 1 new game(s)")]
-    [InlineData(0, 2, 0, 0, 0, "Steam scan updated 2 existing game(s)")]
-    [InlineData(0, 0, 0, 0, 0, "Steam scan found no new games")]
-    [InlineData(1, 0, 2, 0, 0, "Steam scan added 1 new game(s); 2 still installing")]
-    [InlineData(0, 0, 1, 0, 0, "Steam scan found no new games; 1 still installing")]
-    [InlineData(0, 1, 0, 0, 1, "Steam scan updated 1 existing game(s); 1 no longer installed")]
-    [InlineData(0, 0, 0, 2, 0, "Steam scan found no new games; 2 cancelled install(s) removed")]
-    [InlineData(0, 1, 1, 1, 1, "Steam scan updated 1 existing game(s); 1 still installing, 1 no longer installed, 1 cancelled install(s) removed")]
+    [InlineData(1, 0, 0, 0, 0, "Game scan added 1 new game(s)")]
+    [InlineData(0, 2, 0, 0, 0, "Game scan updated 2 existing game(s)")]
+    [InlineData(0, 0, 0, 0, 0, "Game scan found no new games")]
+    [InlineData(1, 0, 2, 0, 0, "Game scan added 1 new game(s); 2 still installing")]
+    [InlineData(0, 0, 1, 0, 0, "Game scan found no new games; 1 still installing")]
+    [InlineData(0, 1, 0, 0, 1, "Game scan updated 1 existing game(s); 1 no longer installed")]
+    [InlineData(0, 0, 0, 2, 0, "Game scan found no new games; 2 cancelled install(s) removed")]
+    [InlineData(0, 1, 1, 1, 1, "Game scan updated 1 existing game(s); 1 still installing, 1 no longer installed, 1 cancelled install(s) removed")]
     public void ScanResultReportsInstallStateChanges(
         int added, int updated, int installing, int retracted, int uninstalled, string expected)
     {
@@ -200,7 +200,7 @@ public sealed class MainWindowTests
     [Fact]
     public void EmptyGamesTextExplainsWhyTheListIsEmpty()
     {
-        Assert.Equal("No games yet. Add one manually or scan Steam.",
+        Assert.Equal("No games yet. Add one manually or choose Scan games.",
             MainWindow.DescribeEmptyGames(0, string.Empty, hideUninstalled: false));
         Assert.Equal("No games match this search.",
             MainWindow.DescribeEmptyGames(3, "zzz", hideUninstalled: true));

@@ -16,7 +16,8 @@ public partial class App : System.Windows.Application
     private ILaunchAtLoginService? _launchAtLoginService;
     private SingleInstanceCoordinator? _singleInstance;
     private SteamInstallWatcher? _installWatcher;
-    private bool _steamScanInProgress;
+    private InstallSweep? _installSweep;
+    private bool _scanInProgress;
     private AppSettings _settings = new();
     private ThemeManager? _themeManager;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -45,6 +46,7 @@ public partial class App : System.Windows.Application
 
             _themeManager = new ThemeManager(this);
             _installWatcher = new SteamInstallWatcher(RequestInstallRescan);
+            _installSweep = new InstallSweep(RequestInstallSweep, IsMonitoredGameRunning);
             _settingsService = new SettingsService();
             _settings = _settingsService.Load();
             _storeRootValidator = new StoreRootValidator();
@@ -65,7 +67,7 @@ public partial class App : System.Windows.Application
                 AddManualGame,
                 EditGame,
                 RemoveGame,
-                ScanSteam,
+                ScanGames,
                 ConfigureDetection,
                 IgnoreDetection,
                 RestoreIgnored,
@@ -98,7 +100,8 @@ public partial class App : System.Windows.Application
             RefreshReminders();
             RefreshPending();
             StartForegroundDetection();
-            _ = ScanSteamAsync(showCompletion: false);
+            _ = ScanGamesAsync(showCompletion: false);
+            _installSweep.Start();
         }
         catch (Exception exception)
         {
@@ -207,7 +210,7 @@ public partial class App : System.Windows.Application
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Open Game Reminders", null, (_, _) => DispatchToUi(ShowMainWindow));
         menu.Items.Add("Open iCloud Folder", null, (_, _) => DispatchToUi(OpenICloudFolder));
-        menu.Items.Add("Scan Steam", null, (_, _) => DispatchToUi(ScanSteam));
+        menu.Items.Add("Scan games", null, (_, _) => DispatchToUi(ScanGames));
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => DispatchToUi(ShutdownApplication));
 
@@ -442,8 +445,10 @@ public partial class App : System.Windows.Application
             try
             {
                 var catalog = _store.LoadCatalog();
+                // Changing an executable path is exactly the moment install state can
+                // become wrong, so re-derive it here instead of waiting for a scan.
                 var games = catalog.Games.Where(item => !string.Equals(item.Id, game.Id, StringComparison.OrdinalIgnoreCase))
-                    .Append(candidate)
+                    .Append(InstallVerification.Verify(candidate))
                     .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
                     .ToArray();
                 _store.SaveCatalog(catalog with { Games = games });
@@ -534,39 +539,64 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private void ScanSteam() => _ = ScanSteamAsync(showCompletion: true);
+    private void ScanGames() => _ = ScanGamesAsync(showCompletion: true);
 
     // The install watcher ticks on a thread-pool thread, so hop back onto the UI
     // dispatcher before touching settings, the catalog, or the main window.
     private void RequestInstallRescan(IReadOnlySet<string> appIds) =>
-        DispatchToUi(() => _ = ScanSteamAsync(showCompletion: false, appIds));
+        DispatchToUi(() => _ = ScanGamesAsync(showCompletion: false, appIds));
 
-    private async Task ScanSteamAsync(bool showCompletion, IReadOnlySet<string>? appIds = null)
+    // The periodic sweep runs unattended, so it takes the probe-first path and stays
+    // silent unless something actually changed.
+    private void RequestInstallSweep() =>
+        DispatchToUi(() => _ = ScanGamesAsync(showCompletion: false, probeFirst: true));
+
+    private bool IsMonitoredGameRunning() => _monitor?.SnapshotActiveGameIds().Count > 0;
+
+    private async Task ScanGamesAsync(
+        bool showCompletion,
+        IReadOnlySet<string>? appIds = null,
+        bool probeFirst = false)
     {
         // Scans read and rewrite games.json around an await, so a background poll must
         // never overlap one already in flight. A user-initiated scan still runs.
-        if (_steamScanInProgress && !showCompletion)
+        if (_scanInProgress && !showCompletion)
         {
             return;
         }
 
-        _steamScanInProgress = true;
+        _scanInProgress = true;
         try
         {
-            await RunSteamScanAsync(showCompletion, appIds);
+            await RunScanAsync(showCompletion, appIds, probeFirst);
         }
         finally
         {
-            _steamScanInProgress = false;
+            _scanInProgress = false;
         }
     }
 
-    private async Task RunSteamScanAsync(bool showCompletion, IReadOnlySet<string>? appIds)
+    private async Task RunScanAsync(bool showCompletion, IReadOnlySet<string>? appIds, bool probeFirst)
     {
+        var store = _store;
+        if (store is null)
+        {
+            return;
+        }
+
+        if (probeFirst)
+        {
+            appIds = await ProbeAppIdsToResolveAsync(store);
+        }
+
         SteamDiscoveryResult discovered;
         try
         {
-            discovered = await Task.Run(() => new SteamGameDiscovery().Discover(appIds));
+            discovered = appIds is { Count: 0 }
+                // Steam holds nothing the catalog has not already settled, so skip the
+                // executable walk. Non-Steam mappings are still verified below.
+                ? new SteamDiscoveryResult([], LibrariesFullyEnumerated: false)
+                : await Task.Run(() => new SteamGameDiscovery().Discover(appIds));
         }
         catch (Exception exception)
         {
@@ -576,20 +606,20 @@ public partial class App : System.Windows.Application
 
         try
         {
-            if (_store is null)
-            {
-                return;
-            }
-
-            var catalog = _store.LoadCatalog();
+            var catalog = store.LoadCatalog();
             var import = SteamCatalogImporter.Import(
                 catalog,
                 discovered.Games,
                 _settings.SuppressedSteamGames.Select(game => game.AppId),
                 discovered.LibrariesFullyEnumerated,
                 appIds);
+            // No launcher reports on a manual or foreground-detected game, so its state is
+            // derived here from whether its own mapped executables are still on disk.
+            var verified = InstallVerification.Verify(import.Catalog);
             var added = import.AddedGames.Count;
-            var updatedCount = import.UpdatedGames.Count;
+            // The two passes own disjoint sources, so their changes never double-count.
+            var stateChanges = import.UpdatedGames.Concat(verified.ChangedGames).ToArray();
+            var updatedCount = stateChanges.Length;
             var retractedIds = import.RetractedGames
                 .Select(game => game.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -603,7 +633,7 @@ public partial class App : System.Windows.Application
                 .ToArray();
             if (added > 0 || updatedCount > 0 || retractedIds.Count > 0)
             {
-                _store.SaveCatalog(import.Catalog);
+                store.SaveCatalog(verified.Catalog);
                 if (reviewable.Length > 0 || retractedIds.Count > 0)
                 {
                     var updated = _settings with
@@ -626,8 +656,8 @@ public partial class App : System.Windows.Application
                     ShowReviewNotification(reviewable.Length, trustedSteamGames: true);
                 }
             }
-            _installWatcher?.Update(import.Catalog);
-            RemoveConfiguredPending(import.Catalog);
+            _installWatcher?.Update(verified.Catalog);
+            RemoveConfiguredPending(verified.Catalog);
             if (showCompletion)
             {
                 _mainWindow?.SetStatus(DescribeScanResult(
@@ -635,13 +665,80 @@ public partial class App : System.Windows.Application
                     updatedCount,
                     import.InstallingGames.Count,
                     retractedIds.Count,
-                    import.UpdatedGames.Count(game => game.Source?.InstallState == InstallState.NotInstalled)));
+                    stateChanges.Count(game => game.Source?.InstallState == InstallState.NotInstalled)));
             }
         }
         catch (Exception exception)
         {
-            _mainWindow?.SetStatus($"Steam scan could not update games.json: {exception.Message}", isIssue: true);
+            _mainWindow?.SetStatus($"Game scan could not update games.json: {exception.Message}", isIssue: true);
         }
+    }
+
+    /// <summary>
+    /// Runs the cheap probe and returns the app ids the expensive resolve has to inspect.
+    /// A probe that cannot read Steam yields nothing to resolve rather than an error: the
+    /// pass still verifies non-Steam mappings, and the next scan retries.
+    /// </summary>
+    private async Task<IReadOnlySet<string>> ProbeAppIdsToResolveAsync(ReminderStore store)
+    {
+        try
+        {
+            var catalog = store.LoadCatalog();
+            var probe = await Task.Run(() => new SteamGameDiscovery().Probe());
+            return SelectAppIdsToResolve(
+                catalog,
+                probe.InstalledAppIds,
+                probe.LibrariesFullyEnumerated,
+                _settings.SuppressedSteamGames.Select(game => game.AppId));
+        }
+        catch (Exception)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Chooses which Steam app ids the expensive resolve pass must inspect: those the probe
+    /// saw that the catalog does not already record as installed, and — only when every
+    /// library was readable — those the catalog records but the probe no longer sees.
+    /// </summary>
+    internal static IReadOnlySet<string> SelectAppIdsToResolve(
+        GameCatalog catalog,
+        IReadOnlySet<string> installedAppIds,
+        bool librariesFullyEnumerated,
+        IEnumerable<string> suppressedAppIds)
+    {
+        var suppressed = suppressedAppIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var resolve = installedAppIds
+            .Where(appId => !suppressed.Contains(appId))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var game in catalog.Games)
+        {
+            var source = game.Source;
+            if (source is null ||
+                !string.Equals(source.Type?.Trim(), "steam", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(source.AppId) ||
+                suppressed.Contains(source.AppId))
+            {
+                continue;
+            }
+
+            if (installedAppIds.Contains(source.AppId))
+            {
+                if (source.InstallState == InstallState.Installed)
+                {
+                    // Same files, same answer: walking this game's directory again would
+                    // only re-derive what the catalog already records.
+                    resolve.Remove(source.AppId);
+                }
+            }
+            else if (librariesFullyEnumerated && source.InstallState != InstallState.NotInstalled)
+            {
+                resolve.Add(source.AppId);
+            }
+        }
+
+        return resolve;
     }
 
     internal static string DescribeScanResult(
@@ -652,10 +749,10 @@ public partial class App : System.Windows.Application
         int uninstalled)
     {
         var summary = added > 0
-            ? $"Steam scan added {added} new game(s)"
+            ? $"Game scan added {added} new game(s)"
             : updated > 0
-                ? $"Steam scan updated {updated} existing game(s)"
-                : "Steam scan found no new games";
+                ? $"Game scan updated {updated} existing game(s)"
+                : "Game scan found no new games";
         var notes = new List<string>();
         if (installing > 0) notes.Add($"{installing} still installing");
         if (uninstalled > 0) notes.Add($"{uninstalled} no longer installed");
@@ -890,7 +987,7 @@ public partial class App : System.Windows.Application
         _settings = updated;
         RefreshIgnored();
         UpdateTrayAttention();
-        _ = ScanSteamAsync(showCompletion: true);
+        _ = ScanGamesAsync(showCompletion: true);
     }
 
     internal static AppSettings RestoreIgnoredDetection(AppSettings settings, string key)
@@ -1243,6 +1340,7 @@ public partial class App : System.Windows.Application
         }
         _monitor?.Dispose();
         _installWatcher?.Dispose();
+        _installSweep?.Dispose();
         if (_trayIcon is not null)
         {
             _trayIcon.Visible = false;

@@ -225,6 +225,16 @@ public sealed class SteamGameDiscoveryTests
         Assert.False(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\unexpected.acf", appIds));
     }
 
+    [Fact]
+    public void ProbeReadsAppIdsFromManifestFilenamesAlone()
+    {
+        Assert.Equal("123", SteamGameDiscovery.ParseManifestAppId(@"C:\Steam\steamapps\appmanifest_123.acf"));
+        Assert.Equal("123", SteamGameDiscovery.ParseManifestAppId(@"C:\Steam\steamapps\APPMANIFEST_123.ACF"));
+        Assert.Null(SteamGameDiscovery.ParseManifestAppId(@"C:\Steam\steamapps\appmanifest_.acf"));
+        Assert.Null(SteamGameDiscovery.ParseManifestAppId(@"C:\Steam\steamapps\appmanifest_beta.acf"));
+        Assert.Null(SteamGameDiscovery.ParseManifestAppId(@"C:\Steam\steamapps\unexpected.acf"));
+    }
+
     private static bool IsInstalling(IReadOnlyDictionary<string, string> values, bool hasExecutables) =>
         SteamGameDiscovery.ResolveInstallState(values, hasExecutables) == InstallState.Installing;
 
