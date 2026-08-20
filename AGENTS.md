@@ -30,13 +30,95 @@ dotnet build GameReminders.slnx --configuration Release --no-restore
 
 Add regression tests for protocol validation, filesystem state transitions, process lifecycle behavior, and any bug fixed from review feedback.
 
+## AI attribution
+
+Anyone reading this repository later must be able to tell that an AI produced a change and **which** AI produced it. Treat that as a hard requirement for every artifact an agent can create or edit on GitHub — commits, pull requests, issues, and comments — not only for code.
+
+Two facts belong in every disclosure:
+
+- **Which agent did the work**, named from the fixed vocabulary below.
+- **Which GitHub user directed the work.** Refer to that person only by GitHub username, for example `@n8chur`. Never substitute a profile display name, legal name, or first name anywhere in a disclosure.
+
+### Agent names
+
+| Agent | Disclosure name | Commit trailer |
+| --- | --- | --- |
+| Anthropic's Claude Code | `Claude` | `Co-Authored-By: Claude <noreply@anthropic.com>` |
+| OpenAI's Codex | `Codex` | `Co-Authored-By: Codex <noreply@openai.com>` |
+| GitHub Copilot | `Copilot` | commits under its own `copilot-swe-agent[bot]` identity; add no trailer |
+
+Use only these names. The list is a fixed vocabulary so that disclosures stay consistent, greppable, and mechanically checkable; add an agent by amending this table in its own pull request rather than inventing a name inline.
+
+Do not add a model version (`Opus 5`, `GPT-5`) or a vendor prefix (`Anthropic`, `OpenAI`). One pull request or issue routinely spans several models, so a version pinned in a durable line goes stale and misattributes part of the work, and the trailer address already records the vendor. When a specific model genuinely matters to a decision, say so in the surrounding prose instead of in the disclosure line.
+
+### Work that spans agents
+
+A single pull request or issue often passes through more than one agent — Codex starts it, Claude finishes it after review. Changing models inside one agent changes nothing, because this vocabulary names agents rather than models. Changing agents does.
+
+An agent that continues another's work adds itself to the existing disclosure and never replaces the name already there:
+
+```
+> Implemented by Codex and Claude under @n8chur's direction.
+```
+
+Name agents in the order they contributed, joined by `and`, with commas for three or more (`Codex, Claude, and Copilot`). Add yourself if you authored any part of the work as it stands, including revisions made after review; reading or reviewing it is not authoring it.
+
+The line records who was involved, not who did what. Commit trailers already carry that per commit, and when the division of labor matters to a reviewer — one agent wrote the feature, another reworked it after review — describe it in the prose, as the review follow-up sections in this repository already do.
+
+Commits and comments stay single-agent: whichever agent writes one signs it. An issue that a second agent revises keeps its original `Filed by` line and gains an `Edited by` line below it.
+
+### Placement
+
+- Attribute in the artifact itself. Each commit message, PR description, issue, and comment is read on its own, so each carries its own disclosure; a disclosure elsewhere in the thread does not cover it.
+- Attribute per agent, as described in **Work that spans agents**.
+- Never remove or weaken an existing disclosure. If a human materially rewrites AI output, keep the disclosure and note what the human changed.
+- When an action cannot carry a disclosure of its own — applying a label, resolving a review thread — perform it on the same PR or issue where the disclosure already appears, so it stays attributable in context.
+
+### Commits
+
+End every AI-authored commit message with the agent's `Co-Authored-By` trailer from the table above:
+
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Keep the directing human as the commit author; the trailer records the agent.
+
+### Pull request descriptions
+
+Place this disclosure immediately below the issue reference, naming the acting agent:
+
+```
+> Implemented by Claude under @n8chur's direction.
+```
+
+Add the `AI Generated` label to every PR containing AI-authored changes.
+
+### Issues
+
+An agent that files or rewrites an issue discloses that in the issue body, on its own line immediately below the first paragraph or issue reference and before the first section heading:
+
+```
+> Filed by Claude under @n8chur's direction.
+```
+
+Use `> Drafted by ...` when a human files agent-written text under their own account, and `> Edited by ...` when an agent revises an issue someone else filed — add the line without disturbing existing content. Label AI-written issues `AI Generated` as well.
+
+### Comments and reviews
+
+Agent-written comments — PR discussion replies, review comments, review verdicts, and issue comments — end with the same disclosure on its own line:
+
+```
+> Posted by Claude under @n8chur's direction.
+```
+
+Review bots that comment from their own bot account already identify themselves and need no added line; an agent posting through a human's account always adds one.
+
 ## Pull requests
 
 - Write PR titles as imperative squash-commit subjects.
 - Write individual commit messages as concise, descriptive imperative subjects that state the user-visible intent; avoid generic subjects such as "Update files."
-- Attribute AI-authored changes in every PR description with a disclosure immediately below the issue reference, in this exact form: `> Implemented by <assistant> under @<username>'s direction.` Substitute the name of the assistant that actually authored the change (for example, `Claude` or `OpenAI Codex`) and the GitHub username of the person who requested it.
-- Refer to any person only by their GitHub username, prefixed with `@`, anywhere in a PR description. Never substitute a profile display name, legal name, or first name.
-- Add the `AI Generated` label to every PR containing AI-authored changes.
+- Disclose AI authorship in the description, the commit trailers, and every agent-written comment as described in **AI attribution**, and add the `AI Generated` label.
 - Write the description as a durable squash-commit body, including motivation and completed validation.
 - Every PR description must include current, concrete instructions for manually validating the user-visible changes. Update those instructions whenever the implementation changes what reviewers should test.
 - Before implementing a PR change whose rationale is not already recorded in the PR (for example, a decision made in ChatGPT), add a top-level PR comment describing the planned change and why it is needed.
