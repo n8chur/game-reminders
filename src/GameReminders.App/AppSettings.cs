@@ -11,6 +11,7 @@ public sealed record AppSettings
     public IReadOnlyList<string> IgnoredDetectionKeys { get; init; } = [];
     public IReadOnlyList<SuppressedSteamGame> SuppressedSteamGames { get; init; } = [];
     public IReadOnlyList<string> UnreviewedGameIds { get; init; } = [];
+    public bool HideUninstalledGames { get; init; }
 }
 
 public sealed record SuppressedSteamGame
@@ -26,7 +27,7 @@ public sealed record PendingGameDetection
     public IReadOnlyList<string> Processes { get; init; } = [];
     public IReadOnlyList<string> CandidateProcesses { get; init; } = [];
     public bool RequiresExecutableReview { get; init; }
-    public bool InstallationPending { get; init; }
+    public InstallState InstallState { get; init; }
     public string SourceType { get; init; } = string.Empty;
     public string? AppId { get; init; }
     public DateTimeOffset DetectedAt { get; init; } = DateTimeOffset.UtcNow;
@@ -123,7 +124,9 @@ public sealed class SettingsService
                     Processes = processes,
                     CandidateProcesses = candidates,
                     RequiresExecutableReview = items.Any(candidate => candidate.RequiresExecutableReview),
-                    InstallationPending = items.Any(candidate => candidate.InstallationPending),
+                    // Merged duplicates keep the least-ready state, matching how the
+                    // review flag ORs rather than averaging.
+                    InstallState = items.Max(candidate => candidate.InstallState),
                     DetectedAt = items.Min(candidate => candidate.DetectedAt)
                 };
             })

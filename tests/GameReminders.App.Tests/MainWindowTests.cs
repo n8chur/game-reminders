@@ -112,6 +112,7 @@ public sealed class MainWindowTests
 
         Assert.Equal("#B42318", new GameListItem(game, true, "ACTION REQUIRED").BadgeBackground);
         Assert.Equal("#1F6FEB", new GameListItem(game, true, "INSTALLING").BadgeBackground);
+        Assert.Equal("#57606A", new GameListItem(game, true, "NOT INSTALLED").BadgeBackground);
         Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
     }
 
@@ -126,7 +127,7 @@ public sealed class MainWindowTests
             {
                 Type = "steam",
                 AppId = "123",
-                InstallationPending = true,
+                InstallState = GameReminders.Core.InstallState.Installing,
                 RequiresExecutableReview = true
             }
         };
@@ -148,16 +149,76 @@ public sealed class MainWindowTests
         Assert.Equal(string.Empty, MainWindow.DescribeBadge(plain, isUnreviewed: false));
     }
 
-    [Theory]
-    [InlineData(1, 0, 0, "Steam scan added 1 new game(s)")]
-    [InlineData(0, 2, 0, "Steam scan updated 2 existing game(s)")]
-    [InlineData(0, 0, 0, "Steam scan found no new games")]
-    [InlineData(1, 0, 2, "Steam scan added 1 new game(s); 2 still installing")]
-    [InlineData(0, 0, 1, "Steam scan found no new games; 1 still installing")]
-    public void ScanResultReportsGamesThatAreStillInstalling(int added, int updated, int installing, string expected)
+    [Fact]
+    public void NotInstalledBadgeOutranksExecutableReview()
     {
-        Assert.Equal(expected, App.DescribeScanResult(added, updated, installing));
+        var game = new GameReminders.Core.GameDefinition
+        {
+            Id = "steam-456",
+            Name = "Other",
+            Source = new GameReminders.Core.GameSource
+            {
+                Type = "steam",
+                AppId = "456",
+                InstallState = GameReminders.Core.InstallState.NotInstalled,
+                RequiresExecutableReview = true
+            }
+        };
+
+        Assert.Equal("NOT INSTALLED", MainWindow.DescribeBadge(game, isUnreviewed: true));
     }
+
+    [Theory]
+    [InlineData(1, 0, 0, 0, 0, "Steam scan added 1 new game(s)")]
+    [InlineData(0, 2, 0, 0, 0, "Steam scan updated 2 existing game(s)")]
+    [InlineData(0, 0, 0, 0, 0, "Steam scan found no new games")]
+    [InlineData(1, 0, 2, 0, 0, "Steam scan added 1 new game(s); 2 still installing")]
+    [InlineData(0, 0, 1, 0, 0, "Steam scan found no new games; 1 still installing")]
+    [InlineData(0, 1, 0, 0, 1, "Steam scan updated 1 existing game(s); 1 no longer installed")]
+    [InlineData(0, 0, 0, 2, 0, "Steam scan found no new games; 2 cancelled install(s) removed")]
+    [InlineData(0, 1, 1, 1, 1, "Steam scan updated 1 existing game(s); 1 still installing, 1 no longer installed, 1 cancelled install(s) removed")]
+    public void ScanResultReportsInstallStateChanges(
+        int added, int updated, int installing, int retracted, int uninstalled, string expected)
+    {
+        Assert.Equal(expected, App.DescribeScanResult(added, updated, installing, retracted, uninstalled));
+    }
+
+    [Fact]
+    public void HideUninstalledHidesOnlyUninstalledGamesAndComposesWithSearch()
+    {
+        var installed = Item("Alpha", GameReminders.Core.InstallState.Installed);
+        var installing = Item("Alpha Two", GameReminders.Core.InstallState.Installing);
+        var uninstalled = Item("Alpha Three", GameReminders.Core.InstallState.NotInstalled);
+
+        Assert.True(MainWindow.IsVisibleGame(installed, string.Empty, hideUninstalled: true));
+        Assert.True(MainWindow.IsVisibleGame(installing, string.Empty, hideUninstalled: true));
+        Assert.False(MainWindow.IsVisibleGame(uninstalled, string.Empty, hideUninstalled: true));
+        Assert.True(MainWindow.IsVisibleGame(uninstalled, string.Empty, hideUninstalled: false));
+        Assert.False(MainWindow.IsVisibleGame(installed, "zzz", hideUninstalled: false));
+    }
+
+    [Fact]
+    public void EmptyGamesTextExplainsWhyTheListIsEmpty()
+    {
+        Assert.Equal("No games yet. Add one manually or scan Steam.",
+            MainWindow.DescribeEmptyGames(0, string.Empty, hideUninstalled: false));
+        Assert.Equal("No games match this search.",
+            MainWindow.DescribeEmptyGames(3, "zzz", hideUninstalled: true));
+        Assert.Equal("Every game is hidden because it is not installed. Untick Hide uninstalled to see them.",
+            MainWindow.DescribeEmptyGames(3, string.Empty, hideUninstalled: true));
+        Assert.Equal("No games match this search.",
+            MainWindow.DescribeEmptyGames(3, string.Empty, hideUninstalled: false));
+    }
+
+    private static GameListItem Item(string name, GameReminders.Core.InstallState state) => new(
+        new GameReminders.Core.GameDefinition
+        {
+            Id = name,
+            Name = name,
+            Source = new GameReminders.Core.GameSource { Type = "steam", AppId = name, InstallState = state }
+        },
+        false,
+        string.Empty);
 
     [Fact]
     public void ReminderDetailsDoNotRepeatTheGroupGameName()

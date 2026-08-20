@@ -1,3 +1,4 @@
+using GameReminders.Core;
 namespace GameReminders.App.Tests;
 
 public sealed class SteamGameDiscoveryTests
@@ -26,9 +27,11 @@ public sealed class SteamGameDiscoveryTests
     {
         var manifests = SteamGameDiscovery.EnumerateManifestFiles(
             @"D:\\SteamLibrary\\steamapps",
+            out var succeeded,
             (_, _) => ThrowDuringEnumeration());
 
         Assert.Empty(manifests);
+        Assert.False(succeeded);
     }
 
     [Fact]
@@ -152,8 +155,8 @@ public sealed class SteamGameDiscoveryTests
     {
         var values = Manifest(stateFlags);
 
-        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
-        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+        Assert.True(IsInstalling(values, hasExecutables: false));
+        Assert.True(IsInstalling(values, hasExecutables: true));
     }
 
     [Theory]
@@ -165,8 +168,8 @@ public sealed class SteamGameDiscoveryTests
     {
         var values = Manifest(stateFlags);
 
-        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
-        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+        Assert.False(IsInstalling(values, hasExecutables: false));
+        Assert.False(IsInstalling(values, hasExecutables: true));
     }
 
     [Theory]
@@ -177,8 +180,8 @@ public sealed class SteamGameDiscoveryTests
     {
         var values = Manifest(stateFlags);
 
-        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
-        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+        Assert.True(IsInstalling(values, hasExecutables: false));
+        Assert.False(IsInstalling(values, hasExecutables: true));
     }
 
     [Fact]
@@ -189,7 +192,7 @@ public sealed class SteamGameDiscoveryTests
         var detection = SteamGameDiscovery.CreateDetection(values, @"C:\Steam\steamapps", _ => []);
 
         Assert.NotNull(detection);
-        Assert.True(detection!.InstallationPending);
+        Assert.Equal(InstallState.Installing, detection!.InstallState);
         Assert.False(detection.RequiresExecutableReview);
         Assert.Empty(detection.Processes);
     }
@@ -202,7 +205,7 @@ public sealed class SteamGameDiscoveryTests
         var detection = SteamGameDiscovery.CreateDetection(values, @"C:\Steam\steamapps", _ => []);
 
         Assert.NotNull(detection);
-        Assert.False(detection!.InstallationPending);
+        Assert.Equal(InstallState.Installed, detection!.InstallState);
         Assert.True(detection.RequiresExecutableReview);
     }
 
@@ -221,6 +224,9 @@ public sealed class SteamGameDiscoveryTests
         Assert.False(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\appmanifest_456.acf", appIds));
         Assert.False(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\unexpected.acf", appIds));
     }
+
+    private static bool IsInstalling(IReadOnlyDictionary<string, string> values, bool hasExecutables) =>
+        SteamGameDiscovery.ResolveInstallState(values, hasExecutables) == InstallState.Installing;
 
     private static Dictionary<string, string> Manifest(string? stateFlags)
     {

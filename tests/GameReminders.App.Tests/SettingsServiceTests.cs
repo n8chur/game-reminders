@@ -17,6 +17,19 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void HideUninstalledPreferenceRoundTrips()
+    {
+        var settingsPath = Path.Combine(_root, "settings.json");
+        var service = new SettingsService(settingsPath);
+
+        Assert.False(service.Load().HideUninstalledGames);
+
+        service.Save(new AppSettings { HideUninstalledGames = true });
+
+        Assert.True(service.Load().HideUninstalledGames);
+    }
+
+    [Fact]
     public void PendingDetectionsRoundTrip()
     {
         var settingsPath = Path.Combine(_root, "settings.json");

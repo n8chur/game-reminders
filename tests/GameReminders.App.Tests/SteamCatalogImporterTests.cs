@@ -129,7 +129,7 @@ public sealed class SteamCatalogImporterTests
 
         var game = Assert.Single(result.AddedGames);
         Assert.Empty(game.Processes);
-        Assert.True(game.Source?.InstallationPending);
+        Assert.Equal(InstallState.Installing, game.Source?.InstallState);
         Assert.False(game.Source?.RequiresExecutableReview);
         Assert.Empty(result.GamesNeedingExecutableReview);
         Assert.Same(game, Assert.Single(result.InstallingGames));
@@ -164,7 +164,7 @@ public sealed class SteamCatalogImporterTests
 
         var updated = Assert.Single(result.UpdatedGames);
         Assert.Equal(@"Everwind\Everwind.exe", Assert.Single(updated.Processes));
-        Assert.False(updated.Source?.InstallationPending);
+        Assert.Equal(InstallState.Installed, updated.Source?.InstallState);
         Assert.False(updated.Source?.RequiresExecutableReview);
         Assert.Same(updated, Assert.Single(result.CompletedInstalls));
         Assert.Empty(result.InstallingGames);
@@ -176,7 +176,7 @@ public sealed class SteamCatalogImporterTests
         var existing = InstallingGame("123", "Everwind");
         var detection = InstallingSteamDetection("123", "Everwind") with
         {
-            InstallationPending = false,
+            InstallState = InstallState.Installed,
             RequiresExecutableReview = true,
             CandidateProcesses = [@"Everwind\Launcher.exe", @"Everwind\Editor.exe"]
         };
@@ -185,7 +185,7 @@ public sealed class SteamCatalogImporterTests
 
         var updated = Assert.Single(result.UpdatedGames);
         Assert.Empty(updated.Processes);
-        Assert.False(updated.Source?.InstallationPending);
+        Assert.Equal(InstallState.Installed, updated.Source?.InstallState);
         Assert.True(updated.Source?.RequiresExecutableReview);
         Assert.Empty(result.InstallingGames);
     }
@@ -205,10 +205,122 @@ public sealed class SteamCatalogImporterTests
             [InstallingSteamDetection("123", "Everwind")]);
 
         var updated = Assert.Single(result.UpdatedGames);
-        Assert.True(updated.Source?.InstallationPending);
+        Assert.Equal(InstallState.Installing, updated.Source?.InstallState);
         Assert.False(updated.Source?.RequiresExecutableReview);
         Assert.Empty(result.CompletedInstalls);
     }
+
+    [Fact]
+    public void CancelledInstallIsRetractedRatherThanLeftStuck()
+    {
+        var catalog = new GameCatalog { Games = [InstallingGame("123", "Everwind"), ConfiguredGame("456", "Other")] };
+
+        var result = SteamCatalogImporter.Import(catalog, [], null, librariesFullyEnumerated: true);
+
+        var retracted = Assert.Single(result.RetractedGames);
+        Assert.Equal("steam-123", retracted.Id);
+        var remaining = Assert.Single(result.Catalog.Games);
+        Assert.Equal("steam-456", remaining.Id);
+    }
+
+    [Fact]
+    public void UninstalledConfiguredGameIsFlaggedButKeepsItsMapping()
+    {
+        var catalog = new GameCatalog { Games = [ConfiguredGame("456", "Other")] };
+
+        var result = SteamCatalogImporter.Import(catalog, [], null, librariesFullyEnumerated: true);
+
+        Assert.Empty(result.RetractedGames);
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.Equal(InstallState.NotInstalled, updated.Source?.InstallState);
+        Assert.Equal(@"Other\Other.exe", Assert.Single(updated.Processes));
+    }
+
+    [Fact]
+    public void ReinstalledGameReturnsToInstalledEvenWhenAlreadyConfigured()
+    {
+        var existing = ConfiguredGame("456", "Other") with
+        {
+            Source = new GameSource
+            {
+                Type = "steam",
+                AppId = "456",
+                InstallState = InstallState.NotInstalled
+            }
+        };
+        var detection = SteamDetection("456", "Other", @"Other\Other.exe");
+
+        var result = SteamCatalogImporter.Import(
+            new GameCatalog { Games = [existing] },
+            [detection],
+            null,
+            librariesFullyEnumerated: true);
+
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.Equal(InstallState.Installed, updated.Source?.InstallState);
+        Assert.Equal(@"Other\Other.exe", Assert.Single(updated.Processes));
+        Assert.Empty(result.RetractedGames);
+    }
+
+    [Fact]
+    public void IncompleteScanReconcilesNothing()
+    {
+        var catalog = new GameCatalog { Games = [InstallingGame("123", "Everwind"), ConfiguredGame("456", "Other")] };
+
+        var result = SteamCatalogImporter.Import(catalog, [], null, librariesFullyEnumerated: false);
+
+        Assert.Empty(result.RetractedGames);
+        Assert.Empty(result.UpdatedGames);
+        Assert.Equal(2, result.Catalog.Games.Count);
+    }
+
+    [Fact]
+    public void TargetedScanReconcilesOnlyTheAppIdsItLookedFor()
+    {
+        var catalog = new GameCatalog { Games = [InstallingGame("123", "Everwind"), ConfiguredGame("456", "Other")] };
+
+        var result = SteamCatalogImporter.Import(
+            catalog,
+            [],
+            null,
+            librariesFullyEnumerated: true,
+            scannedAppIds: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "123" });
+
+        Assert.Equal("steam-123", Assert.Single(result.RetractedGames).Id);
+        Assert.Empty(result.UpdatedGames);
+        Assert.Equal("steam-456", Assert.Single(result.Catalog.Games).Id);
+    }
+
+    [Fact]
+    public void AlreadyFlaggedGameIsNotRewrittenOnEveryScan()
+    {
+        var existing = ConfiguredGame("456", "Other") with
+        {
+            Source = new GameSource
+            {
+                Type = "steam",
+                AppId = "456",
+                InstallState = InstallState.NotInstalled
+            }
+        };
+
+        var result = SteamCatalogImporter.Import(
+            new GameCatalog { Games = [existing] },
+            [],
+            null,
+            librariesFullyEnumerated: true);
+
+        Assert.Empty(result.UpdatedGames);
+        Assert.Empty(result.RetractedGames);
+    }
+
+    private static GameDefinition ConfiguredGame(string appId, string name) => new()
+    {
+        Id = $"steam-{appId}",
+        Name = name,
+        Processes = [$@"{name}\{name}.exe"],
+        Source = new GameSource { Type = "steam", AppId = appId }
+    };
 
     private static GameDefinition InstallingGame(string appId, string name) => new()
     {
@@ -223,7 +335,7 @@ public sealed class SteamCatalogImporterTests
         Name = name,
         SourceType = "steam",
         AppId = appId,
-        InstallationPending = true
+        InstallState = InstallState.Installing
     };
 
     private static PendingGameDetection SteamDetection(string appId, string name, string process) => new()

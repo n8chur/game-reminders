@@ -80,7 +80,9 @@ public partial class App : System.Windows.Application
                 DeleteReminder,
                 UncompleteReminder,
                 ClearCompletedReminders,
-                OpenICloudFolder);
+                OpenICloudFolder,
+                _settings.HideUninstalledGames,
+                SetHideUninstalledGames);
             MainWindow = _mainWindow;
             if (startupStatusError is not null)
             {
@@ -463,7 +465,9 @@ public partial class App : System.Windows.Application
     private void RemoveGame(GameDefinition game)
     {
         if (_store is null || MessageBox.Show(
-                $"Remove '{game.Name}' from the catalog? Existing reminder files will be preserved. Steam games can be restored later from Ignored.",
+                $"Remove '{game.Name}' from the catalog? Existing reminder files will be preserved. " +
+                "Future Steam scans will not re-add this game until you restore it from Ignored. " +
+                "A game you have only uninstalled does not need removing: it is flagged automatically and returns when you reinstall it.",
                 "Remove game", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
             return;
@@ -516,6 +520,20 @@ public partial class App : System.Windows.Application
         }
     }
 
+    private void SetHideUninstalledGames(bool hide)
+    {
+        if (_settings.HideUninstalledGames == hide)
+        {
+            return;
+        }
+
+        var updated = _settings with { HideUninstalledGames = hide };
+        if (_settingsService?.TrySave(updated) == true)
+        {
+            _settings = updated;
+        }
+    }
+
     private void ScanSteam() => _ = ScanSteamAsync(showCompletion: true);
 
     // The install watcher ticks on a thread-pool thread, so hop back onto the UI
@@ -545,7 +563,7 @@ public partial class App : System.Windows.Application
 
     private async Task RunSteamScanAsync(bool showCompletion, IReadOnlySet<string>? appIds)
     {
-        IReadOnlyList<PendingGameDetection> discovered;
+        SteamDiscoveryResult discovered;
         try
         {
             discovered = await Task.Run(() => new SteamGameDiscovery().Discover(appIds));
@@ -566,27 +584,33 @@ public partial class App : System.Windows.Application
             var catalog = _store.LoadCatalog();
             var import = SteamCatalogImporter.Import(
                 catalog,
-                discovered,
-                _settings.SuppressedSteamGames.Select(game => game.AppId));
+                discovered.Games,
+                _settings.SuppressedSteamGames.Select(game => game.AppId),
+                discovered.LibrariesFullyEnumerated,
+                appIds);
             var added = import.AddedGames.Count;
             var updatedCount = import.UpdatedGames.Count;
+            var retractedIds = import.RetractedGames
+                .Select(game => game.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             // A game that is still downloading has nothing for the user to review yet, so
             // it earns its NEW badge only once its install completes.
             var reviewable = import.AddedGames
-                .Where(game => game.Source?.InstallationPending != true)
+                .Where(game => game.Source?.InstallState != InstallState.Installing)
                 .Concat(import.CompletedInstalls)
                 .Select(game => game.Id)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            if (added > 0 || updatedCount > 0)
+            if (added > 0 || updatedCount > 0 || retractedIds.Count > 0)
             {
                 _store.SaveCatalog(import.Catalog);
-                if (reviewable.Length > 0)
+                if (reviewable.Length > 0 || retractedIds.Count > 0)
                 {
                     var updated = _settings with
                     {
                         UnreviewedGameIds = _settings.UnreviewedGameIds
                             .Concat(reviewable)
+                            .Where(id => !retractedIds.Contains(id))
                             .Distinct(StringComparer.OrdinalIgnoreCase)
                             .ToArray()
                     };
@@ -606,7 +630,12 @@ public partial class App : System.Windows.Application
             RemoveConfiguredPending(import.Catalog);
             if (showCompletion)
             {
-                _mainWindow?.SetStatus(DescribeScanResult(added, updatedCount, import.InstallingGames.Count));
+                _mainWindow?.SetStatus(DescribeScanResult(
+                    added,
+                    updatedCount,
+                    import.InstallingGames.Count,
+                    retractedIds.Count,
+                    import.UpdatedGames.Count(game => game.Source?.InstallState == InstallState.NotInstalled)));
             }
         }
         catch (Exception exception)
@@ -615,16 +644,23 @@ public partial class App : System.Windows.Application
         }
     }
 
-    internal static string DescribeScanResult(int added, int updated, int installing)
+    internal static string DescribeScanResult(
+        int added,
+        int updated,
+        int installing,
+        int retracted,
+        int uninstalled)
     {
         var summary = added > 0
             ? $"Steam scan added {added} new game(s)"
             : updated > 0
                 ? $"Steam scan updated {updated} existing game(s)"
                 : "Steam scan found no new games";
-        return installing > 0
-            ? $"{summary}; {installing} still installing"
-            : summary;
+        var notes = new List<string>();
+        if (installing > 0) notes.Add($"{installing} still installing");
+        if (uninstalled > 0) notes.Add($"{uninstalled} no longer installed");
+        if (retracted > 0) notes.Add($"{retracted} cancelled install(s) removed");
+        return notes.Count > 0 ? $"{summary}; {string.Join(", ", notes)}" : summary;
     }
 
     private bool AddDetection(PendingGameDetection detection)

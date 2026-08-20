@@ -14,19 +14,19 @@ public sealed class SteamInstallWatcherTests
                 InstallingGame("steam-123", "123"),
                 InstallingGame("steam-456", "456") with
                 {
-                    Source = new GameSource { Type = "steam", AppId = "456", InstallationPending = false }
+                    Source = new GameSource { Type = "steam", AppId = "456", InstallState = InstallState.Installed }
                 },
                 new GameDefinition
                 {
                     Id = "custom-manual",
                     Name = "Manual",
-                    Source = new GameSource { Type = "manual", InstallationPending = true }
+                    Source = new GameSource { Type = "manual", InstallState = InstallState.Installing }
                 },
                 new GameDefinition
                 {
                     Id = "steam-blank",
                     Name = "Blank",
-                    Source = new GameSource { Type = "steam", AppId = " ", InstallationPending = true }
+                    Source = new GameSource { Type = "steam", AppId = " ", InstallState = InstallState.Installing }
                 },
                 new GameDefinition { Id = "custom-sourceless", Name = "Sourceless" }
             ]
@@ -76,6 +76,6 @@ public sealed class SteamInstallWatcherTests
     {
         Id = id,
         Name = appId,
-        Source = new GameSource { Type = "steam", AppId = appId, InstallationPending = true }
+        Source = new GameSource { Type = "steam", AppId = appId, InstallState = InstallState.Installing }
     };
 }

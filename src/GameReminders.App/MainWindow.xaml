@@ -185,16 +185,25 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Grid Grid.Row="0">
-                                    <TextBox x:Name="GamesSearchText" Style="{StaticResource SearchTextBoxStyle}"
-                                             TextChanged="GamesSearchText_Changed"
-                                             ToolTip="Search my games"
-                                             AutomationProperties.Name="Search my games" />
-                                    <TextBlock x:Name="GamesSearchPlaceholder" Text="Search"
-                                               Margin="10,0,0,14" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               IsHitTestVisible="False" />
-                                </Grid>
+                                <DockPanel Grid.Row="0">
+                                    <CheckBox x:Name="HideUninstalledCheck" DockPanel.Dock="Right"
+                                              Content="Hide uninstalled" Margin="12,0,0,14"
+                                              VerticalAlignment="Center"
+                                              Checked="HideUninstalled_Changed"
+                                              Unchecked="HideUninstalled_Changed"
+                                              ToolTip="Hide games that are no longer installed"
+                                              AutomationProperties.Name="Hide uninstalled games" />
+                                    <Grid>
+                                        <TextBox x:Name="GamesSearchText" Style="{StaticResource SearchTextBoxStyle}"
+                                                 TextChanged="GamesSearchText_Changed"
+                                                 ToolTip="Search my games"
+                                                 AutomationProperties.Name="Search my games" />
+                                        <TextBlock x:Name="GamesSearchPlaceholder" Text="Search"
+                                                   Margin="10,0,0,14" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   IsHitTestVisible="False" />
+                                    </Grid>
+                                </DockPanel>
 
                                 <Border x:Name="DetectedSection" Grid.Row="1" Margin="0,0,0,16" Padding="12"
                                         Background="{DynamicResource SurfaceMutedBrush}"

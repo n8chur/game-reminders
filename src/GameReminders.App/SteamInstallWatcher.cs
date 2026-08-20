@@ -88,7 +88,7 @@ internal sealed class SteamInstallWatcher : IDisposable
 
     internal static IReadOnlySet<string> PendingAppIds(GameCatalog catalog) =>
         (catalog.Games ?? [])
-            .Where(game => game.Source is { InstallationPending: true } source &&
+            .Where(game => game.Source is { InstallState: InstallState.Installing } source &&
                 string.Equals(source.Type?.Trim(), "steam", StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(source.AppId))
             .Select(game => game.Source!.AppId!.Trim())
