@@ -326,7 +326,7 @@ public sealed class SteamCatalogImporterTests
     {
         Id = $"steam-{appId}",
         Name = name,
-        Source = new GameSource { Type = "steam", AppId = appId, InstallationPending = true }
+        Source = new GameSource { Type = "steam", AppId = appId, InstallState = InstallState.Installing }
     };
 
     private static PendingGameDetection InstallingSteamDetection(string appId, string name) => new()
