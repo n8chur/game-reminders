@@ -52,7 +52,7 @@ public partial class GameEditorWindow : Window
             var source = _original.Source;
             if (source is not null && processes.Count > 0)
             {
-                source = source with { RequiresExecutableReview = false };
+                source = source with { RequiresExecutableReview = false, InstallationPending = false };
             }
             var candidate = _original with
             {
@@ -93,9 +93,7 @@ public partial class GameEditorWindow : Window
         ProcessesHelp.SetResourceReference(
             TextBlock.ForegroundProperty,
             canSave ? "SecondaryTextBrush" : "IssueTextBrush");
-        ProcessesHelp.Text = canSave
-            ? "Add every executable that should count as launching this game."
-            : "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.";
+        ProcessesHelp.Text = DescribeExecutableHelp(_original?.Source, canSave);
     }
 
     private void CandidateSelected(object sender, SelectionChangedEventArgs e)
@@ -138,8 +136,17 @@ public partial class GameEditorWindow : Window
 
     internal static bool SaveSucceeded(string? error) => error is null;
 
+    // An installing game keeps Save enabled on purpose: candidates arrive on their own
+    // when the download finishes, but a mis-reported manifest must never be a dead end.
     internal static bool CanSave(GameSource? source, IReadOnlyList<string> processes) =>
         source?.RequiresExecutableReview != true || processes.Count > 0;
+
+    internal static string DescribeExecutableHelp(GameSource? source, bool canSave) =>
+        source?.InstallationPending == true
+            ? "Steam is still installing this game. Detected executables appear automatically when the download finishes."
+            : canSave
+                ? "Add every executable that should count as launching this game."
+                : "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.";
 
     internal static IReadOnlyList<string> MergeExecutablePaths(string existingText, IEnumerable<string> candidates) =>
         SplitLines(existingText)

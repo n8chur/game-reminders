@@ -120,6 +120,112 @@ public sealed class SteamCatalogImporterTests
         Assert.Empty(result.AddedGames);
     }
 
+    [Fact]
+    public void InstallingGameIsAddedWithoutRequiringExecutableReview()
+    {
+        var detection = InstallingSteamDetection("123", "Everwind");
+
+        var result = SteamCatalogImporter.Import(new GameCatalog(), [detection]);
+
+        var game = Assert.Single(result.AddedGames);
+        Assert.Empty(game.Processes);
+        Assert.True(game.Source?.InstallationPending);
+        Assert.False(game.Source?.RequiresExecutableReview);
+        Assert.Empty(result.GamesNeedingExecutableReview);
+        Assert.Same(game, Assert.Single(result.InstallingGames));
+        Assert.Empty(result.CompletedInstalls);
+    }
+
+    [Fact]
+    public void RescanOfUnchangedInstallingGameDoesNotRewriteTheCatalog()
+    {
+        var existing = InstallingGame("123", "Everwind");
+
+        var result = SteamCatalogImporter.Import(
+            new GameCatalog { Games = [existing] },
+            [InstallingSteamDetection("123", "Everwind")]);
+
+        Assert.Empty(result.AddedGames);
+        Assert.Empty(result.UpdatedGames);
+        Assert.Empty(result.CompletedInstalls);
+        Assert.Same(existing, Assert.Single(result.InstallingGames));
+    }
+
+    [Fact]
+    public void CompletedInstallResolvesItsExecutableAndClearsBothFlags()
+    {
+        var existing = InstallingGame("123", "Everwind");
+        var detection = SteamDetection("123", "Everwind", @"Everwind\Everwind.exe") with
+        {
+            CandidateProcesses = [@"Everwind\Everwind.exe"]
+        };
+
+        var result = SteamCatalogImporter.Import(new GameCatalog { Games = [existing] }, [detection]);
+
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.Equal(@"Everwind\Everwind.exe", Assert.Single(updated.Processes));
+        Assert.False(updated.Source?.InstallationPending);
+        Assert.False(updated.Source?.RequiresExecutableReview);
+        Assert.Same(updated, Assert.Single(result.CompletedInstalls));
+        Assert.Empty(result.InstallingGames);
+    }
+
+    [Fact]
+    public void CompletedInstallWithAmbiguousExecutableFallsBackToExecutableReview()
+    {
+        var existing = InstallingGame("123", "Everwind");
+        var detection = InstallingSteamDetection("123", "Everwind") with
+        {
+            InstallationPending = false,
+            RequiresExecutableReview = true,
+            CandidateProcesses = [@"Everwind\Launcher.exe", @"Everwind\Editor.exe"]
+        };
+
+        var result = SteamCatalogImporter.Import(new GameCatalog { Games = [existing] }, [detection]);
+
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.Empty(updated.Processes);
+        Assert.False(updated.Source?.InstallationPending);
+        Assert.True(updated.Source?.RequiresExecutableReview);
+        Assert.Empty(result.InstallingGames);
+    }
+
+    [Fact]
+    public void StuckExecutableReviewEntryBecomesInstallingWhenSteamIsStillDownloading()
+    {
+        var existing = new GameDefinition
+        {
+            Id = "steam-123",
+            Name = "Everwind",
+            Source = new GameSource { Type = "steam", AppId = "123", RequiresExecutableReview = true }
+        };
+
+        var result = SteamCatalogImporter.Import(
+            new GameCatalog { Games = [existing] },
+            [InstallingSteamDetection("123", "Everwind")]);
+
+        var updated = Assert.Single(result.UpdatedGames);
+        Assert.True(updated.Source?.InstallationPending);
+        Assert.False(updated.Source?.RequiresExecutableReview);
+        Assert.Empty(result.CompletedInstalls);
+    }
+
+    private static GameDefinition InstallingGame(string appId, string name) => new()
+    {
+        Id = $"steam-{appId}",
+        Name = name,
+        Source = new GameSource { Type = "steam", AppId = appId, InstallationPending = true }
+    };
+
+    private static PendingGameDetection InstallingSteamDetection(string appId, string name) => new()
+    {
+        Key = $"steam:{appId}",
+        Name = name,
+        SourceType = "steam",
+        AppId = appId,
+        InstallationPending = true
+    };
+
     private static PendingGameDetection SteamDetection(string appId, string name, string process) => new()
     {
         Key = $"steam:{appId}",

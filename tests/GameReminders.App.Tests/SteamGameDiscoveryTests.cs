@@ -142,6 +142,102 @@ public sealed class SteamGameDiscoveryTests
         Assert.Null(selection.Process);
     }
 
+    [Theory]
+    [InlineData("2")]          // StateUpdateRequired
+    [InlineData("1024")]       // StateUpdateStarted
+    [InlineData("1026")]       // StateUpdateRequired | StateUpdateStarted
+    [InlineData("1048576")]    // StateDownloading
+    [InlineData("2097152")]    // StateStaging
+    public void StateFlagsWithoutFullyInstalledMeanInstallationIsPending(string stateFlags)
+    {
+        var values = Manifest(stateFlags);
+
+        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
+        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+    }
+
+    [Theory]
+    [InlineData("4")]          // StateFullyInstalled
+    [InlineData("6")]          // StateFullyInstalled | StateUpdateRequired
+    [InlineData("260")]        // StateFullyInstalled | StateUpdateRunning
+    [InlineData("1028")]       // StateFullyInstalled | StateUpdateStarted
+    public void StateFlagsWithFullyInstalledMeanInstallationIsComplete(string stateFlags)
+    {
+        var values = Manifest(stateFlags);
+
+        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
+        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not-a-number")]
+    public void UnreadableStateFlagsFallBackToTheExecutableCount(string? stateFlags)
+    {
+        var values = Manifest(stateFlags);
+
+        Assert.True(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: false));
+        Assert.False(SteamGameDiscovery.IsInstallationPending(values, hasExecutables: true));
+    }
+
+    [Fact]
+    public void InstallingGameIsDetectedWithoutRequiringExecutableReview()
+    {
+        var values = Manifest("1026");
+
+        var detection = SteamGameDiscovery.CreateDetection(values, @"C:\Steam\steamapps", _ => []);
+
+        Assert.NotNull(detection);
+        Assert.True(detection!.InstallationPending);
+        Assert.False(detection.RequiresExecutableReview);
+        Assert.Empty(detection.Processes);
+    }
+
+    [Fact]
+    public void InstalledGameWithoutExecutablesStillRequiresExecutableReview()
+    {
+        var values = Manifest("4");
+
+        var detection = SteamGameDiscovery.CreateDetection(values, @"C:\Steam\steamapps", _ => []);
+
+        Assert.NotNull(detection);
+        Assert.False(detection!.InstallationPending);
+        Assert.True(detection.RequiresExecutableReview);
+    }
+
+    [Fact]
+    public void ManifestFilterReadsEveryAppWhenNoAppIdsAreRequested()
+    {
+        Assert.True(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\appmanifest_123.acf", null));
+    }
+
+    [Fact]
+    public void ManifestFilterReadsOnlyTheRequestedApps()
+    {
+        var appIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "123" };
+
+        Assert.True(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\appmanifest_123.acf", appIds));
+        Assert.False(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\appmanifest_456.acf", appIds));
+        Assert.False(SteamGameDiscovery.ShouldReadManifest(@"C:\Steam\steamapps\unexpected.acf", appIds));
+    }
+
+    private static Dictionary<string, string> Manifest(string? stateFlags)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appid"] = "123",
+            ["name"] = "Everwind",
+            ["installdir"] = "Everwind"
+        };
+        if (stateFlags is not null)
+        {
+            values["StateFlags"] = stateFlags;
+        }
+
+        return values;
+    }
+
     private static IEnumerable<string> ThrowDuringEnumeration()
     {
         yield return @"D:\\SteamLibrary\\steamapps\\appmanifest_123.acf";

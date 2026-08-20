@@ -111,7 +111,52 @@ public sealed class MainWindowTests
         var game = new GameReminders.Core.GameDefinition { Id = "test", Name = "Test" };
 
         Assert.Equal("#B42318", new GameListItem(game, true, "ACTION REQUIRED").BadgeBackground);
+        Assert.Equal("#1F6FEB", new GameListItem(game, true, "INSTALLING").BadgeBackground);
         Assert.Equal("#16803A", new GameListItem(game, true, "NEW").BadgeBackground);
+    }
+
+    [Fact]
+    public void InstallingBadgeOutranksExecutableReviewAndNew()
+    {
+        var game = new GameReminders.Core.GameDefinition
+        {
+            Id = "steam-123",
+            Name = "Everwind",
+            Source = new GameReminders.Core.GameSource
+            {
+                Type = "steam",
+                AppId = "123",
+                InstallationPending = true,
+                RequiresExecutableReview = true
+            }
+        };
+
+        Assert.Equal("INSTALLING", MainWindow.DescribeBadge(game, isUnreviewed: true));
+    }
+
+    [Fact]
+    public void BadgePrecedenceFallsBackToReviewThenNewThenNothing()
+    {
+        var plain = new GameReminders.Core.GameDefinition { Id = "test", Name = "Test" };
+        var review = plain with
+        {
+            Source = new GameReminders.Core.GameSource { Type = "steam", RequiresExecutableReview = true }
+        };
+
+        Assert.Equal("ACTION REQUIRED", MainWindow.DescribeBadge(review, isUnreviewed: true));
+        Assert.Equal("NEW", MainWindow.DescribeBadge(plain, isUnreviewed: true));
+        Assert.Equal(string.Empty, MainWindow.DescribeBadge(plain, isUnreviewed: false));
+    }
+
+    [Theory]
+    [InlineData(1, 0, 0, "Steam scan added 1 new game(s)")]
+    [InlineData(0, 2, 0, "Steam scan updated 2 existing game(s)")]
+    [InlineData(0, 0, 0, "Steam scan found no new games")]
+    [InlineData(1, 0, 2, "Steam scan added 1 new game(s); 2 still installing")]
+    [InlineData(0, 0, 1, "Steam scan found no new games; 1 still installing")]
+    public void ScanResultReportsGamesThatAreStillInstalling(int added, int updated, int installing, string expected)
+    {
+        Assert.Equal(expected, App.DescribeScanResult(added, updated, installing));
     }
 
     [Fact]

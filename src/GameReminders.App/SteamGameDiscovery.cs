@@ -18,8 +18,20 @@ public sealed class SteamGameDiscovery
     private static readonly Regex QuotedPair = new(
         "\\\"(?<key>[^\\\"]+)\\\"\\s+\\\"(?<value>[^\\\"]*)\\\"",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    // Valve's EAppState bit meaning the payload is on disk. Steam sets it when an
+    // install finishes and leaves it set through later updates, so its absence means
+    // Steam is still downloading, staging, or committing files.
+    private const long StateFullyInstalled = 4;
+    private const string ManifestPrefix = "appmanifest_";
 
-    public IReadOnlyList<PendingGameDetection> Discover()
+    public IReadOnlyList<PendingGameDetection> Discover() => Discover(null);
+
+    /// <summary>
+    /// Enumerates installed Steam games. When <paramref name="appIds"/> is supplied only
+    /// those apps are inspected, which keeps an install-completion poll from re-walking
+    /// every library for executables.
+    /// </summary>
+    public IReadOnlyList<PendingGameDetection> Discover(IReadOnlySet<string>? appIds)
     {
         var steamRoot = FindSteamRoot();
         if (steamRoot is null)
@@ -39,6 +51,11 @@ public sealed class SteamGameDiscovery
 
             foreach (var manifest in EnumerateManifestFiles(steamApps))
             {
+                if (!ShouldReadManifest(manifest, appIds))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var values = ParsePairs(File.ReadAllText(manifest))
@@ -82,6 +99,31 @@ public sealed class SteamGameDiscovery
         }
     }
 
+    internal static bool ShouldReadManifest(string manifestPath, IReadOnlySet<string>? appIds)
+    {
+        if (appIds is null)
+        {
+            return true;
+        }
+
+        var filename = Path.GetFileNameWithoutExtension(manifestPath);
+        return filename.StartsWith(ManifestPrefix, StringComparison.OrdinalIgnoreCase) &&
+            appIds.Contains(filename[ManifestPrefix.Length..]);
+    }
+
+    internal static bool IsInstallationPending(IReadOnlyDictionary<string, string> values, bool hasExecutables)
+    {
+        if (values.TryGetValue("StateFlags", out var rawFlags) &&
+            long.TryParse(rawFlags.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var flags))
+        {
+            return (flags & StateFullyInstalled) == 0;
+        }
+
+        // Without a readable state, fall back to the naive signal: a manifest whose
+        // install directory holds no executables is treated as still installing.
+        return !hasExecutables;
+    }
+
     internal static PendingGameDetection? CreateDetection(
         IReadOnlyDictionary<string, string> values,
         string steamApps,
@@ -111,6 +153,7 @@ public sealed class SteamGameDiscovery
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var installationPending = IsInstallationPending(values, candidates.Length > 0);
         var selection = SelectExecutable(name, candidates);
         return new PendingGameDetection
         {
@@ -118,7 +161,8 @@ public sealed class SteamGameDiscovery
             Name = name,
             Processes = selection.Process is null ? [] : [selection.Process],
             CandidateProcesses = candidates,
-            RequiresExecutableReview = selection.Process is null,
+            RequiresExecutableReview = !installationPending && selection.Process is null,
+            InstallationPending = installationPending,
             SourceType = "steam",
             AppId = appId
         };

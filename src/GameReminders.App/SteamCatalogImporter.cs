@@ -6,7 +6,9 @@ internal sealed record SteamImportResult(
     GameCatalog Catalog,
     IReadOnlyList<GameDefinition> AddedGames,
     IReadOnlyList<GameDefinition> UpdatedGames,
-    IReadOnlyList<GameDefinition> GamesNeedingExecutableReview);
+    IReadOnlyList<GameDefinition> GamesNeedingExecutableReview,
+    IReadOnlyList<GameDefinition> InstallingGames,
+    IReadOnlyList<GameDefinition> CompletedInstalls);
 
 internal static class SteamCatalogImporter
 {
@@ -28,6 +30,8 @@ internal static class SteamCatalogImporter
         var added = new List<GameDefinition>();
         var updated = new List<GameDefinition>();
         var needingReview = new List<GameDefinition>();
+        var installing = new List<GameDefinition>();
+        var completedInstalls = new List<GameDefinition>();
         var suppressed = (suppressedAppIds ?? [])
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -58,11 +62,23 @@ internal static class SteamCatalogImporter
                 {
                     games[existingIndex] = refreshed;
                     updated.Add(refreshed);
+                    if (existing.Source?.InstallationPending == true &&
+                        refreshed.Source?.InstallationPending != true)
+                    {
+                        completedInstalls.Add(refreshed);
+                    }
+
                     foreach (var process in refreshed.Processes)
                     {
                         processOwners[NameNormalizer.NormalizeExecutableIdentity(process)] = refreshed.Id;
                     }
                 }
+
+                if (games[existingIndex].Source?.InstallationPending == true)
+                {
+                    installing.Add(games[existingIndex]);
+                }
+
                 continue;
             }
 
@@ -82,7 +98,9 @@ internal static class SteamCatalogImporter
                 {
                     Type = "steam",
                     AppId = detection.AppId,
-                    RequiresExecutableReview = detection.RequiresExecutableReview || availableProcesses.Length == 0,
+                    RequiresExecutableReview = !detection.InstallationPending &&
+                        (detection.RequiresExecutableReview || availableProcesses.Length == 0),
+                    InstallationPending = detection.InstallationPending,
                     ExecutableCandidates = detection.CandidateProcesses
                 }
             };
@@ -91,6 +109,11 @@ internal static class SteamCatalogImporter
             if (game.Source.RequiresExecutableReview)
             {
                 needingReview.Add(game);
+            }
+
+            if (game.Source.InstallationPending)
+            {
+                installing.Add(game);
             }
             foreach (var process in normalizedProcesses)
             {
@@ -105,7 +128,9 @@ internal static class SteamCatalogImporter
             },
             added,
             updated,
-            needingReview);
+            needingReview,
+            installing,
+            completedInstalls);
     }
 
     private static GameDefinition RefreshUnresolvedGame(
@@ -115,7 +140,9 @@ internal static class SteamCatalogImporter
         IReadOnlyDictionary<string, string> processOwners)
     {
         var existingSource = existing.Source;
-        if (existingSource is null || !existingSource.RequiresExecutableReview || existing.Processes.Count > 0)
+        if (existingSource is null ||
+            existing.Processes.Count > 0 ||
+            !(existingSource.RequiresExecutableReview || existingSource.InstallationPending))
         {
             return existing;
         }
@@ -130,12 +157,14 @@ internal static class SteamCatalogImporter
             : existingSource.ExecutableCandidates;
         var source = existingSource with
         {
-            RequiresExecutableReview = selected.Length == 0,
+            RequiresExecutableReview = selected.Length == 0 && !detection.InstallationPending,
+            InstallationPending = detection.InstallationPending,
             ExecutableCandidates = candidates
         };
 
         if (selected.Length == 0 &&
             source.RequiresExecutableReview == existingSource.RequiresExecutableReview &&
+            source.InstallationPending == existingSource.InstallationPending &&
             candidates.SequenceEqual(existingSource.ExecutableCandidates, StringComparer.OrdinalIgnoreCase))
         {
             return existing;

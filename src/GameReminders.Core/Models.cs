@@ -22,6 +22,12 @@ public sealed record GameSource
     public required string Type { get; init; }
     public string? AppId { get; init; }
     public bool RequiresExecutableReview { get; init; }
+
+    /// <summary>
+    /// The launcher reports the game as not yet fully installed, so it has no
+    /// executables to map and must not be treated as needing user review.
+    /// </summary>
+    public bool InstallationPending { get; init; }
     public IReadOnlyList<string> ExecutableCandidates { get; init; } = [];
 }
 

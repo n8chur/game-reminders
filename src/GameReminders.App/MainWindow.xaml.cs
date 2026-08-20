@@ -116,12 +116,18 @@ public partial class MainWindow : Window
         _games = games.Select(game => new GameListItem(
             game,
             unreviewedGameIds.Contains(game.Id),
-            game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
-                unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
+            DescribeBadge(game, unreviewedGameIds.Contains(game.Id)))).ToArray();
         ApplyGameFilter(selectedGameId);
         var newCount = _games.Count(item => item.IsUnreviewed);
         MyGamesTab.Header = newCount > 0 ? $"My Games ({newCount} new)" : "My Games";
     }
+
+    // A game can satisfy more than one of these at once, so precedence rather than
+    // validation decides what the row shows.
+    internal static string DescribeBadge(GameDefinition game, bool isUnreviewed) =>
+        game.Source?.InstallationPending == true ? GameListItem.InstallingBadge :
+        game.Source?.RequiresExecutableReview == true ? GameListItem.ActionRequiredBadge :
+        isUnreviewed ? GameListItem.NewBadge : string.Empty;
 
     internal static GameListItem? FindItemByGameId(IEnumerable<GameListItem> items, string? gameId) =>
         string.IsNullOrWhiteSpace(gameId)
@@ -418,8 +424,17 @@ public partial class MainWindow : Window
 
 internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, string Badge)
 {
+    public const string ActionRequiredBadge = "ACTION REQUIRED";
+    public const string InstallingBadge = "INSTALLING";
+    public const string NewBadge = "NEW";
+
     public Visibility BadgeVisibility => string.IsNullOrEmpty(Badge) ? Visibility.Collapsed : Visibility.Visible;
-    public string BadgeBackground => Badge == "ACTION REQUIRED" ? "#B42318" : "#16803A";
+    public string BadgeBackground => Badge switch
+    {
+        ActionRequiredBadge => "#B42318",
+        InstallingBadge => "#1F6FEB",
+        _ => "#16803A"
+    };
     public string SourceLabel => Game.Source?.Type?.Trim().ToLowerInvariant() switch
     {
         "steam" => "Steam",

@@ -62,6 +62,8 @@ Use the **Games** view to add, search, edit, or remove game mappings.
 
 - **Scan Steam** discovers installed Steam games. A confident executable match is added automatically.
 - **NEW** identifies a discovery that has not yet been reviewed.
+- **INSTALLING** means Steam is still downloading the game, so it has no executables yet. The entry resolves itself within about 30 seconds of the install completing; no rescan is needed.
+
 - **ACTION REQUIRED** means executable selection was ambiguous. Open the game, select or enter the correct executable path, and save it before relying on launch detection.
 - Manual games can use **Browse** to select one or more `.exe` files.
 - Removed Steam games and ignored foreground discoveries appear under **Ignored** and can be restored.
