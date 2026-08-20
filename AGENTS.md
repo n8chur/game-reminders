@@ -51,10 +51,26 @@ Use only these names. The list is a fixed vocabulary so that disclosures stay co
 
 Do not add a model version (`Opus 5`, `GPT-5`) or a vendor prefix (`Anthropic`, `OpenAI`). One pull request or issue routinely spans several models, so a version pinned in a durable line goes stale and misattributes part of the work, and the trailer address already records the vendor. When a specific model genuinely matters to a decision, say so in the surrounding prose instead of in the disclosure line.
 
+### Work that spans agents
+
+A single pull request or issue often passes through more than one agent — Codex starts it, Claude finishes it after review. Changing models inside one agent changes nothing, because this vocabulary names agents rather than models. Changing agents does.
+
+An agent that continues another's work adds itself to the existing disclosure and never replaces the name already there:
+
+```
+> Implemented by Codex and Claude under @n8chur's direction.
+```
+
+Name agents in the order they contributed, joined by `and`, with commas for three or more (`Codex, Claude, and Copilot`). Add yourself if you authored any part of the work as it stands, including revisions made after review; reading or reviewing it is not authoring it.
+
+The line records who was involved, not who did what. Commit trailers already carry that per commit, and when the division of labor matters to a reviewer — one agent wrote the feature, another reworked it after review — describe it in the prose, as the review follow-up sections in this repository already do.
+
+Commits and comments stay single-agent: whichever agent writes one signs it. An issue that a second agent revises keeps its original `Filed by` line and gains an `Edited by` line below it.
+
 ### Placement
 
 - Attribute in the artifact itself. Each commit message, PR description, issue, and comment is read on its own, so each carries its own disclosure; a disclosure elsewhere in the thread does not cover it.
-- Attribute per agent. When more than one agent contributes, name each one on the work it produced rather than collapsing them into a single credit.
+- Attribute per agent, as described in **Work that spans agents**.
 - Never remove or weaken an existing disclosure. If a human materially rewrites AI output, keep the disclosure and note what the human changed.
 - When an action cannot carry a disclosure of its own — applying a label, resolving a review thread — perform it on the same PR or issue where the disclosure already appears, so it stays attributable in context.
 
