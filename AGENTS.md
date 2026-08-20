@@ -36,10 +36,22 @@ Anyone reading this repository later must be able to tell that an AI produced a 
 
 Two facts belong in every disclosure:
 
-- **Which agent did the work.** Name the specific agent and model as the agent identifies itself, for example `Claude Opus 5`, `OpenAI Codex`, or `GitHub Copilot`. Never write a vague "AI", "an assistant", or a bare vendor name.
+- **Which agent did the work**, named from the fixed vocabulary below.
 - **Which GitHub user directed the work.** Refer to that person only by GitHub username, for example `@n8chur`. Never substitute a profile display name, legal name, or first name anywhere in a disclosure.
 
-Additional rules:
+### Agent names
+
+| Agent | Disclosure name | Commit trailer |
+| --- | --- | --- |
+| Anthropic's Claude Code | `Claude` | `Co-Authored-By: Claude <noreply@anthropic.com>` |
+| OpenAI's Codex | `Codex` | `Co-Authored-By: Codex <noreply@openai.com>` |
+| GitHub Copilot | `Copilot` | commits under its own `copilot-swe-agent[bot]` identity; add no trailer |
+
+Use only these names. The list is a fixed vocabulary so that disclosures stay consistent, greppable, and mechanically checkable; add an agent by amending this table in its own pull request rather than inventing a name inline.
+
+Do not add a model version (`Opus 5`, `GPT-5`) or a vendor prefix (`Anthropic`, `OpenAI`). One pull request or issue routinely spans several models, so a version pinned in a durable line goes stale and misattributes part of the work, and the trailer address already records the vendor. When a specific model genuinely matters to a decision, say so in the surrounding prose instead of in the disclosure line.
+
+### Placement
 
 - Attribute in the artifact itself. Each commit message, PR description, issue, and comment is read on its own, so each carries its own disclosure; a disclosure elsewhere in the thread does not cover it.
 - Attribute per agent. When more than one agent contributes, name each one on the work it produced rather than collapsing them into a single credit.
@@ -48,14 +60,10 @@ Additional rules:
 
 ### Commits
 
-End every AI-authored commit message with a `Co-Authored-By` trailer naming the agent, using the vendor's no-reply address:
+End every AI-authored commit message with the agent's `Co-Authored-By` trailer from the table above:
 
 ```
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-```
-
-```
-Co-Authored-By: OpenAI Codex <noreply@openai.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 Keep the directing human as the commit author; the trailer records the agent.
@@ -65,7 +73,7 @@ Keep the directing human as the commit author; the trailer records the agent.
 Place this disclosure immediately below the issue reference, naming the acting agent:
 
 ```
-> Implemented by Claude Opus 5 under @n8chur's direction.
+> Implemented by Claude under @n8chur's direction.
 ```
 
 Add the `AI Generated` label to every PR containing AI-authored changes.
@@ -75,7 +83,7 @@ Add the `AI Generated` label to every PR containing AI-authored changes.
 An agent that files or rewrites an issue discloses that in the issue body, on its own line immediately below the first paragraph or issue reference and before the first section heading:
 
 ```
-> Filed by Claude Opus 5 under @n8chur's direction.
+> Filed by Claude under @n8chur's direction.
 ```
 
 Use `> Drafted by ...` when a human files agent-written text under their own account, and `> Edited by ...` when an agent revises an issue someone else filed — add the line without disturbing existing content. Label AI-written issues `AI Generated` as well.
@@ -85,7 +93,7 @@ Use `> Drafted by ...` when a human files agent-written text under their own acc
 Agent-written comments — PR discussion replies, review comments, review verdicts, and issue comments — end with the same disclosure on its own line:
 
 ```
-> Posted by Claude Opus 5 under @n8chur's direction.
+> Posted by Claude under @n8chur's direction.
 ```
 
 Review bots that comment from their own bot account already identify themselves and need no added line; an agent posting through a human's account always adds one.
