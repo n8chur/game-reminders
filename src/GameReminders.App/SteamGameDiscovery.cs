@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace GameReminders.App;
 
-public sealed class SteamGameDiscovery
+internal sealed class SteamGameDiscovery
 {
     private static readonly string[] ExcludedExecutableFragments =
     [
@@ -25,7 +25,7 @@ public sealed class SteamGameDiscovery
     private const long StateFullyInstalled = 4;
     private const string ManifestPrefix = "appmanifest_";
 
-    public SteamDiscoveryResult Discover() => Discover(null);
+    internal SteamDiscoveryResult Discover() => Discover(null);
 
     /// <summary>
     /// Enumerates installed Steam games. When <paramref name="appIds"/> is supplied only
@@ -37,7 +37,7 @@ public sealed class SteamGameDiscovery
     /// complete scan may be used to conclude that a missing app id means the game is
     /// gone rather than that Steam was temporarily unreadable.
     /// </remarks>
-    public SteamDiscoveryResult Discover(IReadOnlySet<string>? appIds)
+    internal SteamDiscoveryResult Discover(IReadOnlySet<string>? appIds)
     {
         var steamRoot = FindSteamRoot();
         if (steamRoot is null)
