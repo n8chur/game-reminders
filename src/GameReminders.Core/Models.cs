@@ -22,7 +22,32 @@ public sealed record GameSource
     public required string Type { get; init; }
     public string? AppId { get; init; }
     public bool RequiresExecutableReview { get; init; }
+
+    /// <summary>
+    /// What the launcher last reported about the game's files. Defaults to
+    /// <see cref="Core.InstallState.Installed"/> so catalogs written before this
+    /// field existed load unchanged.
+    /// </summary>
+    public InstallState InstallState { get; init; }
     public IReadOnlyList<string> ExecutableCandidates { get; init; } = [];
+}
+
+public enum InstallState
+{
+    /// <summary>The launcher reports the game's files are on disk.</summary>
+    Installed,
+
+    /// <summary>
+    /// The launcher knows the game but has not finished downloading it, so there are
+    /// no executables to map yet and nothing for the user to review.
+    /// </summary>
+    Installing,
+
+    /// <summary>
+    /// The launcher no longer reports the game at all. Any executable mapping is kept
+    /// so it resolves again if the game is reinstalled.
+    /// </summary>
+    NotInstalled
 }
 
 public sealed record Reminder

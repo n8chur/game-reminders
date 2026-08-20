@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly Action<Reminder> _uncompleteReminder;
     private readonly Action _clearCompletedReminders;
     private readonly Action _openICloudFolder;
+    private readonly Action<bool> _setHideUninstalled;
     private bool _updatingLaunchAtLogin;
     private IReadOnlyList<GameListItem> _games = [];
     private IReadOnlyList<PendingGameDetection> _pending = [];
@@ -51,7 +52,9 @@ public partial class MainWindow : Window
         Action<Reminder> deleteReminder,
         Action<Reminder> uncompleteReminder,
         Action clearCompletedReminders,
-        Action openICloudFolder)
+        Action openICloudFolder,
+        bool hideUninstalled,
+        Action<bool> setHideUninstalled)
     {
         InitializeComponent();
         ThemeManager.PrepareWindow(this);
@@ -72,6 +75,8 @@ public partial class MainWindow : Window
         _uncompleteReminder = uncompleteReminder;
         _clearCompletedReminders = clearCompletedReminders;
         _openICloudFolder = openICloudFolder;
+        _setHideUninstalled = setHideUninstalled;
+        HideUninstalledCheck.IsChecked = hideUninstalled;
         LaunchAtLoginCheckBox.IsChecked = launchAtLogin;
         LaunchAtLoginCheckBox.IsEnabled = launchAtLoginAvailable;
         Closing += (_, args) =>
@@ -116,12 +121,27 @@ public partial class MainWindow : Window
         _games = games.Select(game => new GameListItem(
             game,
             unreviewedGameIds.Contains(game.Id),
-            game.Source?.RequiresExecutableReview == true ? "ACTION REQUIRED" :
-                unreviewedGameIds.Contains(game.Id) ? "NEW" : string.Empty)).ToArray();
+            DescribeBadge(game, unreviewedGameIds.Contains(game.Id)))).ToArray();
         ApplyGameFilter(selectedGameId);
         var newCount = _games.Count(item => item.IsUnreviewed);
         MyGamesTab.Header = newCount > 0 ? $"My Games ({newCount} new)" : "My Games";
     }
+
+    // A game can satisfy more than one of these at once, so precedence rather than
+    // validation decides what the row shows. NOT INSTALLED outranks ACTION REQUIRED
+    // because there is nothing to select while the files are gone.
+    internal static string DescribeBadge(GameDefinition game, bool isUnreviewed) =>
+        game.Source?.InstallState switch
+        {
+            InstallState.NotInstalled => GameListItem.NotInstalledBadge,
+            InstallState.Installing => GameListItem.InstallingBadge,
+            _ => game.Source?.RequiresExecutableReview == true ? GameListItem.ActionRequiredBadge :
+                isUnreviewed ? GameListItem.NewBadge : string.Empty
+        };
+
+    internal static bool IsVisibleGame(GameListItem item, string query, bool hideUninstalled) =>
+        Matches(item.Game.Name, query) &&
+        !(hideUninstalled && item.Game.Source?.InstallState == InstallState.NotInstalled);
 
     internal static GameListItem? FindItemByGameId(IEnumerable<GameListItem> items, string? gameId) =>
         string.IsNullOrWhiteSpace(gameId)
@@ -173,7 +193,8 @@ public partial class MainWindow : Window
 
         selectedGameId ??= (GamesList.SelectedItem as GameListItem)?.Game.Id;
         var query = GamesSearchText?.Text?.Trim() ?? string.Empty;
-        var games = _games.Where(item => Matches(item.Game.Name, query)).ToArray();
+        var hideUninstalled = HideUninstalledCheck?.IsChecked == true;
+        var games = _games.Where(item => IsVisibleGame(item, query, hideUninstalled)).ToArray();
         var pending = _pending.Where(item => Matches(item.Name, query)).ToArray();
 
         GamesList.ItemsSource = games;
@@ -182,6 +203,7 @@ public partial class MainWindow : Window
         DetectedCountText.Text = CountLabel(pending.Length, "item");
         GamesList.Visibility = games.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         GamesEmptyText.Visibility = games.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        GamesEmptyText.Text = DescribeEmptyGames(_games.Count, query, hideUninstalled);
         DetectedSection.Visibility = pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         GamesSearchPlaceholder.Visibility = string.IsNullOrWhiteSpace(GamesSearchText?.Text) ? Visibility.Visible : Visibility.Collapsed;
         UpdateSelectionStates();
@@ -220,7 +242,20 @@ public partial class MainWindow : Window
 
     internal static string CountLabel(int count, string singular) => $"{count} {(count == 1 ? singular : singular + "s")}";
 
+    // A list emptied by the hide toggle must not read as "you have no games".
+    internal static string DescribeEmptyGames(int totalGames, string query, bool hideUninstalled) =>
+        totalGames == 0 ? "No games yet. Add one manually or scan Steam."
+        : !string.IsNullOrWhiteSpace(query) ? "No games match this search."
+        : hideUninstalled ? "Every game is hidden because it is not installed. Untick Hide uninstalled to see them."
+        : "No games match this search.";
+
     private void GamesSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyGameFilter();
+
+    private void HideUninstalled_Changed(object sender, RoutedEventArgs e)
+    {
+        ApplyGameFilter();
+        _setHideUninstalled(HideUninstalledCheck.IsChecked == true);
+    }
     private void IgnoredSearchText_Changed(object sender, TextChangedEventArgs e) => ApplyIgnoredFilter();
     private void DismissStatus_Click(object sender, RoutedEventArgs e) => SetStatus(null);
     private void AddGame_Click(object sender, RoutedEventArgs e) => _addGame();
@@ -418,8 +453,19 @@ public partial class MainWindow : Window
 
 internal sealed record GameListItem(GameDefinition Game, bool IsUnreviewed, string Badge)
 {
+    public const string ActionRequiredBadge = "ACTION REQUIRED";
+    public const string InstallingBadge = "INSTALLING";
+    public const string NotInstalledBadge = "NOT INSTALLED";
+    public const string NewBadge = "NEW";
+
     public Visibility BadgeVisibility => string.IsNullOrEmpty(Badge) ? Visibility.Collapsed : Visibility.Visible;
-    public string BadgeBackground => Badge == "ACTION REQUIRED" ? "#B42318" : "#16803A";
+    public string BadgeBackground => Badge switch
+    {
+        ActionRequiredBadge => "#B42318",
+        InstallingBadge => "#1F6FEB",
+        NotInstalledBadge => "#57606A",
+        _ => "#16803A"
+    };
     public string SourceLabel => Game.Source?.Type?.Trim().ToLowerInvariant() switch
     {
         "steam" => "Steam",

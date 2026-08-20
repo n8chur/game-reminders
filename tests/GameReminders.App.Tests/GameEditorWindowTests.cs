@@ -101,4 +101,39 @@ public sealed class GameEditorWindowTests
 
         Assert.True(GameEditorWindow.CanSave(source, []));
     }
+
+    [Fact]
+    public void InstallingGameKeepsSaveEnabledAndExplainsTheWait()
+    {
+        var source = new GameSource { Type = "steam", AppId = "123", InstallState = InstallState.Installing };
+
+        Assert.True(GameEditorWindow.CanSave(source, []));
+        Assert.Equal(
+            "Steam is still installing this game. Detected executables appear automatically when the download finishes.",
+            GameEditorWindow.DescribeExecutableHelp(source, canSave: true));
+    }
+
+    [Fact]
+    public void UninstalledGameExplainsThatItsMappingIsKept()
+    {
+        var source = new GameSource { Type = "steam", AppId = "123", InstallState = InstallState.NotInstalled };
+
+        Assert.True(GameEditorWindow.CanSave(source, []));
+        Assert.Equal(
+            "This game is no longer installed. Its executable paths are kept here and start working again when you reinstall it.",
+            GameEditorWindow.DescribeExecutableHelp(source, canSave: true));
+    }
+
+    [Fact]
+    public void ExecutableHelpFallsBackToTheReviewAndNormalMessages()
+    {
+        var review = new GameSource { Type = "steam", AppId = "123", RequiresExecutableReview = true };
+
+        Assert.Equal(
+            "ACTION REQUIRED: Select a detected path or enter an executable. Save is disabled until resolved.",
+            GameEditorWindow.DescribeExecutableHelp(review, canSave: false));
+        Assert.Equal(
+            "Add every executable that should count as launching this game.",
+            GameEditorWindow.DescribeExecutableHelp(null, canSave: true));
+    }
 }

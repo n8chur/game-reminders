@@ -1,10 +1,11 @@
 using Microsoft.Win32;
+using GameReminders.Core;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace GameReminders.App;
 
-public sealed class SteamGameDiscovery
+internal sealed class SteamGameDiscovery
 {
     private static readonly string[] ExcludedExecutableFragments =
     [
@@ -18,27 +19,58 @@ public sealed class SteamGameDiscovery
     private static readonly Regex QuotedPair = new(
         "\\\"(?<key>[^\\\"]+)\\\"\\s+\\\"(?<value>[^\\\"]*)\\\"",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    // Valve's EAppState bit meaning the payload is on disk. Steam sets it when an
+    // install finishes and leaves it set through later updates, so its absence means
+    // Steam is still downloading, staging, or committing files.
+    private const long StateFullyInstalled = 4;
+    private const string ManifestPrefix = "appmanifest_";
 
-    public IReadOnlyList<PendingGameDetection> Discover()
+    internal SteamDiscoveryResult Discover() => Discover(null);
+
+    /// <summary>
+    /// Enumerates installed Steam games. When <paramref name="appIds"/> is supplied only
+    /// those apps are inspected, which keeps an install-completion poll from re-walking
+    /// every library for executables.
+    /// </summary>
+    /// <remarks>
+    /// The result reports whether every library was enumerated without error. Only a
+    /// complete scan may be used to conclude that a missing app id means the game is
+    /// gone rather than that Steam was temporarily unreadable.
+    /// </remarks>
+    internal SteamDiscoveryResult Discover(IReadOnlySet<string>? appIds)
     {
         var steamRoot = FindSteamRoot();
         if (steamRoot is null)
         {
-            return [];
+            return new SteamDiscoveryResult([], LibrariesFullyEnumerated: false);
         }
 
-        var libraries = FindLibraries(steamRoot).Append(steamRoot).Distinct(StringComparer.OrdinalIgnoreCase);
+        var fullyEnumerated = true;
+        var libraries = FindLibraries(steamRoot, out var librariesResolved)
+            .Append(steamRoot)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        fullyEnumerated &= librariesResolved;
         var results = new Dictionary<string, PendingGameDetection>(StringComparer.OrdinalIgnoreCase);
         foreach (var library in libraries)
         {
             var steamApps = Path.Combine(library, "steamapps");
             if (!Directory.Exists(steamApps))
             {
+                // A library Steam still lists but whose contents we cannot see. Treat the
+                // scan as incomplete rather than concluding its games were uninstalled.
+                fullyEnumerated = false;
                 continue;
             }
 
-            foreach (var manifest in EnumerateManifestFiles(steamApps))
+            var manifests = EnumerateManifestFiles(steamApps, out var manifestsListed);
+            fullyEnumerated &= manifestsListed;
+            foreach (var manifest in manifests)
             {
+                if (!ShouldReadManifest(manifest, appIds))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var values = ParsePairs(File.ReadAllText(manifest))
@@ -53,33 +85,68 @@ public sealed class SteamGameDiscovery
                 catch (IOException)
                 {
                     // Steam or a sync/backup tool may be updating a manifest. Retry later.
+                    fullyEnumerated = false;
                 }
                 catch (UnauthorizedAccessException)
                 {
                     // A library can be present but temporarily inaccessible.
+                    fullyEnumerated = false;
                 }
             }
         }
 
-        return results.Values.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        return new SteamDiscoveryResult(
+            results.Values.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase).ToArray(),
+            fullyEnumerated);
     }
 
     internal static IReadOnlyList<string> EnumerateManifestFiles(
         string steamApps,
+        out bool succeeded,
         Func<string, string, IEnumerable<string>>? enumerateFiles = null)
     {
         try
         {
-            return (enumerateFiles ?? Directory.EnumerateFiles)(steamApps, "appmanifest_*.acf").ToArray();
+            var manifests = (enumerateFiles ?? Directory.EnumerateFiles)(steamApps, "appmanifest_*.acf").ToArray();
+            succeeded = true;
+            return manifests;
         }
         catch (IOException)
         {
+            succeeded = false;
             return [];
         }
         catch (UnauthorizedAccessException)
         {
+            succeeded = false;
             return [];
         }
+    }
+
+    internal static bool ShouldReadManifest(string manifestPath, IReadOnlySet<string>? appIds)
+    {
+        if (appIds is null)
+        {
+            return true;
+        }
+
+        var filename = Path.GetFileNameWithoutExtension(manifestPath);
+        return filename.StartsWith(ManifestPrefix, StringComparison.OrdinalIgnoreCase) &&
+            appIds.Contains(filename[ManifestPrefix.Length..]);
+    }
+
+    // Discovery never yields NotInstalled: a detection exists only because a manifest does.
+    internal static InstallState ResolveInstallState(IReadOnlyDictionary<string, string> values, bool hasExecutables)
+    {
+        if (values.TryGetValue("StateFlags", out var rawFlags) &&
+            long.TryParse(rawFlags.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var flags))
+        {
+            return (flags & StateFullyInstalled) == 0 ? InstallState.Installing : InstallState.Installed;
+        }
+
+        // Without a readable state, fall back to the naive signal: a manifest whose
+        // install directory holds no executables is treated as still installing.
+        return hasExecutables ? InstallState.Installed : InstallState.Installing;
     }
 
     internal static PendingGameDetection? CreateDetection(
@@ -111,6 +178,8 @@ public sealed class SteamGameDiscovery
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var installState = ResolveInstallState(values, candidates.Length > 0);
+        var installing = installState == InstallState.Installing;
         var selection = SelectExecutable(name, candidates);
         return new PendingGameDetection
         {
@@ -118,7 +187,8 @@ public sealed class SteamGameDiscovery
             Name = name,
             Processes = selection.Process is null ? [] : [selection.Process],
             CandidateProcesses = candidates,
-            RequiresExecutableReview = selection.Process is null,
+            RequiresExecutableReview = !installing && selection.Process is null,
+            InstallState = installState,
             SourceType = "steam",
             AppId = appId
         };
@@ -139,28 +209,37 @@ public sealed class SteamGameDiscovery
         return null;
     }
 
-    private static IEnumerable<string> FindLibraries(string steamRoot)
+    private static IReadOnlyList<string> FindLibraries(string steamRoot, out bool succeeded)
     {
         var path = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
         if (!File.Exists(path))
         {
+            // Steam without a library file keeps its games under the root library, which
+            // is a complete answer rather than a failure to look.
+            succeeded = true;
             return [];
         }
 
         try
         {
-            return ParsePairs(File.ReadAllText(path))
+            var listed = ParsePairs(File.ReadAllText(path))
                 .Where(pair => string.Equals(pair.Key, "path", StringComparison.OrdinalIgnoreCase))
                 .Select(pair => pair.Value.Replace("\\\\", "\\"))
-                .Where(Directory.Exists)
                 .ToArray();
+            var present = listed.Where(Directory.Exists).ToArray();
+            // A listed library that is not mounted, such as an external drive, hides its
+            // games from this scan.
+            succeeded = present.Length == listed.Length;
+            return present;
         }
         catch (IOException)
         {
+            succeeded = false;
             return [];
         }
         catch (UnauthorizedAccessException)
         {
+            succeeded = false;
             return [];
         }
     }
@@ -277,3 +356,11 @@ public sealed class SteamGameDiscovery
 }
 
 internal sealed record ExecutableSelection(string? Process, int Score);
+
+/// <summary>
+/// Games Steam reported, plus whether every library was read without error. Absence of an
+/// app id only means the game is gone when <paramref name="LibrariesFullyEnumerated"/> is true.
+/// </summary>
+internal sealed record SteamDiscoveryResult(
+    IReadOnlyList<PendingGameDetection> Games,
+    bool LibrariesFullyEnumerated);
