@@ -1,9 +1,9 @@
 const PORTABLE_URL =
-  "https://github.com/n8chur/game-reminders/releases/download/v0.0.2/GameReminders-0.0.2-win-x64-portable.zip";
+  "https://github.com/n8chur/game-reminders/releases/download/v0.0.3/GameReminders-0.0.3-win-x64-portable.zip";
 const INSTALLER_URL =
-  "https://github.com/n8chur/game-reminders/releases/download/v0.0.2/GameReminders-0.0.2-win-x64-setup.exe";
+  "https://github.com/n8chur/game-reminders/releases/download/v0.0.3/GameReminders-0.0.3-win-x64-setup.exe";
 const SHORTCUT_URL =
-  "https://github.com/n8chur/game-reminders/releases/download/v0.0.2/Game-Reminder.shortcut";
+  "https://github.com/n8chur/game-reminders/releases/download/v0.0.3/Game-Reminder.shortcut";
 const ICLOUD_WINDOWS_URL = "https://www.microsoft.com/store/apps/9PKTQ5699M62";
 
 const features = [
@@ -40,7 +40,7 @@ export default function Home() {
       <section className="hero" id="top">
         <div className="hero-copy">
           <div className="eyebrow-row">
-            <span className="eyebrow">Alpha · v0.0.2</span>
+            <span className="eyebrow">Alpha · v0.0.3</span>
             <span className="platform">Windows 10 &amp; 11 · x64</span>
           </div>
           <h1>Remember what you meant to do <em>when you launch the game.</em></h1>
@@ -65,7 +65,7 @@ export default function Home() {
                 <span>It saves reminder files to iCloud Drive. Install iCloud for Windows so those files can sync to your PC.</span>
               </div>
               <div className="sync-actions">
-                <a href={SHORTCUT_URL} aria-label="Download Game-Reminder.shortcut from the v0.0.2 release">Download Game Reminder Shortcut</a>
+                <a href={SHORTCUT_URL} aria-label="Download Game-Reminder.shortcut from the v0.0.3 release">Download Game Reminder Shortcut</a>
                 <a href={ICLOUD_WINDOWS_URL}>Get iCloud for Windows</a>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function Home() {
         </div>
         <div className="download-panel-actions">
           <a className="button button-light" href={INSTALLER_URL}>Download installer</a>
-          <a className="release-link" href="https://github.com/n8chur/game-reminders/releases/tag/v0.0.2">View release details</a>
+          <a className="release-link" href="https://github.com/n8chur/game-reminders/releases/tag/v0.0.3">View release details</a>
         </div>
       </section>
 
