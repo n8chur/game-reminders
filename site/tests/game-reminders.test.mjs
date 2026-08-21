@@ -23,19 +23,19 @@ test("renders the Game Reminders landing page and release downloads", async () =
 
   const html = await response.text();
   assert.match(html, /Game Reminders — Remember when you launch/);
-  assert.match(html, /Alpha · v0\.0\.2/);
+  assert.match(html, /Alpha · v0\.0\.3/);
   assert.match(html, /Download installer/);
   assert.match(html, /Download portable/);
   assert.match(html, /Download Game Reminder Shortcut/);
-  assert.match(html, /Download Game-Reminder\.shortcut from the v0\.0\.2 release/);
-  assert.match(html, /releases\/download\/v0\.0\.2\/Game-Reminder\.shortcut/);
+  assert.match(html, /Download Game-Reminder\.shortcut from the v0\.0\.3 release/);
+  assert.match(html, /releases\/download\/v0\.0\.3\/Game-Reminder\.shortcut/);
   assert.match(html, /Get iCloud for Windows/);
   assert.match(html, /9PKTQ5699M62/);
   assert.match(html, /Install iCloud for Windows so those files can sync to your PC/);
-  assert.match(html, /GameReminders-0\.0\.2-win-x64-setup\.exe/);
-  assert.match(html, /GameReminders-0\.0\.2-win-x64-portable\.zip/);
-  assert.match(html, /releases\/tag\/v0\.0\.2/);
-  assert.doesNotMatch(html, /v0\.0\.1/);
+  assert.match(html, /GameReminders-0\.0\.3-win-x64-setup\.exe/);
+  assert.match(html, /GameReminders-0\.0\.3-win-x64-portable\.zip/);
+  assert.match(html, /releases\/tag\/v0\.0\.3/);
+  assert.doesNotMatch(html, /v0\.0\.2/);
   assert.match(html, /A tiny utility with one job/);
   assert.match(html, /From download to first reminder/);
   assert.doesNotMatch(html, /Example game reminder/);

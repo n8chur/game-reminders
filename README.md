@@ -12,19 +12,19 @@ The Windows download is self-contained; installing the .NET SDK or runtime is no
 
 ## Supported features and limitations
 
-Game Reminders supports multiple pending and completed reminders, in-app reminder creation, a cross-device Apple Shortcut, manual executable mapping, automatic Steam discovery, conservative foreground-game discovery, multiple executable paths per game, per-user launch at login, light and dark Windows themes, and notification-area operation.
+Game Reminders supports multiple pending and completed reminders, in-app reminder creation, a cross-device Apple Shortcut, manual executable mapping, automatic Steam discovery, conservative foreground-game discovery, multiple executable paths per game, derived install state for installing and uninstalled games, per-user launch at login, light and dark Windows themes, and notification-area operation.
 
-Version 0.0.2 supports Windows x64 only. Steam is the only launcher with automatic library discovery; other games require manual mapping or review of a foreground discovery. iCloud Drive is required for synchronization, and the app does not provide remote accounts, shared lists, automatic updates, telemetry, or crash reporting. The Windows packages are unsigned.
+Version 0.0.3 supports Windows x64 only. Steam is the only launcher with automatic library discovery; other games require manual mapping or review of a foreground discovery. iCloud Drive is required for synchronization, and the app does not provide remote accounts, shared lists, automatic updates, telemetry, or crash reporting. The Windows packages are unsigned.
 
 ## Install on Windows
 
 Download one of these files from the latest [GitHub Release](https://github.com/n8chur/game-reminders/releases):
 
-- `GameReminders-0.0.2-win-x64-setup.exe` is the recommended installer. It installs for the current user, adds a Start Menu entry and uninstaller, enables launch at sign-in by default, and can optionally create a desktop shortcut.
-- `GameReminders-0.0.2-win-x64-portable.zip` contains the same application without an installer. Extract the complete ZIP to a permanent folder before running `GameReminders.exe`.
+- `GameReminders-0.0.3-win-x64-setup.exe` is the recommended installer. It installs for the current user, adds a Start Menu entry and uninstaller, enables launch at sign-in by default, and can optionally create a desktop shortcut.
+- `GameReminders-0.0.3-win-x64-portable.zip` contains the same application without an installer. Extract the complete ZIP to a permanent folder before running `GameReminders.exe`.
 - `Game-Reminder.shortcut` is the validated Apple Shortcut for creating reminders from iPhone or Mac.
 
-Version 0.0.2 is not code-signed. Windows may show a Microsoft Defender SmartScreen warning because it cannot verify the publisher. Confirm that the file came from this repository's Releases page before choosing **More info** and **Run anyway**. Do not bypass a warning for a copy from another source.
+Version 0.0.3 is not code-signed. Windows may show a Microsoft Defender SmartScreen warning because it cannot verify the publisher. Confirm that the file came from this repository's Releases page before choosing **More info** and **Run anyway**. Do not bypass a warning for a copy from another source.
 
 ### First launch
 
@@ -129,7 +129,7 @@ Open the Windows app and confirm it is pointed at `iCloud Drive/Shortcuts/Game R
 
 ### Windows blocks the download
 
-Version 0.0.2 is unsigned. Download it only from this repository's Releases page, inspect the warning, and use **More info > Run anyway** if the source and filename are correct.
+Version 0.0.3 is unsigned. Download it only from this repository's Releases page, inspect the warning, and use **More info > Run anyway** if the source and filename are correct.
 
 ### Settings are malformed or the store is unavailable
 
@@ -145,6 +145,6 @@ dotnet test GameReminders.slnx --configuration Release --no-restore
 dotnet build GameReminders.slnx --configuration Release --no-restore
 ```
 
-Pull requests build and validate the app, Shortcut, portable ZIP, and Inno Setup installer. Pushing a tag that exactly matches the centralized version—for example `v0.0.2`—publishes both Windows packages and the validated Apple Shortcut to a GitHub Release.
+Pull requests build and validate the app, Shortcut, portable ZIP, and Inno Setup installer. Pushing a tag that exactly matches the centralized version—for example `v0.0.3`—publishes both Windows packages and the validated Apple Shortcut to a GitHub Release.
 
 Release operators should complete [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) before publishing the version tag.
