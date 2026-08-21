@@ -13,7 +13,7 @@ public partial class MainWindow : Window
     private readonly Action _addGame;
     private readonly Action<GameDefinition> _editGame;
     private readonly Action<GameDefinition> _removeGame;
-    private readonly Action _scanSteam;
+    private readonly Action _scanGames;
     private readonly Action<PendingGameDetection> _configureDetection;
     private readonly Action<PendingGameDetection> _ignoreDetection;
     private readonly Action<IgnoredDiscoveryItem> _restoreIgnored;
@@ -37,7 +37,7 @@ public partial class MainWindow : Window
         Action addGame,
         Action<GameDefinition> editGame,
         Action<GameDefinition> removeGame,
-        Action scanSteam,
+        Action scanGames,
         Action<PendingGameDetection> configureDetection,
         Action<PendingGameDetection> ignoreDetection,
         Action<IgnoredDiscoveryItem> restoreIgnored,
@@ -61,7 +61,7 @@ public partial class MainWindow : Window
         _addGame = addGame;
         _editGame = editGame;
         _removeGame = removeGame;
-        _scanSteam = scanSteam;
+        _scanGames = scanGames;
         _configureDetection = configureDetection;
         _ignoreDetection = ignoreDetection;
         _restoreIgnored = restoreIgnored;
@@ -244,7 +244,7 @@ public partial class MainWindow : Window
 
     // A list emptied by the hide toggle must not read as "you have no games".
     internal static string DescribeEmptyGames(int totalGames, string query, bool hideUninstalled) =>
-        totalGames == 0 ? "No games yet. Add one manually or scan Steam."
+        totalGames == 0 ? "No games yet. Add one manually or choose Scan games."
         : !string.IsNullOrWhiteSpace(query) ? "No games match this search."
         : hideUninstalled ? "Every game is hidden because it is not installed. Untick Hide uninstalled to see them."
         : "No games match this search.";
@@ -267,7 +267,7 @@ public partial class MainWindow : Window
     {
         if (GamesList.SelectedItem is GameListItem item) _removeGame(item.Game);
     }
-    private void ScanSteam_Click(object sender, RoutedEventArgs e) => _scanSteam();
+    private void ScanGames_Click(object sender, RoutedEventArgs e) => _scanGames();
     private void NewReminder_Click(object sender, RoutedEventArgs e) => _newReminder();
     private void ReminderList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {

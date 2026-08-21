@@ -34,7 +34,7 @@ Version 0.0.2 is not code-signed. Windows may show a Microsoft Defender SmartScr
 4. Game Reminders creates or opens the fixed `Game Reminders` child folder and verifies that it is usable.
 5. Allow the app to request **Always keep on this device** for that child folder. If iCloud rejects the request, apply that option to the folder in File Explorer and retry.
 6. Confirm **Launch Game Reminders when I sign in to Windows**. Installer users begin with this enabled unless they cleared the installer option; portable users can opt in here.
-7. Add a game manually or choose **Scan Steam**.
+7. Add a game manually or choose **Scan games**.
 
 The resulting authoritative folder is:
 
@@ -60,11 +60,13 @@ Run **Game Reminder**, select a registered game, and dictate or type the reminde
 
 Use the **Games** view to add, search, edit, or remove game mappings.
 
-- **Scan Steam** discovers installed Steam games. A confident executable match is added automatically.
+- **Scan games** discovers installed Steam games and re-checks the executables every other game is mapped to. A confident executable match is added automatically.
 - **NEW** identifies a discovery that has not yet been reviewed.
 - **INSTALLING** means Steam is still downloading the game, so it has no executables yet. The entry resolves itself within about 30 seconds of the install completing; no rescan is needed. If you cancel the download, the entry is dropped automatically rather than left behind, and reinstalling adds it back.
 
-- **NOT INSTALLED** means Steam no longer reports the game. Its executable paths and reminders are kept and start working again when you reinstall it. Use **Hide uninstalled** above the games list to keep these out of the way. You do not need to remove such a game; **Remove** is for games you never want scans to add back.
+- **NOT INSTALLED** means the game's files are gone: Steam no longer reports it, or the executables a manual or detected game is mapped to are missing from a drive that is currently attached. Its executable paths and reminders are kept and start working again when you reinstall it. Use **Hide uninstalled** above the games list to keep these out of the way. You do not need to remove such a game; **Remove** is for games you never want scans to add back.
+
+  Install state is always derived, never declared: it is re-checked at startup, whenever you save a game in the editor, when you choose **Scan games**, and about every ten minutes in the background while no monitored game is running. A mapping that names only a filename rather than a full path, or a path on a drive that is not currently attached, is left alone rather than flagged — edit the game and pick the real `.exe` to make it checkable.
 
 - **ACTION REQUIRED** means executable selection was ambiguous. Open the game, select or enter the correct executable path, and save it before relying on launch detection.
 - Manual games can use **Browse** to select one or more `.exe` files.
@@ -86,7 +88,7 @@ Closing a popup, closing the main window, shutting down Windows, or an applicati
 
 ## Notification area and startup
 
-Closing the main window leaves Game Reminders running in the Windows notification area so it can detect game launches. The tray menu can reopen the window, open the iCloud folder, scan Steam, or fully exit. Use **Launch at login** in the main window to change the current user's startup registration; it does not require administrator privileges.
+Closing the main window leaves Game Reminders running in the Windows notification area so it can detect game launches. The tray menu can reopen the window, open the iCloud folder, scan games, or fully exit. Use **Launch at login** in the main window to change the current user's startup registration; it does not require administrator privileges.
 
 The client scans for reminders on startup, after filesystem changes, before showing a popup, and every 60 seconds as a fallback. Files should be available offline because the complete `Game Reminders` folder is pinned with **Always keep on this device**.
 
